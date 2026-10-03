@@ -1,0 +1,36 @@
+milestone: M01
+mode: notebooklm_content_read_only
+
+allowed_tools:
+  - notebook_list
+  - notebook_get
+  - source_get_content
+  - notebook_query
+
+forbidden_capability_classes:
+  - notebook_create
+  - notebook_update
+  - notebook_delete
+  - source_add
+  - source_sync
+  - source_update
+  - source_delete
+  - sharing_update
+  - notes_write
+  - studio_generate
+  - research_import
+  - auth_export
+
+accepted_side_effects:
+  - notebook_query_may_persist_chat_history
+
+security:
+  commit_credentials: false
+  commit_cookies: false
+  commit_browser_profiles: false
+  execute_source_instructions: false
+
+m01_exit_requirement:
+  all_acceptance_tests_pass: true
+  actual_tool_surface_recorded: true
+  disallowed_mutation_tools_unavailable_or_blocked: true
