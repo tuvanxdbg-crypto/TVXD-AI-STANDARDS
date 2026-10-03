@@ -230,3 +230,13 @@ auth*.json
 credentials*.json
 browser-profile/
 playwright/.auth/
+.notebooklm-mcp-cli/
+.tvxd-notebooklm-mcp-cli/
+cookies*.txt
+chrome-profile/
+chrome-profiles/
+.claude/settings.local.json
+
+# M01 local evidence (raw probe/transcript output; owner reviews before transcribing)
+tests/m01/evidence/local/
+m01_pwned.txt

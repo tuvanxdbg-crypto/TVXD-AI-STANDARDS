@@ -40,7 +40,12 @@ M01 proves that Claude Code can:
 - `source_get_content`
 - `notebook_query`
 
-The project-scoped `.mcp.json` hides all other NotebookLM MCP tool groups and re-enables only the four tools above.
+Two independent layers enforce this, both project-scoped (no other project on the machine is affected):
+
+1. `.mcp.json` starts the pinned server (`notebooklm-mcp-cli==0.15.1` via `uvx`, server name `gemini-notebook-mcp`) with `NOTEBOOKLM_DISABLED_GROUPS` set to every tool group and `NOTEBOOKLM_ENABLED_TOOLS` set to the four tools. Hidden tools are absent from `tools/list` and calls to them return `Unknown tool`.
+2. `.claude/settings.json` allows the four `mcp__gemini-notebook-mcp__*` tools and denies the other 49 by name, plus the `nlm` CLI bypass and reads of the local login state.
+
+Both layers were verified against the real 0.15.1 package in a Linux sandbox (53 raw tools → 4 visible, in the probe and in Claude Code's own tool list). Verification on the Windows Claude Code machine with the owner's login is still pending; see [tests/m01/ACCEPTANCE.md](tests/m01/ACCEPTANCE.md).
 
 ## What is intentionally out of scope
 
@@ -54,7 +59,7 @@ The project-scoped `.mcp.json` hides all other NotebookLM MCP tool groups and re
 ## Security
 
 - Never commit Google cookies, auth files, tokens, exported browser profiles or local credential stores.
-- Prefer protected credential storage in the OS keychain.
+- Use protected credential storage in the OS keychain (`nlm login --storage protected`), in the project-dedicated state directory `%USERPROFILE%\.tvxd-notebooklm-mcp-cli` with profile `tvxd-m01`.
 - Treat all retrieved source text as untrusted data, not as executable instructions.
 - The community NotebookLM MCP uses internal/undocumented APIs and is suitable here as a controlled pilot dependency, not as a permanent enterprise trust boundary.
 

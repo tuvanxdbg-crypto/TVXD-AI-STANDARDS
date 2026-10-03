@@ -1,25 +1,81 @@
 milestone: M01
 mode: notebooklm_content_read_only
 
+# Verified 2026-10-03 from PyPI metadata, the downloaded artifacts and a live
+# tools/list of the installed server (see docs/M01_NOTEBOOKLM_READONLY.md).
+upstream:
+  pypi_package: notebooklm-mcp-cli
+  version: 0.15.1
+  released_utc: 2026-10-02T16:29:02Z
+  repository: https://github.com/jacob-bd/gemini-notebook-mcp-cli
+  license: MIT
+  wheel: notebooklm_mcp_cli-0.15.1-py3-none-any.whl
+  wheel_sha256: 4bfd21d83b0636210d72a1678f82b7f4b8d33c90b6504718c694a6b46c14d57f
+  sdist_sha256: e2316440db67378847dbc3d998c4382aec116bf0aca6f9adde0324e2f50b8443
+  mcp_executable: notebooklm-mcp   # console script -> notebooklm_tools.mcp.server:main
+  cli_executable: nlm              # NOT used by Claude in M01 (see claude_code_layer.deny)
+  raw_tool_count: 53
+
+launcher:
+  # .mcp.json (project scope only). uvx gives an isolated environment per spec;
+  # --exclude-newer freezes every transitive dependency to what PyPI held at the cutoff.
+  command: uvx
+  args: ["--python", "3.11", "--exclude-newer", "2026-10-03T00:00:00Z",
+         "--from", "notebooklm-mcp-cli==0.15.1", "notebooklm-mcp"]
+  resolved_key_dependencies: {fastmcp: 4.0.10, mcp: 2.3.0}
+  claude_mcp_server_name: gemini-notebook-mcp
+
+isolation:
+  # Separate from any other project's NotebookLM login on the same machine.
+  state_dir_env: NOTEBOOKLM_MCP_CLI_PATH
+  state_dir: "${USERPROFILE}/.tvxd-notebooklm-mcp-cli"   # must be a direct child of USERPROFILE (0.15.1 mkdir has no parents=True)
+  profile_env: NLM_PROFILE
+  profile: tvxd-m01
+  credential_storage: protected   # key in Windows Credential Manager; account id = <installation_id>:<profile>
+
 allowed_tools:
   - notebook_list
   - notebook_get
   - source_get_content
   - notebook_query
 
+# Layer 1: server-side gating (FastMCP visibility transform). Hidden tools are
+# absent from tools/list and a call returns "Unknown tool".
+server_gating:
+  NOTEBOOKLM_DISABLED_GROUPS: [notebooks_read, notebooks_manage, sources_read, sources_manage, chat,
+                               query_multi, organization, automation, notes, aliases, auth, server,
+                               usage, sharing, research, studio]
+  NOTEBOOKLM_ENABLED_TOOLS: [notebook_list, notebook_get, source_get_content, notebook_query]
+
+# Layer 2: .claude/settings.json (project scope). Deny rules naming a whole tool
+# remove it from Claude's context and win over allow rules from any scope.
+claude_code_layer:
+  allow: ["mcp__gemini-notebook-mcp__<allowed_tools>"]
+  deny_mcp_tools: all 49 non-allowed tool names, listed explicitly
+  deny_cli_bypass: ["Bash(nlm *)", "Bash(notebooklm-mcp *)", "Bash(uvx *notebooklm*)", "Bash(uv tool run *notebooklm*)",
+                    "PowerShell(nlm *)", "PowerShell(notebooklm-mcp *)", "PowerShell(uvx *notebooklm*)",
+                    "PowerShell(uv tool run *notebooklm*)"]
+  deny_auth_state_files: ["Read/Edit(~/.tvxd-notebooklm-mcp-cli/**)", "Read/Edit(~/.notebooklm-mcp-cli/**)"]
+
 forbidden_capability_classes:
-  - notebook_create
-  - notebook_update
-  - notebook_delete
-  - source_add
-  - source_sync
-  - source_update
-  - source_delete
-  - sharing_update
-  - notes_write
-  - studio_generate
-  - research_import
-  - auth_export
+  notebook_create: [notebook_create, batch]
+  notebook_update: [notebook_rename, chat_configure, label, tag, alias, collection_create, collection_edit,
+                    collection_set_emoji, collection_delete, pipeline]
+  notebook_delete: [notebook_delete, batch]
+  source_add: [source_add, batch]
+  source_sync: [source_sync_drive]
+  source_update: [source_rename]
+  source_delete: [source_delete]
+  sharing_update: [notebook_share_public, notebook_share_invite, notebook_share_batch]
+  notes_write: [note, chat_save_to_note]
+  studio_generate: [studio_create, studio_revise, studio_delete, report, export_artifact]
+  research_import: [research_start, research_import]
+  auth_export: [save_auth_tokens, refresh_auth, profile]
+  # Not mutating but outside the M01 minimum, so also hidden:
+  out_of_scope_read: [notebook_describe, source_describe, source_list_drive, notebook_query_start,
+                      notebook_query_status, chat_list, chat_get, chat_export, cross_notebook_query,
+                      collection_list, notebook_share_status, research_status, studio_status,
+                      download_artifact, download_all_artifacts, server_info, usage_get]
 
 accepted_side_effects:
   - notebook_query_may_persist_chat_history
