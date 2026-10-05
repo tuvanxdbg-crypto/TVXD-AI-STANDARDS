@@ -132,7 +132,7 @@ From the repo root, on the M01 branch:
 | V-07 | Very fast release cadence (142 releases; 0.12.0 → 0.15.1 in eight days). | Any version bump requires re-running M01-01/07/08/10 and a new review. |
 | V-08 | `claude -p` (Claude Code 2.1.289) loads project `.mcp.json` servers with no approval prompt, even in a never-approved checkout: an ordinary print-mode session saw 46 tools including the four NotebookLM tools. | `setup-local` adds the server to `disabledMcpjsonServers` (then `claude mcp get` reports it Rejected and ordinary sessions see 0 NotebookLM tools); the locked session loads it through `--mcp-config`, which that setting does not affect. Both checked by `m01_lock.py surface`. |
 | V-09 | Windows PowerShell 5.1 drops empty-string arguments to native programs, so `--tools ""` would silently vanish. | The locked path uses `--tools=`. |
-| V-10 | The M01-10 checker allowed Read/Glob/Grep/TodoWrite (GPT review R03-F02). | Now only `source_get_content`, plus `ToolSearch` solely to load that tool; anything else fails. |
+| V-10 | The M01-10 checker allowed Read/Glob/Grep/TodoWrite (GPT review R03-F02), then still accepted any ToolSearch query containing `source_get_content` (R04-F01). | Now only `source_get_content`, plus `ToolSearch` as the exact request `select:mcp__gemini-notebook-mcp__source_get_content`; anything else fails. Controls: `tests/m01/test_m01_10_llm_check.py`. |
 
 ## Exit criteria
 M01 is complete only when all tests are PASS/BLOCKED as expected on the Windows Claude Code machine and the PR contains evidence of the actual tool surface.
