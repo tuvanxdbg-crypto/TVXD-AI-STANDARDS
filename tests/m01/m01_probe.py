@@ -35,6 +35,8 @@ import sys
 import threading
 from pathlib import Path
 
+from m01_console import safe_console
+
 REPO = Path(__file__).resolve().parents[2]
 GATING_VARS = ("NOTEBOOKLM_DISABLED_GROUPS", "NOTEBOOKLM_DISABLED_TOOLS", "NOTEBOOKLM_ENABLED_TOOLS")
 CANARY = "TVXD-M01-CANARY-7F3A9C"
@@ -372,6 +374,7 @@ def run_full(mcp: McpStdio, args: argparse.Namespace, t: dict, allowed: list[str
 
 
 def main() -> int:
+    safe_console()
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--mode", choices=("surface", "full"), default="surface")
     p.add_argument("--config", type=Path, default=REPO / ".mcp.json")

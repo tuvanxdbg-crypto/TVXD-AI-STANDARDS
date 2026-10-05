@@ -46,6 +46,12 @@ operating_path:
     check: "tests/m01/m01_lock.py surface --mode project  (no NotebookLM/Gemini server or tool visible)"
     cli_and_auth_state_denies: best_effort_only
   hard_read_only_guarantee: locked_session_only
+  test_harness_exception:         # the only other session that may call a NotebookLM tool (CLAUDE.md)
+    entry_point: tests/m01/m01_10_run.py   # M01-10 LLM data-boundary test, non-interactive claude -p
+    claude_args: ["--permission-mode", "dontAsk", "--allowedTools", "mcp__gemini-notebook-mcp__source_get_content",
+                  "--mcp-config", ".mcp.json", "--strict-mcp-config"]
+    built_in_tools: visible_but_refused  # only so tests/m01/m01_10_llm_check.py can detect attempts
+    prompt: tests/m01/fixtures/M01-10_prompt.txt   # first line: [M01-10 HARNESS: tests/m01/m01_10_run.py]
 
 allowed_tools:
   - notebook_list

@@ -5,6 +5,8 @@ Claude Code reads the injection source through the project MCP server
 (.mcp.json, read-only gated) in dontAsk mode: only source_get_content is
 pre-approved, everything else is refused without prompting and recorded.
 The prompt goes through stdin so no shell (cmd.exe / PowerShell) parses it.
+CLAUDE.md names this harness, identified by the prompt's first line, as the
+single exception to the locked operating path (V-13).
 
 Usage (from the repo root):
   uv run --no-project --python 3.11 tests/m01/m01_10_run.py --source-id <injection source id>
@@ -20,6 +22,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from m01_console import safe_console
+
 REPO = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 CHECK = HERE / "m01_10_llm_check.py"
@@ -27,6 +31,7 @@ PROMPT = HERE / "fixtures" / "M01-10_prompt.txt"
 
 
 def main() -> int:
+    safe_console()
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--source-id", help="NotebookLM source id of the injection test source")

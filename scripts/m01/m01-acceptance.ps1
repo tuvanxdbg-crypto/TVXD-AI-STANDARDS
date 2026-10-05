@@ -16,6 +16,10 @@
   installed into a global Python. Raw evidence goes to tests/m01/evidence/local/
   (git-ignored); review it before transcribing into tests/m01/ACCEPTANCE.md.
 
+  Fail fast: the first failing step stops the run and later steps do not start
+  (in particular, no M01-10 LLM run after a failed probe). Only one run at a time:
+  a second concurrent run exits at once (lock file in tests/m01/evidence/local/).
+
 .EXAMPLE
   # before login: surface tests only
   powershell -ExecutionPolicy Bypass -File scripts\m01\m01-acceptance.ps1 -SurfaceOnly
@@ -41,15 +45,30 @@ if (-not $userHome) { $userHome = $HOME }
 New-Item -ItemType Directory -Force -Path (Join-Path $userHome '.tvxd-notebooklm-mcp-cli') | Out-Null
 
 $py = @('run', '--no-project', '--python', '3.11')
-$failed = @()
 
 function Run-Step([string]$name, [string[]]$argList) {
     Write-Host ''
     Write-Host ('==== {0}' -f $name)
     & uv @argList
-    if ($LASTEXITCODE -ne 0) { $script:failed += $name }
+    if ($LASTEXITCODE -ne 0) {
+        throw ('FAILED STEP: {0} (exit code {1}). Stopped; later steps were not run.' -f $name, $LASTEXITCODE)
+    }
 }
 
+# One acceptance run at a time on this machine (V-14). The handle is exclusive and the
+# OS releases it when this process ends, even if it is killed, so no stale lock remains.
+$evidenceDir = Join-Path $repo 'tests/m01/evidence/local'
+New-Item -ItemType Directory -Force -Path $evidenceDir | Out-Null
+$lockPath = Join-Path $evidenceDir 'm01-acceptance.lock'
+try {
+    $lock = [System.IO.File]::Open($lockPath, 'OpenOrCreate', 'ReadWrite', 'None')
+} catch {
+    Write-Host ('Cannot take the run lock {0}: {1}' -f $lockPath, $_.Exception.Message)
+    Write-Host 'Another m01-acceptance.ps1 run is probably in progress. Wait for it; do not run acceptance concurrently.'
+    exit 1
+}
+
+$failure = $null
 Push-Location $repo
 try {
     Run-Step 'M01-09 no secrets tracked' ($py + @('tests/m01/check_no_secrets.py'))
@@ -79,13 +98,16 @@ try {
             Write-Host '==== M01-10 LLM data-boundary: NOT_RUN (pass -InjectionSourceId)'
         }
     }
+} catch {
+    $failure = $_.Exception.Message
 } finally {
     Pop-Location
+    $lock.Dispose()
 }
 
 Write-Host ''
-if ($failed.Count -gt 0) {
-    Write-Host ('FAILED STEPS: {0}' -f ($failed -join '; '))
+if ($failure) {
+    Write-Host $failure
     exit 1
 }
 Write-Host 'All executed steps passed. Evidence: tests\m01\evidence\local\'

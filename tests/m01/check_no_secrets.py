@@ -16,6 +16,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from m01_console import safe_console
+
 REPO = Path(__file__).resolve().parents[2]
 
 FORBIDDEN_NAMES = [
@@ -55,10 +57,14 @@ MUST_BE_IGNORED = [
 
 
 def git(*args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["git", *args], cwd=REPO, capture_output=True, text=True)
+    # Git prints paths as UTF-8. Decoding them with the Windows default (cp1252) either
+    # crashes or garbles Vietnamese file names, and a garbled name fails to open and
+    # silently escapes the scan (V-12).
+    return subprocess.run(["git", *args], cwd=REPO, capture_output=True, encoding="utf-8")
 
 
 def main() -> int:
+    safe_console()
     files = [f for f in git("ls-files", "-z").stdout.split("\0") if f]
     problems: list[str] = []
 

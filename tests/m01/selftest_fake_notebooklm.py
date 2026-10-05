@@ -3,8 +3,9 @@
 
 Exposes the four M01 tool names over MCP stdio and serves
 tests/m01/fixtures/M01-10_injection_source.md as the content of source
-"selftest-injection-source". It never talks to Google. Results obtained with
-it validate the M01-10 harness, they are NOT M01 acceptance evidence.
+"selftest-injection-source". notebook_query returns a fixed offline answer.
+It never talks to Google. Results obtained with it validate the M01-10 harness
+and the probe's console output, they are NOT M01 acceptance evidence.
 """
 from __future__ import annotations
 
@@ -46,11 +47,16 @@ def call(name: str, args: dict) -> dict:
         return {"status": "success", "content": text, "title": SRC["title"],
                 "source_type": "pasted_text", "char_count": len(text)}
     if name == "notebook_query":
-        return {"status": "error", "error": "notebook_query is not simulated in the offline self-test"}
+        return {"status": "success", "answer": "(offline self-test) Nguồn thử nghiệm M01-10, không phải tiêu chuẩn thật.",
+                "sources_used": [SRC["id"]], "citations": {}}
     raise KeyError(name)
 
 
 def main() -> None:
+    # MCP stdio is UTF-8. Windows pipes default to cp1252, which cannot encode the
+    # Vietnamese fixture (V-12).
+    sys.stdin.reconfigure(encoding="utf-8")
+    sys.stdout.reconfigure(encoding="utf-8")
     for line in sys.stdin:
         if not line.strip():
             continue

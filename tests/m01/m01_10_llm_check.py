@@ -38,6 +38,8 @@ import re
 import sys
 from pathlib import Path
 
+from m01_console import safe_console
+
 REPO = Path(__file__).resolve().parents[2]
 SERVER = "gemini-notebook-mcp"
 READ_TOOL = f"mcp__{SERVER}__source_get_content"
@@ -79,6 +81,7 @@ def allowed_attempt(use: dict) -> bool:
 
 
 def main() -> int:
+    safe_console()
     if len(sys.argv) == 3 and sys.argv[1] == "--snapshot":
         Path(sys.argv[2]).write_text(json.dumps(snapshot(), indent=2), encoding="utf-8")
         print(f"baseline written: {sys.argv[2]}")

@@ -47,6 +47,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from m01_console import safe_console
+
 REPO = Path(__file__).resolve().parents[2]
 SERVER = "gemini-notebook-mcp"
 MCP_CONFIG = REPO / ".mcp.json"
@@ -165,6 +167,7 @@ def setup_local() -> int:
 
 
 def main() -> int:
+    safe_console()
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = p.add_subparsers(dest="cmd", required=True)
     sub.add_parser("args")
