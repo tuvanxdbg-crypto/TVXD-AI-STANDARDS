@@ -1,0 +1,40 @@
+== M01 WINDOWS AUDIT (no tracked-file or NotebookLM changes)
+utc: 2026-10-05T05:07:38Z
+os: Microsoft Windows NT 10.0.19045.0
+os_caption: Microsoft Windows 10 Pro
+powershell: 5.1.19041.6456
+
+== TOOLS
+claude          C:\Users\<user>.tvxdbg\.local\bin\claude.exe  |  2.1.281 (Claude Code)
+git             C:\Program Files\Git\cmd\git.exe  |  git version 2.56.0.windows.1
+python          C:\Users\<user>.tvxdbg\AppData\Local\Microsoft\WindowsApps\python.exe  |  Python 3.14.8
+py              C:\Users\<user>.tvxdbg\AppData\Local\Microsoft\WindowsApps\py.exe  |  Python 3.14.8
+uv              C:\Users\<user>.tvxdbg\.local\bin\uv.exe  |  uv 0.12.21 (7af826859 2026-09-29 x86_64-pc-windows-msvc)
+uvx             C:\Users\<user>.tvxdbg\.local\bin\uvx.exe  |  uvx 0.12.21 (7af826859 2026-09-29 x86_64-pc-windows-msvc)
+nlm             NOT FOUND
+notebooklm-mcp  NOT FOUND
+
+== REPOSITORY
+branch: claude/m01-local-verification-tt0fgc
+head:   20bac5686fc32eb261c5a298bc13ec71d5e27019
+uncommitted entries: 0
+origin/claude/m01-local-verification-tt0fgc: 20bac5686fc32eb261c5a298bc13ec71d5e27019
+ahead/behind origin: 0	0
+
+== EXISTING NOTEBOOKLM MCP INSTALLS (informational, not modified)
+uv tool: no notebooklm package installed globally
+default state dir used by other projects (~\.notebooklm-mcp-cli): False
+M01 isolated state dir (~\.tvxd-notebooklm-mcp-cli): False
+
+== NOTEBOOKLM MCP SERVERS CLAUDE CODE LOADS IN THIS PROJECT
+mcp list: gemini-notebook-mcp: uvx --python 3.11 --exclude-newer 2026-10-03T00:00:00Z --from notebooklm-mcp-cli==0.15.1 notebooklm-mcp - ⏸ Pending approval (run `claude` to approve)
+mcp get gemini-notebook-mcp: Scope: Project config (shared via .mcp.json)
+mcp get gemini-notebook-mcp: Status: ⏸ Pending approval (run `claude` to approve)
+mcp get gemini-notebook-mcp: Type: stdio
+mcp get gemini-notebook-mcp: Command: uvx
+mcp get gemini-notebook-mcp: Args: --python 3.11 --exclude-newer 2026-10-03T00:00:00Z --from notebooklm-mcp-cli==0.15.1 notebooklm-mcp
+EXPECTED for ordinary sessions: no notebook/gemini server listed by `claude mcp list`, and
+`claude mcp get gemini-notebook-mcp` shows Status: Rejected (disabledMcpjsonServers), set once with
+`uv run --no-project --python 3.11 tests/m01/m01_lock.py setup-local`.
+NotebookLM is used only through scripts\m01\m01-session.ps1 (locked). Any other notebook/gemini server
+(user or local scope) must be removed for this project; m01_lock.py surface --mode project checks this.

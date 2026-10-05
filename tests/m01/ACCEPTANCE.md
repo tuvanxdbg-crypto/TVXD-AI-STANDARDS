@@ -6,28 +6,43 @@ Status values: PASS, FAIL, BLOCKED (cannot run yet, reason given), NOT_RUN.
 
 | Test | Windows (official) | Sandbox (Linux, 2026-10-03) | Evidence / notes |
 |---|---|---|---|
-| M01-01 MCP server starts | NOT_RUN | PASS | Pinned launcher started the server; `initialize` OK, serverInfo name `gemini-notebook-mcp`, protocol `2025-06-18`, package version `0.15.1` via `nlm --version` on the same spec. Claude Code 2.1.288 reported the server `connected`. |
-| M01-02 Authentication check | BLOCKED — owner login (`scripts/m01/m01-login.ps1`) | N/A | Unauthenticated sandbox returns `No authentication found` (probe classifies it FAIL/BLOCKED correctly). |
+| M01-01 MCP server starts | PASS (ducdq, 2026-10-05, at `20bac56`) | PASS | Pinned launcher started the server; `initialize` OK, serverInfo name `gemini-notebook-mcp`, protocol `2025-06-18`, package version `0.15.1` via `nlm --version` on the same spec. Claude Code 2.1.288 reported the server `connected`. Windows: same result, package 0.15.1, Python 3.11.16 (uv-managed). |
+| M01-02 Authentication check | BLOCKED — awaiting GPT_REVIEW_V1 that allows OWNER_NOTEBOOKLM_LOGIN_AND_FULL_M01_ACCEPTANCE | N/A | Unauthenticated sandbox returns `No authentication found` (probe classifies it FAIL/BLOCKED correctly). |
 | M01-03 notebook_list | BLOCKED — needs M01-02 | N/A | |
 | M01-04 notebook_get | BLOCKED — needs M01-02 + test notebook | N/A | |
 | M01-05 source_get_content | BLOCKED — needs M01-02 + test notebook | N/A | Probe stores length + SHA-256 only, never source text. |
 | M01-06 notebook_query | BLOCKED — needs M01-02 + test notebook | N/A | Chat-history side effect accepted. |
-| M01-07 Raw inventory + only approved tools exposed | NOT_RUN | PASS | Server: raw `tools/list` 53, gated exactly the 4 approved. Claude Code, locked operating session (`m01_lock.py surface --mode locked`): the model's **entire** tool list is the 4 `mcp__gemini-notebook-mcp__*` tools, no built-in tool, no other server. Ordinary session after `setup-local` (`--mode project`): 0 NotebookLM/Gemini tools or servers. |
-| M01-08 Mutation capability unavailable/blocked | NOT_RUN | PASS | All 49 hidden tools called with `{}` on the gated server: 49/49 rejected `Unknown tool`. Same 49 removed from Claude's context by `.claude/settings.json` deny rules. Locked session has no shell/file/web tool through which the `nlm` CLI or login state could be reached. |
-| M01-09 No secrets/auth files tracked | PASS (repo-level, platform independent) | PASS | `tests/m01/check_no_secrets.py`: no credential-like names, no cookie/token/key patterns, auth paths ignored. Negative test with a planted fake cookie: FAIL as expected. Re-run on Windows by `m01-acceptance.ps1`. |
+| M01-07 Raw inventory + only approved tools exposed | PASS (ducdq, 2026-10-05, at `20bac56`) | PASS | Server: raw `tools/list` 53, gated exactly the 4 approved. Claude Code, locked operating session (`m01_lock.py surface --mode locked`): the model's **entire** tool list is the 4 `mcp__gemini-notebook-mcp__*` tools, no built-in tool, no other server. Ordinary session after `setup-local` (`--mode project`): 0 NotebookLM/Gemini tools or servers. Windows: raw 53 → 4; locked session model tools = exactly the 4 (Claude Code 2.1.281), 1 server; ordinary session 0 NotebookLM tools/servers among 12 other MCP servers that the locked session excluded. |
+| M01-08 Mutation capability unavailable/blocked | PASS (ducdq, 2026-10-05, at `20bac56`) | PASS | All 49 hidden tools called with `{}` on the gated server: 49/49 rejected `Unknown tool`. Same 49 removed from Claude's context by `.claude/settings.json` deny rules. Locked session has no shell/file/web tool through which the `nlm` CLI or login state could be reached. Windows: 49/49 `Unknown tool`. |
+| M01-09 No secrets/auth files tracked | PASS (repo-level; re-run on ducdq at `20bac56`: 30 files) | PASS | `tests/m01/check_no_secrets.py`: no credential-like names, no cookie/token/key patterns, auth paths ignored. Negative test with a planted fake cookie: FAIL as expected. Re-run on Windows by `m01-acceptance.ps1`. |
 | M01-10 Prompt-injection / data-boundary | BLOCKED — needs M01-02 + owner-added fixture source | Harness self-test PASS (not evidence) | See below. |
 
 ## Environment
 
 | Item | Sandbox | Windows |
 |---|---|---|
-| OS | Ubuntu 24.04 (cloud container) | to record via `scripts/m01/m01-audit.ps1` |
-| Claude Code | 2.1.288 (R01 patch), 2.1.289 (R03 patch) | to record |
-| uv | 0.8.17 and 0.12.22 (both verified) | to record |
-| Python (uv-managed for the server) | 3.11 | 3.11 (downloaded by uv if absent) |
+| OS | Ubuntu 24.04 (cloud container) | Windows 10 Pro 10.0.19045 (owner machine ducdq) |
+| Claude Code | 2.1.288 (R01 patch), 2.1.289 (R03 patch) | 2.1.281 |
+| uv | 0.8.17 and 0.12.22 (both verified) | 0.12.21 |
+| PowerShell | pwsh 7.6.2 | Windows PowerShell 5.1.19041.6456 |
+| Git | 2.43.0 | 2.56.0.windows.1 |
+| Python (uv-managed for the server) | 3.11 | 3.11.16 (downloaded by uv; system Python 3.14.8 not used) |
 | NotebookLM MCP | `notebooklm-mcp-cli==0.15.1`, deps cut off at 2026-10-03T00:00:00Z (fastmcp 4.0.10, mcp 2.3.0) | same spec from `.mcp.json` |
 
 Package provenance (PyPI digest = downloaded file digest) is in `docs/M01_NOTEBOOKLM_READONLY.md`.
+
+## Windows surface acceptance (OWNER_WINDOWS_SURFACE_ACCEPTANCE, 2026-10-05)
+
+Authorized by GPT_REVIEW_V1 at `20bac56`. Run on the owner's machine (ducdq) at exactly `20bac5686fc32eb261c5a298bc13ec71d5e27019`, clean tree, in runbook order: `m01-audit.ps1` → `m01_lock.py setup-local` → `m01-acceptance.ps1 -SurfaceOnly`; every step exit 0. No NotebookLM login; the project server was not approved. Evidence (user name redacted): `tests/m01/evidence/windows-ducdq-2026-10-05/`.
+
+| Required condition | Result |
+|---|---|
+| M01-09 | PASS (30 tracked files at `20bac56`) |
+| M01-01/07/08 probe | PASS: package 0.15.1, raw inventory 53, gated visible exactly 4, 49/49 hidden tools `Unknown tool` |
+| Locked session model-visible tools | PASS: exactly the 4 `mcp__gemini-notebook-mcp__*` tools; only server `gemini-notebook-mcp` (connected); no built-in tool |
+| Ordinary session NotebookLM surface | PASS: 0 NotebookLM/Gemini tools, 0 NotebookLM/Gemini servers (after `setup-local`) |
+
+The ordinary session on this machine loads 12 other MCP servers (plugins and claude.ai connectors, 145 tools in total). None of them appears in the locked session, which confirms on the real machine that `--strict-mcp-config` also excludes plugin and connector servers. Existing state: no global NotebookLM package, no default `~\.notebooklm-mcp-cli` directory; the isolated M01 state directory did not exist before the run (no login has happened).
 
 ## Operating path (GPT review R03-F01)
 
