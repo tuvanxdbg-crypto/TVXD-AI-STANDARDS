@@ -62,7 +62,7 @@ Layers inside the locked session, all project-scoped (no other project on the ma
 2. `.claude/settings.json` allows the four `mcp__gemini-notebook-mcp__*` tools and denies the other 49 by name.
 3. The locked launch flags remove every built-in tool and every other MCP source.
 
-Each layer was verified against the real 0.15.1 package in a Linux sandbox and, for the tool surface, on the owner's Windows machine (2026-10-05). The first authenticated full run on that machine failed on test-harness issues that the R05 patch fixes, so it has to be repeated; see [tests/m01/ACCEPTANCE.md](tests/m01/ACCEPTANCE.md).
+Each layer was verified against the real 0.15.1 package in a Linux sandbox and on the owner's Windows machine. The latest Windows full authenticated acceptance passed all M01-01..10 tests at code-tested commit `040bede` on 2026-10-05; its evidence was recorded at `08f0301`. An earlier full run at `8213f80` failed on test-harness issues that the R05 patch fixed; it is kept as history. See [tests/m01/ACCEPTANCE.md](tests/m01/ACCEPTANCE.md).
 
 ## What is intentionally out of scope
 
