@@ -4,12 +4,18 @@ Only errors marked retryable (transient TIMEOUT / BACKEND_UNAVAILABLE) are retri
 at most max_attempts times and never beyond total_budget_s. Permission, auth,
 version, mapping and scope errors are never retried, and the Gateway never signs
 in, switches backend or widens the whitelist to get past an error.
+
+Each attempt runs in a worker thread with an absolute Deadline (never later than the
+total budget). When the caller stops waiting, the attempt's Deadline is cancelled;
+backends read it through current_deadline() so that an expired or cancelled attempt
+never sends a request and in-flight transport work is retired (see the MCP client).
 """
 from __future__ import annotations
 
 import queue
 import threading
 import time
+from dataclasses import dataclass, field
 from typing import Callable, TypeVar
 
 from .errors import GatewayError
@@ -17,19 +23,47 @@ from .errors import GatewayError
 T = TypeVar("T")
 
 
+@dataclass
+class Deadline:
+    """Absolute monotonic deadline plus a cancel flag, shared by an attempt and its caller."""
+    expires_at: float
+    cancelled: threading.Event = field(default_factory=threading.Event)
+
+    def remaining(self) -> float:
+        return self.expires_at - time.monotonic()
+
+    def done(self) -> bool:
+        return self.cancelled.is_set() or self.remaining() <= 0
+
+
+_local = threading.local()
+
+
+def current_deadline() -> Deadline | None:
+    """Deadline of the attempt running on this thread (None outside run_with_timeout)."""
+    return getattr(_local, "deadline", None)
+
+
 def run_with_timeout(fn: Callable[[], T], timeout_s: float) -> T:
     box: queue.Queue = queue.Queue(maxsize=1)
+    deadline = Deadline(time.monotonic() + timeout_s)
 
     def target() -> None:
+        _local.deadline = deadline
         try:
+            if deadline.done():
+                raise GatewayError("TIMEOUT", "attempt expired before it started", retryable=True)
             box.put((True, fn()))
         except BaseException as e:  # noqa: BLE001 - relayed to the caller below
             box.put((False, e))
+        finally:
+            _local.deadline = None
 
     threading.Thread(target=target, daemon=True, name="gateway-backend-call").start()
     try:
         ok, value = box.get(timeout=timeout_s)
     except queue.Empty:
+        deadline.cancelled.set()   # the worker must not start or keep backend work for this attempt
         raise GatewayError("TIMEOUT", f"backend call exceeded {timeout_s:.1f}s", retryable=True) from None
     if ok:
         return value

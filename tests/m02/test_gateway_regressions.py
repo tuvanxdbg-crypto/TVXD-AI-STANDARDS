@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regressions for GPT_REVIEW_V1 at d35b574 (PR #5), findings F1-F7. Fixture data and fake backends only."""
+"""Regressions for GPT_REVIEW_V1 on PR #5: F1-F7 (at d35b574) and F8-F9 (at eeb76bc). Fixtures and fakes only."""
 from __future__ import annotations
 
 import copy
@@ -7,6 +7,7 @@ import hashlib
 import json
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from helpers import HERE, TODAY, FixtureCopy, lookup, make_service
 
 from fake_notebooklm import FakeNotebookLM
 from gateway import schema
-from gateway.adapters.notebooklm import McpStdioNotebookLMClient
+from gateway.adapters.notebooklm import McpStdioNotebookLMClient, NotebookLMAdapter
 from gateway.clauses import canonical_clause, parse_sections
 from gateway.errors import GatewayError
 from gateway.evidence import content_evidence_id
@@ -343,23 +344,25 @@ class F6SemanticSourceIdentity(Base):
         self.assertIn("LOCAL_IDENTITY_UNAVAILABLE", [u["code"] for u in ev["UNCERTAINTY"]])
 
 
-class F7McpStartupReadiness(unittest.TestCase):
-    """F7: only a fully initialized, surface-validated MCP process is ever used."""
+class McpStandIn(unittest.TestCase):
+    """McpStdioNotebookLMClient against tests/m02/fake_mcp_server.py (offline)."""
 
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.dir = Path(self.tmp.name)
         self.log = self.dir / "server.log"
+        self.times = self.dir / "server.times"
 
     def tearDown(self):
         self.tmp.cleanup()
 
-    def client(self, *options: str) -> McpStdioNotebookLMClient:
+    def client(self, *options: str, start_timeout_s: float = 0.5) -> McpStdioNotebookLMClient:
         cfg = self.dir / "mcp.json"
         cfg.write_text(json.dumps({"mcpServers": {"gemini-notebook-mcp": {
             "command": sys.executable,
-            "args": [str(HERE / "fake_mcp_server.py"), "--log", str(self.log), *options]}}}), encoding="utf-8")
-        c = McpStdioNotebookLMClient(cfg, start_timeout_s=0.5)
+            "args": [str(HERE / "fake_mcp_server.py"), "--log", str(self.log), "--times", str(self.times),
+                     *options]}}}), encoding="utf-8")
+        c = McpStdioNotebookLMClient(cfg, start_timeout_s=start_timeout_s)
         self.addCleanup(c.close)
         return c
 
@@ -371,6 +374,33 @@ class F7McpStartupReadiness(unittest.TestCase):
             fn()
         self.assertEqual(cm.exception.code, code)
         return cm.exception
+
+    def started(self, c: McpStdioNotebookLMClient, timeout: float = 30.0) -> McpStdioNotebookLMClient:
+        """Pre-initialize (validated surface) outside any retry attempt."""
+        c._start_timeout = timeout
+        with c._lock:
+            c._start()
+        c._start_timeout = 0.5
+        self.assertTrue(c._ready)
+        return c
+
+    def calls(self) -> list[str]:
+        return [x for x in self.log_lines() if x.startswith("call ")]
+
+    def call_times(self) -> list[float]:
+        lines = self.times.read_text(encoding="utf-8").splitlines() if self.times.exists() else []
+        return [float(x.split(" ", 1)[0]) for x in lines if x.split(" ", 2)[1] == "call"]
+
+    # A request the client sent before the caller returned may be logged by the server a few ms later.
+    PIPE_SLACK_S = 0.1
+
+    def assertNoCallAfter(self, returned_at: float) -> None:
+        late = [round(t - returned_at, 3) for t in self.call_times() if t > returned_at + self.PIPE_SLACK_S]
+        self.assertEqual(late, [], "backend received calls after the caller had returned (seconds after return)")
+
+
+class F7McpStartupReadiness(McpStandIn):
+    """F7: only a fully initialized, surface-validated MCP process is ever used."""
 
     def test_initialize_timeout_never_leaves_a_usable_process(self):
         c = self.client("--init-delay", "5", "--extra-tool")
@@ -404,6 +434,95 @@ class F7McpStartupReadiness(unittest.TestCase):
         c._proc.wait(timeout=10)
         self.assertEqual(c.notebook_list()["status"], "success")
         self.assertEqual(self.log_lines(), ["start", "call notebook_list", "start", "call notebook_list"])
+
+
+def adapter(c, *, timeout_s: float, max_attempts: int, total_budget_s: float) -> NotebookLMAdapter:
+    return NotebookLMAdapter(c, timeout_s=timeout_s, max_attempts=max_attempts, total_budget_s=total_budget_s,
+                             backoff_s=0.0)
+
+
+class F8NoBackendWorkAfterTheBudget(McpStandIn):
+    """F8: once an attempt times out, nothing of it (or of a queued retry) reaches the backend later."""
+
+    def test_reviewer_repro_no_query_after_timeout_return(self):
+        c = self.started(self.client("--call-delay", "0.35"))
+        a = adapter(c, timeout_s=0.05, max_attempts=2, total_budget_s=0.1)
+        t0 = time.monotonic()
+        self.assertCode(lambda: a.query("nb-fixture-001", "q", ["src-qcvn01-2024"]), "TIMEOUT")
+        returned = time.time()
+        self.assertLess(time.monotonic() - t0, 0.5)
+        time.sleep(1.0)                                     # inspect the server after the caller returned
+        self.assertNoCallAfter(returned)
+        self.assertGreaterEqual(len(self.calls()), 1)
+        self.assertLessEqual(len(self.calls()), 2)          # at most one send per attempt, both within budget
+        self.assertIsNone(c._proc)                          # timed-out in-flight request: process retired
+        self.assertFalse(c._ready)
+
+    def test_queued_attempts_never_send_after_expiry(self):
+        c = self.started(self.client())
+        a = adapter(c, timeout_s=0.05, max_attempts=3, total_budget_s=0.2)
+        c._lock.acquire()                                   # another call holds the client
+        try:
+            self.assertCode(lambda: a.query("nb-fixture-001", "q", ["src-qcvn01-2024"]), "TIMEOUT")
+        finally:
+            c._lock.release()                               # queued workers may now run: they must not send
+        time.sleep(0.6)
+        self.assertEqual(self.calls(), [])
+        self.assertTrue(c._ready)                           # nothing was in flight, the process stays valid
+
+    def test_repeated_timeouts_do_not_accumulate_late_queries(self):
+        c = self.started(self.client("--call-delay", "0.3"))
+        a = adapter(c, timeout_s=0.05, max_attempts=2, total_budget_s=0.1)
+        for _ in range(3):
+            self.assertCode(lambda: a.query("nb-fixture-001", "q", ["src-qcvn01-2024"]), "TIMEOUT")
+        returned = time.time()
+        time.sleep(1.0)
+        self.assertNoCallAfter(returned)
+        self.assertLessEqual(len(self.calls()), 6)          # at most one send per attempt (3 callers x 2)
+
+    def test_fast_call_still_succeeds_through_the_deadline_path(self):
+        c = self.started(self.client())
+        res = adapter(c, timeout_s=5, max_attempts=2, total_budget_s=10).probe()
+        self.assertEqual(res, {"notebooks": 0})
+        self.assertEqual(self.calls(), ["call notebook_list"])
+
+
+class F9AbsoluteResponseDeadline(McpStandIn):
+    """F9: notifications never extend the wait for a response."""
+
+    def test_initialize_notification_stream(self):
+        c = self.client("--notify", "initialize", "--notify-for", "0.6", start_timeout_s=0.15)
+        t0 = time.monotonic()
+        self.assertCode(c.notebook_list, "TIMEOUT")
+        self.assertLess(time.monotonic() - t0, 0.45)
+        self.assertIsNone(c._proc)                          # F7 cleanup preserved
+        self.assertFalse(c._ready)
+        self.assertEqual(self.calls(), [])
+
+    def test_tools_list_notification_stream(self):
+        c = self.client("--notify", "tools/list", "--notify-for", "0.6", start_timeout_s=0.15)
+        t0 = time.monotonic()
+        self.assertCode(c.notebook_list, "TIMEOUT")
+        self.assertLess(time.monotonic() - t0, 0.45)
+        self.assertIsNone(c._proc)
+        self.assertEqual(self.calls(), [])
+
+    def test_endless_stream_still_times_out(self):
+        c = self.client("--notify", "initialize", "--notify-for", "1000", start_timeout_s=0.15)
+        t0 = time.monotonic()
+        self.assertCode(c.notebook_list, "TIMEOUT")
+        self.assertLess(time.monotonic() - t0, 0.45)
+
+    def test_tools_call_notification_stream(self):
+        c = self.started(self.client("--notify", "tools/call", "--notify-for", "0.6"))
+        t0 = time.monotonic()
+        self.assertCode(lambda: c._tool("notebook_list", {}, timeout=0.15), "TIMEOUT")
+        self.assertLess(time.monotonic() - t0, 0.45)
+        self.assertIsNone(c._proc)                          # timed-out in-flight call retired
+        c2 = self.started(self.client("--notify", "tools/call", "--notify-for", "0.6"))
+        t0 = time.monotonic()
+        self.assertCode(lambda: adapter(c2, timeout_s=0.15, max_attempts=1, total_budget_s=1).probe(), "TIMEOUT")
+        self.assertLess(time.monotonic() - t0, 0.45)
 
 
 if __name__ == "__main__":

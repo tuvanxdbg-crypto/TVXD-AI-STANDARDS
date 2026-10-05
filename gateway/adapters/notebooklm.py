@@ -10,6 +10,10 @@ Clients:
     .mcp.json, refuses to proceed unless tools/list is exactly the four approved
     tools, and refuses to call any other tool name. A process is used only after
     initialize and that surface check both succeeded; any startup failure kills it.
+    Every wait uses one absolute deadline per request (notifications do not extend
+    it), bounded by the retry attempt's Deadline: an expired or cancelled attempt
+    never sends, and a request that times out in flight is cancelled and its
+    process retired, so no late work of a timed-out attempt remains.
     Not used in the offline round (config mode "disabled"); enabling it needs the
     live-pilot review.
 """
@@ -22,12 +26,13 @@ import re
 import shutil
 import subprocess
 import threading
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
 from ..errors import GatewayError
-from ..retry import call_with_retry
+from ..retry import Deadline, call_with_retry, current_deadline
 
 M01_READ_TOOLS = ("notebook_list", "notebook_get", "source_get_content", "notebook_query")
 
@@ -136,6 +141,7 @@ class McpStdioNotebookLMClient:
     """Minimal MCP stdio client for the M01 gated server (four read tools only, fail closed)."""
 
     PROTOCOL_VERSION = "2025-06-18"
+    POLL_S = 0.05   # how often a waiting request re-checks cancellation of its attempt
 
     def __init__(self, mcp_config: Path, server: str = "gemini-notebook-mcp", start_timeout_s: float = 120.0):
         """start_timeout_s bounds each startup step (initialize, tools/list)."""
@@ -153,7 +159,12 @@ class McpStdioNotebookLMClient:
         self._lock = threading.Lock()
         self._ready = False   # True only after initialize + exact tools/list check on the current process
 
-    def _start(self) -> None:
+    @staticmethod
+    def _bounded(timeout: float, dl: Deadline | None) -> float:
+        """Step timeout, never beyond the attempt's deadline."""
+        return timeout if dl is None else min(timeout, dl.remaining())
+
+    def _start(self, dl: Deadline | None = None) -> None:
         if self._ready and self._proc and self._proc.poll() is None:
             return
         self._terminate()     # a dead process, or a live one that never passed the startup checks
@@ -169,10 +180,10 @@ class McpStdioNotebookLMClient:
         try:
             self._request("initialize", {"protocolVersion": self.PROTOCOL_VERSION, "capabilities": {},
                                          "clientInfo": {"name": "tvxd-standards-gateway", "version": "0.1.0"}},
-                          timeout=self._start_timeout)
+                          timeout=self._bounded(self._start_timeout, dl), dl=dl)
             self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
-            tools = sorted(str(t.get("name")) for t in
-                           self._request("tools/list", {}, timeout=self._start_timeout).get("tools", []))
+            tools = sorted(str(t.get("name")) for t in self._request(
+                "tools/list", {}, timeout=self._bounded(self._start_timeout, dl), dl=dl).get("tools", []))
             if tools != sorted(M01_READ_TOOLS):
                 raise GatewayError("BACKEND_UNAVAILABLE", "NotebookLM server tool surface is not exactly the four "
                                    "M01-approved read tools; refusing to use it", details={"visible_tools": len(tools)})
@@ -200,15 +211,26 @@ class McpStdioNotebookLMClient:
         self._proc.stdin.write((json.dumps(msg) + "\n").encode("utf-8"))
         self._proc.stdin.flush()
 
-    def _request(self, method: str, params: dict, timeout: float) -> dict:
+    def _request(self, method: str, params: dict, timeout: float, dl: Deadline | None = None) -> dict:
+        """Send one request and wait for its response until a single absolute deadline.
+
+        Notifications and other messages never extend the wait; a cancelled attempt stops it.
+        """
+        if timeout <= 0 or (dl is not None and dl.done()):
+            raise GatewayError("TIMEOUT", f"NotebookLM MCP {method}: deadline passed before sending", retryable=True)
+        deadline = time.monotonic() + timeout
         self._id += 1
         rid = self._id
         self._send({"jsonrpc": "2.0", "id": rid, "method": method, "params": params})
         while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or (dl is not None and dl.cancelled.is_set()):
+                raise GatewayError("TIMEOUT", f"NotebookLM MCP {method} timed out", retryable=True,
+                                   details={"request_id": rid})
             try:
-                msg = self._q.get(timeout=timeout)
+                msg = self._q.get(timeout=min(remaining, self.POLL_S))
             except queue.Empty:
-                raise GatewayError("TIMEOUT", f"NotebookLM MCP {method} timed out", retryable=True) from None
+                continue
             if msg is None:
                 raise GatewayError("BACKEND_UNAVAILABLE", "NotebookLM MCP server exited", retryable=True)
             if msg.get("id") == rid:
@@ -219,9 +241,26 @@ class McpStdioNotebookLMClient:
     def _tool(self, name: str, arguments: dict, timeout: float = 240.0) -> dict:
         if name not in M01_READ_TOOLS:
             raise GatewayError("SOURCE_NOT_ALLOWED", f"tool {name!r} is not an M01-approved read tool")
-        with self._lock:
-            self._start()
-            res = self._request("tools/call", {"name": name, "arguments": arguments}, timeout=timeout)
+        dl = current_deadline()   # set when called from a retry attempt
+        if dl is None:
+            self._lock.acquire()
+        elif dl.done() or not self._lock.acquire(timeout=max(dl.remaining(), 0.001)):
+            raise GatewayError("TIMEOUT", "attempt expired while waiting for the NotebookLM client", retryable=True)
+        try:
+            if dl is not None and dl.done():   # expired while queued: never send
+                raise GatewayError("TIMEOUT", "attempt expired before sending", retryable=True)
+            self._start(dl)
+            try:
+                res = self._request("tools/call", {"name": name, "arguments": arguments},
+                                    timeout=self._bounded(timeout, dl), dl=dl)
+            except GatewayError as e:
+                # Retire only work that is in flight (request sent, then timed out) or a server that exited;
+                # a request refused before sending leaves the validated process in place.
+                if e.details.get("request_id") is not None or (e.code == "BACKEND_UNAVAILABLE" and e.retryable):
+                    self._retire(e.details.get("request_id"))
+                raise
+        finally:
+            self._lock.release()
         text = "".join(c.get("text", "") for c in res.get("content", []) if c.get("type") == "text")
         try:
             payload = json.loads(text)
@@ -243,6 +282,20 @@ class McpStdioNotebookLMClient:
     def notebook_query(self, notebook_id: str, query: str, source_ids: list[str]) -> dict:
         return self._tool("notebook_query", {"notebook_id": notebook_id, "query": query,
                                              "source_ids": source_ids, "new_conversation": True})
+
+    def _retire(self, request_id: int | None) -> None:
+        """Timed-out or broken in-flight call: ask the server to cancel it, then kill the process.
+
+        The next call starts and validates a fresh process (F7), so no late response or work
+        of the timed-out request survives into a later attempt.
+        """
+        if request_id is not None:
+            try:
+                self._send({"jsonrpc": "2.0", "method": "notifications/cancelled",
+                            "params": {"requestId": request_id, "reason": "timeout"}})
+            except (OSError, ValueError, AssertionError):
+                pass
+        self._terminate()
 
     def _terminate(self) -> None:
         """Kill the current process (startup failure or replacement) and forget it."""

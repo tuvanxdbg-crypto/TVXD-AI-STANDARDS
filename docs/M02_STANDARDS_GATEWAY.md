@@ -24,7 +24,7 @@ execution request, kept verbatim in the appendix) and the roadmap
 | Retry/timeout | `gateway/retry.py` | bounded attempts and total budget; only transient errors retried |
 | Logs | `gateway/logs.py` | whitelisted keys only; no query, context or source text |
 | Fixtures | `tests/m02/fixtures/` | fake library, `INDEX.yaml`, `INDEX.md`, config, fixture MCP config |
-| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 92 offline unit/contract tests (21 of them regressions for the review findings, `test_gateway_regressions.py`) + real Claude Code checks on the fixture Gateway |
+| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 100 offline unit/contract tests (29 of them regressions for the review findings F1–F9, `test_gateway_regressions.py`) + real Claude Code checks on the fixture Gateway |
 | Windows runner | `scripts/m02/m02-tests.ps1` | fail-fast; `-WithClaude` adds the real Claude Code checks |
 
 ## 2. Implementation decisions
@@ -107,7 +107,12 @@ execution request, kept verbatim in the appendix) and the roadmap
 (`code`, `message`, `retryable`, `details`); unexpected exceptions are reported by type only.
 Retries: only transient `TIMEOUT`/`BACKEND_UNAVAILABLE`, `max_attempts` (default 2) and `total_budget_s`
 (default 120 s), exponential backoff. Auth, permission, version, mapping and scope errors are never retried; the
-Gateway never signs in, switches backend or widens the whitelist to get past an error.
+Gateway never signs in, switches backend or widens the whitelist to get past an error. Each attempt carries an
+absolute deadline (never past the total budget) and a cancel flag that is set when the caller stops waiting. The
+NotebookLM client honours it: an attempt that is expired or cancelled while queued for the client never sends, every
+response wait uses one absolute deadline (notifications do not extend it), and an in-flight request that times out is
+cancelled (`notifications/cancelled`) and its server process killed, so no backend work of a timed-out attempt
+continues after the caller has received `TIMEOUT`.
 `APPLICABILITY_UNKNOWN` normally appears as an evidence uncertainty (not a request error), with the missing inputs.
 
 ## 5. Security boundary
@@ -119,7 +124,8 @@ Gateway never signs in, switches backend or widens the whitelist to get past an 
   (`mode: mcp_stdio`) launches the pinned M01 gated server from the project `.mcp.json`, refuses to proceed unless
   `tools/list` is exactly the four M01 read tools, and refuses to call any other tool name. A process is used only
   after `initialize` and that surface check both succeeded; any startup error or timeout kills it, and the next call
-  starts and validates a fresh process. Enabling it is part of
+  starts and validates a fresh process. Startup steps and calls are bounded by absolute deadlines (section 4).
+  Enabling it is part of
   the live pilot and needs a new review. M01 pin, `.mcp.json`, `.claude/settings.json` and
   `config/m01-tool-policy.yaml` are unchanged.
 * **Local source root:** callers never pass paths; INDEX paths must be relative, `/`-separated, NFC, without `..`,
@@ -158,7 +164,8 @@ applicability gate, citation filter, public tool list, path confinement, verify 
 classification): 8 make the suite fail; the remaining one (applicability gate in `decide`) is masked by a second,
 independent guard (an unknown applicability always adds the blocking `APPLICABILITY_UNKNOWN` uncertainty), so the
 behaviour does not change. Round 2: reverting each F1–F7 fix separately (F1 also check by check, 7 checks; F6 hit
-and miss separately) makes exactly the matching regression class fail.
+and miss separately) makes exactly the matching regression class fail. Round 3: reverting F8 (all parts, only the
+queued-attempt guard, only the cancel flag) and F9 separately makes F8/F9 regression tests fail (see section 12).
 
 ## 7. How to run (Windows, from the repo root)
 
@@ -232,6 +239,15 @@ The Gateway is **not** added to the project `.mcp.json`, so ordinary sessions do
 
 Also changed: `verify.response.v1.json` lists the new check names (the schema is still unreleased draft v1);
 `EVIDENCE_ID` material now also covers `SOURCE_ID`, the excerpt flags and `ANSWER`.
+
+## 12. Review round 3 — GPT_REVIEW_V1 at `eeb76bc` (PATCH_REQUIRED, F1–F7 confirmed fixed)
+
+| Finding | Fix | Regression tests (`tests/m02/test_gateway_regressions.py`) |
+|---|---|---|
+| F8 [P2] a timed-out attempt kept running; a queued retry could send after the caller got `TIMEOUT` | `retry.Deadline` (absolute deadline + cancel flag) per attempt, visible to the backend through `retry.current_deadline()`; the MCP client acquires its lock only within the deadline, refuses to send when the attempt is expired or cancelled, bounds startup and calls by it, and retires a timed-out in-flight request (`notifications/cancelled`, then kills the process) | `F8NoBackendWorkAfterTheBudget`: the reviewer's repro (0.35 s server, 0.05 s attempts, 0.1 s budget) checks the fake server's timestamped call log one second after the caller returned; queued attempts behind a held client lock never send; repeated timeouts leave no late calls; a fast call still succeeds |
+| F9 [P2] notifications restarted the response wait | `_request` computes one monotonic deadline and only waits for its remainder (polling the cancel flag); expiry is checked even while messages keep arriving | `F9AbsoluteResponseDeadline`: notification streams during `initialize`, `tools/list` (with F7 cleanup preserved) and `tools/call`, plus an endless stream |
+
+The offline stand-in `tests/m02/fake_mcp_server.py` gained `--call-delay`, `--notify` and a timestamped `--times` log.
 
 ## Appendix — Issue #4 specification (verbatim)
 
