@@ -1,0 +1,114 @@
+{
+  "probe": "tests/m01/m01_probe.py",
+  "mode": "surface",
+  "utc": "2026-10-05T05:08:25+00:00",
+  "host": {
+    "os": "Windows-10-10.0.19045-SP0",
+    "python": "3.11.16"
+  },
+  "server_launch": {
+    "command": "uvx",
+    "args": [
+      "--python",
+      "3.11",
+      "--exclude-newer",
+      "2026-10-03T00:00:00Z",
+      "--from",
+      "notebooklm-mcp-cli==0.15.1",
+      "notebooklm-mcp"
+    ],
+    "gating_env": {
+      "NOTEBOOKLM_DISABLED_GROUPS": "notebooks_read,notebooks_manage,sources_read,sources_manage,chat,query_multi,organization,automation,notes,aliases,auth,server,usage,sharing,research,studio",
+      "NOTEBOOKLM_ENABLED_TOOLS": "notebook_list,notebook_get,source_get_content,notebook_query"
+    }
+  },
+  "allowed_tools_policy": [
+    "notebook_list",
+    "notebook_get",
+    "source_get_content",
+    "notebook_query"
+  ],
+  "tests": {
+    "M01-01": {
+      "status": "PASS",
+      "server_name": "gemini-notebook-mcp",
+      "package_version": "0.15.1",
+      "serverInfo_version_reported_by_fastmcp": "4.0.10",
+      "protocol_version": "2025-06-18"
+    },
+    "M01-07": {
+      "status": "PASS",
+      "raw_count": 53,
+      "visible_count": 4,
+      "unexpected_visible": [],
+      "missing_allowed": []
+    },
+    "M01-08": {
+      "status": "PASS",
+      "forbidden_called": 49,
+      "rejected_as_unknown": 49,
+      "unexpected": {}
+    }
+  },
+  "raw_tool_inventory": [
+    "alias",
+    "batch",
+    "chat_configure",
+    "chat_export",
+    "chat_get",
+    "chat_list",
+    "chat_save_to_note",
+    "collection_create",
+    "collection_delete",
+    "collection_edit",
+    "collection_list",
+    "collection_set_emoji",
+    "cross_notebook_query",
+    "download_all_artifacts",
+    "download_artifact",
+    "export_artifact",
+    "label",
+    "note",
+    "notebook_create",
+    "notebook_delete",
+    "notebook_describe",
+    "notebook_get",
+    "notebook_list",
+    "notebook_query",
+    "notebook_query_start",
+    "notebook_query_status",
+    "notebook_rename",
+    "notebook_share_batch",
+    "notebook_share_invite",
+    "notebook_share_public",
+    "notebook_share_status",
+    "pipeline",
+    "profile",
+    "refresh_auth",
+    "report",
+    "research_import",
+    "research_start",
+    "research_status",
+    "save_auth_tokens",
+    "server_info",
+    "source_add",
+    "source_delete",
+    "source_describe",
+    "source_get_content",
+    "source_list_drive",
+    "source_rename",
+    "source_sync_drive",
+    "studio_create",
+    "studio_delete",
+    "studio_revise",
+    "studio_status",
+    "tag",
+    "usage_get"
+  ],
+  "visible_tool_set": [
+    "notebook_get",
+    "notebook_list",
+    "notebook_query",
+    "source_get_content"
+  ]
+}

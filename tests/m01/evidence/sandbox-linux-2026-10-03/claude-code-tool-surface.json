@@ -1,0 +1,37 @@
+{
+  "note": "Captured from the system/init event of `claude -p --output-format stream-json --verbose --mcp-config <config> --strict-mcp-config` run in a copy of this repo, so the committed .claude/settings.json deny rules were loaded. Linux cloud sandbox, NotebookLM not authenticated.",
+  "layer_both": {
+    "mcp_config": ".mcp.json as committed (server gating + Claude Code deny rules)",
+    "claude_code_version": "2.1.288",
+    "mcp_servers": [
+      {
+        "name": "gemini-notebook-mcp",
+        "status": "connected",
+        "source": "dynamic"
+      }
+    ],
+    "mcp_tools_visible_to_model": [
+      "mcp__gemini-notebook-mcp__notebook_get",
+      "mcp__gemini-notebook-mcp__notebook_list",
+      "mcp__gemini-notebook-mcp__notebook_query",
+      "mcp__gemini-notebook-mcp__source_get_content"
+    ]
+  },
+  "layer_deny_rules_only": {
+    "mcp_config": ".mcp.json with NOTEBOOKLM_DISABLED_GROUPS/ENABLED_TOOLS removed (server exposes 53 tools)",
+    "claude_code_version": "2.1.288",
+    "mcp_servers": [
+      {
+        "name": "gemini-notebook-mcp",
+        "status": "connected",
+        "source": "dynamic"
+      }
+    ],
+    "mcp_tools_visible_to_model": [
+      "mcp__gemini-notebook-mcp__notebook_get",
+      "mcp__gemini-notebook-mcp__notebook_list",
+      "mcp__gemini-notebook-mcp__notebook_query",
+      "mcp__gemini-notebook-mcp__source_get_content"
+    ]
+  }
+}

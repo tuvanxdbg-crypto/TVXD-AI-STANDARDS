@@ -1,0 +1,73 @@
+{
+  "check": "claude-code-tool-surface/project",
+  "claude_code": "2.1.281 (Claude Code)",
+  "utc": "2026-10-05T07:32:40+00:00",
+  "mcp_servers": [
+    {
+      "name": "plugin:playwright:playwright",
+      "status": "connected"
+    },
+    {
+      "name": "plugin:finance:snowflake",
+      "status": "failed"
+    },
+    {
+      "name": "plugin:finance:databricks",
+      "status": "failed"
+    },
+    {
+      "name": "plugin:finance:bigquery",
+      "status": "needs-auth"
+    },
+    {
+      "name": "plugin:finance:google calendar",
+      "status": "failed"
+    },
+    {
+      "name": "plugin:finance:gmail",
+      "status": "failed"
+    },
+    {
+      "name": "plugin:desktop-commander:desktop-commander",
+      "status": "pending"
+    },
+    {
+      "name": "claude.ai Claude Docs",
+      "status": "connected"
+    },
+    {
+      "name": "claude.ai Canva",
+      "status": "connected"
+    },
+    {
+      "name": "claude.ai Slack",
+      "status": "needs-auth"
+    },
+    {
+      "name": "claude.ai Gmail",
+      "status": "connected"
+    },
+    {
+      "name": "claude.ai Google Drive",
+      "status": "connected"
+    }
+  ],
+  "status": "PASS",
+  "notebook_tools_visible": [],
+  "notebook_servers": [],
+  "total_tools_visible": 145,
+  "other_mcp_server_names": [
+    "claude.ai Canva",
+    "claude.ai Claude Docs",
+    "claude.ai Gmail",
+    "claude.ai Google Drive",
+    "claude.ai Slack",
+    "plugin:desktop-commander:desktop-commander",
+    "plugin:finance:bigquery",
+    "plugin:finance:databricks",
+    "plugin:finance:gmail",
+    "plugin:finance:google calendar",
+    "plugin:finance:snowflake",
+    "plugin:playwright:playwright"
+  ]
+}

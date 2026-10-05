@@ -1,0 +1,21 @@
+{
+  "check": "claude-code-tool-surface/locked",
+  "claude_code": "2.1.281 (Claude Code)",
+  "utc": "2026-10-05T07:32:32+00:00",
+  "mcp_servers": [
+    {
+      "name": "gemini-notebook-mcp",
+      "status": "connected"
+    }
+  ],
+  "status": "PASS",
+  "tools_visible_to_model": [
+    "mcp__gemini-notebook-mcp__notebook_get",
+    "mcp__gemini-notebook-mcp__notebook_list",
+    "mcp__gemini-notebook-mcp__notebook_query",
+    "mcp__gemini-notebook-mcp__source_get_content"
+  ],
+  "unexpected_tools": [],
+  "missing_tools": [],
+  "other_servers": []
+}
