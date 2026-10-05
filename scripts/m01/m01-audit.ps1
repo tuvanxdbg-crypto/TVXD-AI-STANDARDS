@@ -1,11 +1,14 @@
 <#
 .SYNOPSIS
-  M01 read-only audit of the Windows machine that runs Claude Code.
+  M01 audit of the Windows machine that runs Claude Code.
 
 .DESCRIPTION
-  Changes nothing. Prints tool versions, repo state, existing NotebookLM MCP
-  installs and which NotebookLM MCP servers Claude Code would load in THIS
-  project. Output is also saved to tests/m01/evidence/local/ (git-ignored).
+  Does not modify tracked working-tree files or NotebookLM content. Side effects
+  are limited to `git fetch` (updates remote-tracking refs), caches and state that
+  `claude` and `uv` keep for themselves, and the output file below.
+  Prints tool versions, repo state, existing NotebookLM MCP installs and which
+  NotebookLM MCP servers Claude Code would load in THIS project. Output is also
+  saved to tests/m01/evidence/local/ (git-ignored).
 
   Privacy: prints no environment values, no MCP env blocks, and only the
   claude mcp lines that mention notebook/gemini (other servers' args may hold
@@ -43,7 +46,7 @@ $isWin = ($env:OS -eq 'Windows_NT')
 $userHome = $env:USERPROFILE
 if (-not $userHome) { $userHome = $HOME }
 
-Say '== M01 WINDOWS AUDIT (read-only)'
+Say '== M01 WINDOWS AUDIT (no tracked-file or NotebookLM changes)'
 Say ('utc: {0}' -f (Get-Date).ToUniversalTime().ToString('yyyy-MM-ddTHH:mm:ssZ'))
 Say ('os: {0}' -f [System.Environment]::OSVersion.VersionString)
 if ($isWin) {
@@ -128,9 +131,11 @@ if ($claudeCmd) {
     } finally {
         Pop-Location
     }
-    Say 'EXPECTED: exactly one notebook server, gemini-notebook-mcp, Scope = Project config (.mcp.json).'
-    Say 'If another notebook/gemini server is listed (user or local scope), M01-07 is NOT PASS in Claude Code'
-    Say 'until it is removed for this project. Do not remove it globally without deciding about other projects.'
+    Say 'EXPECTED for ordinary sessions: no notebook/gemini server listed by `claude mcp list`, and'
+    Say '`claude mcp get gemini-notebook-mcp` shows Status: Rejected (disabledMcpjsonServers), set once with'
+    Say '`uv run --no-project --python 3.11 tests/m01/m01_lock.py setup-local`.'
+    Say 'NotebookLM is used only through scripts\m01\m01-session.ps1 (locked). Any other notebook/gemini server'
+    Say '(user or local scope) must be removed for this project; m01_lock.py surface --mode project checks this.'
 }
 
 $lines | Set-Content -Path $outFile -Encoding UTF8

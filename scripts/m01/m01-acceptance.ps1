@@ -4,7 +4,11 @@
 
 .DESCRIPTION
   M01-09        tests/m01/check_no_secrets.py
-  M01-01/07/08  tests/m01/m01_probe.py --mode surface   (no login needed)
+  M01-01/07/08  tests/m01/m01_probe.py --mode surface   (server view; no login needed)
+  M01-07        tests/m01/m01_lock.py surface --mode locked   (model-visible tools in the
+                locked operating session: exactly the 4 approved, nothing else)
+  M01-07/08     tests/m01/m01_lock.py surface --mode project  (ordinary sessions in this
+                repo: no NotebookLM/Gemini server or tool at all)
   M01-02..06,10 tests/m01/m01_probe.py --mode full      (needs m01-login.ps1 first)
   M01-10 (LLM)  tests/m01/m01_10_run.py                 (claude -p, dontAsk mode)
 
@@ -59,6 +63,10 @@ try {
         if ($InjectionSourceId) { $probe += @('--injection-source-id', $InjectionSourceId) }
         Run-Step 'M01-01..08 + M01-10 data path (full)' $probe
     }
+
+    # After the probe, so the uvx environment is already cached when Claude Code starts the server.
+    Run-Step 'M01-07 Claude Code tool surface, locked session' ($py + @('tests/m01/m01_lock.py', 'surface', '--mode', 'locked'))
+    Run-Step 'M01-07/08 Claude Code tool surface, ordinary sessions' ($py + @('tests/m01/m01_lock.py', 'surface', '--mode', 'project'))
 
     if ($LlmSelfTest) {
         Run-Step 'M01-10 harness self-test (offline, not evidence)' ($py + @('tests/m01/m01_10_run.py', '--self-test'))

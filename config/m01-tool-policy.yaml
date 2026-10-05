@@ -33,6 +33,20 @@ isolation:
   profile: tvxd-m01
   credential_storage: protected   # key in Windows Credential Manager; account id = <installation_id>:<profile>
 
+# The only path through which Claude Code uses NotebookLM in M01 (GPT review R03-F01).
+operating_path:
+  entry_point: scripts/m01/m01-session.ps1
+  preflight: "tests/m01/m01_lock.py surface --mode locked  (fail closed: model sees exactly allowed_tools, nothing else)"
+  claude_args: ["--permission-mode", "dontAsk", "--tools=", "--allowedTools", "<allowed_tools as mcp__gemini-notebook-mcp__*>",
+                "--mcp-config", ".mcp.json", "--strict-mcp-config"]
+  built_in_tools: none            # --tools= ; written non-empty for Windows PowerShell 5.1
+  other_mcp_sources: none         # --strict-mcp-config
+  ordinary_sessions:
+    notebooklm: rejected          # disabledMcpjsonServers in .claude/settings.local.json via m01_lock.py setup-local
+    check: "tests/m01/m01_lock.py surface --mode project  (no NotebookLM/Gemini server or tool visible)"
+    cli_and_auth_state_denies: best_effort_only
+  hard_read_only_guarantee: locked_session_only
+
 allowed_tools:
   - notebook_list
   - notebook_get

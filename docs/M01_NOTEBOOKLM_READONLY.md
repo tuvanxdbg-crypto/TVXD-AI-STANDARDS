@@ -66,20 +66,35 @@ Everything is scoped to this repository or to a dedicated state directory:
 
 | What | Where | Effect on other projects |
 |---|---|---|
-| MCP server definition | `.mcp.json` (project scope) | Loads only in this repo. Its name `gemini-notebook-mcp` also shadows a user-scope server of the same name inside this repo only (precedence: local > project > user). |
+| MCP server definition | `.mcp.json` (project scope), loaded by the locked session through `--mcp-config` | Only this repo. Ordinary sessions in this repo reject it after `m01_lock.py setup-local`. |
+| Ordinary-session opt-out | `disabledMcpjsonServers` in `.claude/settings.local.json` (git-ignored, written by `m01_lock.py setup-local`) | Only this repo, only this machine. |
 | Tool permissions | `.claude/settings.json` (project scope) | This repo only. |
 | Package + dependencies | `uvx` cached environment for the pinned spec | None. No global install. |
 | Login state, browser profile | `%USERPROFILE%\.tvxd-notebooklm-mcp-cli` (`NOTEBOOKLM_MCP_CLI_PATH`), profile `tvxd-m01` (`NLM_PROFILE`) | Separate from the default `~\.notebooklm-mcp-cli` used by other setups. Protected-storage key name includes this directory's installation id and the profile. |
 
 Do not use `nlm setup`, `claude mcp add --scope user` or `uv tool install` for M01: they write user-level configuration that every project sees.
 
-A local-scope entry named `gemini-notebook-mcp` for this repo (in `~/.claude.json`) would override `.mcp.json`. A NotebookLM server under a different name at user scope would also load here. `m01-audit.ps1` lists every notebook/gemini server Claude Code loads in this repo; anything besides the project entry makes M01-07 NOT PASS until it is removed for this project.
+The locked session uses `--strict-mcp-config`, so user-scope, local-scope, plugin and connector MCP servers do not load there. Ordinary sessions still load them: a NotebookLM server configured at user or local scope under any name would be reachable from an ordinary session. `m01_lock.py surface --mode project` fails if any NotebookLM/Gemini server or tool is visible in an ordinary session, and `m01-audit.ps1` lists such servers by name.
 
-## Tool exposure policy (two layers)
+## M01 operating path (hard boundary)
+NotebookLM is used from Claude Code only through `scripts/m01/m01-session.ps1`:
+
+1. Preflight, fail closed: `tests/m01/m01_lock.py surface --mode locked` starts Claude Code with the locked arguments in print mode, reads the `system/init` event and requires that the model sees exactly the four approved tools and nothing else, from `gemini-notebook-mcp` alone.
+2. Launch: `claude --permission-mode dontAsk --tools= --allowedTools <4 tools> --mcp-config .mcp.json --strict-mcp-config`.
+   - `--tools=` removes every built-in tool (Bash, PowerShell, Read, Grep, Glob, Write, Edit, WebFetch, ...). It is written as one non-empty argument because Windows PowerShell 5.1 drops empty `""` arguments to native programs.
+   - `dontAsk` refuses anything outside the allow list without prompting.
+   - `--strict-mcp-config` loads only the pinned, gated server.
+
+In that session Claude cannot run commands, read or write files, fetch URLs or reach any other MCP server. This is the only place the M01 read-only guarantee is claimed.
+
+Ordinary sessions are not NotebookLM sessions. `m01_lock.py setup-local` makes them reject the project server, and `surface --mode project` verifies that no NotebookLM/Gemini tool is visible in them. Their `nlm`/login-state deny rules are best effort only (see V-03).
+
+## Tool exposure layers inside the locked session
 1. **Server gating** (`.mcp.json` env): all 16 groups from `tool_groups.py` disabled, the four tools re-enabled. Hidden tools are absent from `tools/list`, and calling one returns `Unknown tool`. Upstream docs list only 14 groups (`aliases` and `usage` are missing there); the config follows the code.
 2. **Claude Code permissions** (`.claude/settings.json`): `allow` for the four tools; `deny` for the other 49 tool names (a whole-tool deny removes the tool from Claude's context and wins over any allow), for the `nlm` CLI through Bash/PowerShell, and for reading or editing the login state directories.
+3. **Locked launch flags**: no built-in tools, no other MCP source, `dontAsk`.
 
-Each layer alone produced the four-tool surface in the sandbox (see `tests/m01/evidence/sandbox-linux-2026-10-03/`).
+Each of layers 1 and 2 alone produced the four-tool surface in the sandbox, and the locked flags give a total model tool list of exactly four (see `tests/m01/evidence/sandbox-linux-2026-10-03/` and `sandbox-linux-2026-10-05/`).
 
 See:
 - `config/m01-tool-policy.yaml`
@@ -95,13 +110,14 @@ powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | ie
 
 From the repo root, on the M01 branch:
 
-1. Audit (read-only): `powershell -ExecutionPolicy Bypass -File scripts\m01\m01-audit.ps1`
-2. Surface tests, no login needed: `powershell -ExecutionPolicy Bypass -File scripts\m01\m01-acceptance.ps1 -SurfaceOnly`
-3. **Owner only — login/MFA:** `powershell -ExecutionPolicy Bypass -File scripts\m01\m01-login.ps1`. Sign in in the browser window it opens. Never paste passwords, cookies or tokens anywhere.
-4. **Owner only — test data:** in the NotebookLM web UI create a notebook `TVXD-M01-TEST` with (a) one non-confidential document for M01-04/05/06 and (b) a pasted-text source whose content is `tests/m01/fixtures/M01-10_injection_source.md`. This is a manual UI action by the owner, outside Claude's read-only tool surface.
-5. Start `claude` in the repo once: approve the project MCP server `gemini-notebook-mcp`, accept the workspace trust dialog, and check `/mcp` shows four tools.
+1. Audit (no tracked-file or NotebookLM changes; `git fetch` updates remote-tracking refs): `powershell -ExecutionPolicy Bypass -File scripts\m01\m01-audit.ps1`
+2. Opt ordinary sessions out of NotebookLM (once per machine): `uv run --no-project --python 3.11 tests/m01/m01_lock.py setup-local`. If `claude` asks whether to use the project server `gemini-notebook-mcp` in an ordinary session, answer No.
+3. Surface tests, no NotebookLM login needed: `powershell -ExecutionPolicy Bypass -File scripts\m01\m01-acceptance.ps1 -SurfaceOnly`. This covers M01-09, the server view (M01-01/07/08) and the Claude Code view: locked session exactly four tools, ordinary session none.
+4. **Owner only — login/MFA:** `powershell -ExecutionPolicy Bypass -File scripts\m01\m01-login.ps1`. Sign in in the browser window it opens. Never paste passwords, cookies or tokens anywhere.
+5. **Owner only — test data:** in the NotebookLM web UI create a notebook `TVXD-M01-TEST` with (a) one non-confidential document for M01-04/05/06 and (b) a pasted-text source whose content is `tests/m01/fixtures/M01-10_injection_source.md`. This is a manual UI action by the owner, outside Claude's read-only tool surface.
 6. Full tests: `powershell -ExecutionPolicy Bypass -File scripts\m01\m01-acceptance.ps1 -NotebookId <id> -SourceId <id> -InjectionSourceId <id>`. Running it without `-NotebookId` prints the notebook IDs on screen only.
 7. Review `tests\m01\evidence\local\` (git-ignored), transcribe non-secret results into `tests/m01/ACCEPTANCE.md`, run `tests/m01/check_no_secrets.py`, commit, push, request review.
+8. Day-to-day NotebookLM retrieval: `powershell -ExecutionPolicy Bypass -File scripts\m01\m01-session.ps1` only.
 
 ## Verification findings
 
@@ -109,11 +125,14 @@ From the repo root, on the M01 branch:
 |---|---|---|
 | V-01 | 0.15.1 creates its state directory with `mkdir` without `parents=True`; a nested `NOTEBOOKLM_MCP_CLI_PATH` makes the server crash at start (observed through Claude Code's MCP log). | State dir is a direct child of `%USERPROFILE%`; the scripts also create it up front. |
 | V-02 | `serverInfo.version` is FastMCP's version (`4.0.10`), not the package's. | Package version recorded via `nlm --version` with the same launcher spec. |
-| V-03 | The package also installs the `nlm` CLI, which has full mutation capability and is not covered by MCP gating. | Bash/PowerShell deny rules. Residual: Claude Code documents that such rules do not match a program invoked by path or inside `sh -c`; in default mode those commands still prompt, and the owner must refuse any NotebookLM CLI command. |
+| V-03 | The package also installs the `nlm` CLI, which has full mutation capability and is not covered by MCP gating. | Hard boundary: the locked session has no shell or file tools at all. Ordinary sessions: Bash/PowerShell deny rules, best effort only (Claude Code documents that such rules do not match a program invoked by path or inside `sh -c`); in default mode those commands still prompt, and the owner must refuse any NotebookLM CLI command. |
 | V-04 | Upstream docs list 14 tool groups; the code has 16. | All 16 disabled; M01-07 fails on any drift. |
 | V-05 | Tool errors come back as JSON `{"status": "error"}` with `isError=false`. | The probe parses the payload. |
 | V-06 | Loose dependency ranges. | `--exclude-newer` cutoff. |
 | V-07 | Very fast release cadence (142 releases; 0.12.0 → 0.15.1 in eight days). | Any version bump requires re-running M01-01/07/08/10 and a new review. |
+| V-08 | `claude -p` (Claude Code 2.1.289) loads project `.mcp.json` servers with no approval prompt, even in a never-approved checkout: an ordinary print-mode session saw 46 tools including the four NotebookLM tools. | `setup-local` adds the server to `disabledMcpjsonServers` (then `claude mcp get` reports it Rejected and ordinary sessions see 0 NotebookLM tools); the locked session loads it through `--mcp-config`, which that setting does not affect. Both checked by `m01_lock.py surface`. |
+| V-09 | Windows PowerShell 5.1 drops empty-string arguments to native programs, so `--tools ""` would silently vanish. | The locked path uses `--tools=`. |
+| V-10 | The M01-10 checker allowed Read/Glob/Grep/TodoWrite (GPT review R03-F02). | Now only `source_get_content`, plus `ToolSearch` solely to load that tool; anything else fails. |
 
 ## Exit criteria
 M01 is complete only when all tests are PASS/BLOCKED as expected on the Windows Claude Code machine and the PR contains evidence of the actual tool surface.

@@ -4,19 +4,27 @@ AI standards knowledge gateway for construction regulations, standards, Notebook
 
 ## Architecture direction
 
+The current architecture authority is the approved roadmap, [Issue #2](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/2) (hybrid local + index + NotebookLM fallback). Summary for M02 onward:
+
 ```text
 Claude Code
    |
    v
 Standards Gateway MCP (M02+)
    |
-   +--> SKILL + INDEX + applicability rules + source whitelist + cache
+   +--> CACHE -> INDEX (WORK_CODE, applicability, source/version whitelist)
+   |
+   +--> exact source/clause known  --> LOCAL SOURCE READ (read-only sync/mount of Nextcloud)
+   +--> semantic discovery needed  --> NotebookLM semantic search
    |
    v
-NotebookLM / Gemini Notebook
+structured grounded evidence (local reread only for ambiguity, layout-dependent
+content, uncertain mapping or suspected sync/version drift)
 ```
 
-GitHub is the governance layer for rules, mappings, tests and review. NotebookLM is a retrieval/index layer, not the authoritative master repository and not the component that decides applicability.
+Nextcloud is the authoritative document store. NotebookLM is a semantic retrieval layer, not the master repository and not the component that decides applicability. GitHub is the governance layer for rules, mappings, indexes, hashes, tests and review.
+
+M01 covers only one leg of this design, the NotebookLM read path, as a pilot. Nothing in M01 implements the Gateway, the INDEX or local retrieval.
 
 ## Current milestone: M01 — NotebookLM content-read-only pilot
 
@@ -40,12 +48,21 @@ M01 proves that Claude Code can:
 - `source_get_content`
 - `notebook_query`
 
-Two independent layers enforce this, both project-scoped (no other project on the machine is affected):
+### M01 operating path
+
+NotebookLM is used from Claude Code **only** through `scripts/m01/m01-session.ps1`. It first checks (`tests/m01/m01_lock.py surface --mode locked`, fail closed) that the model would see exactly the four approved tools and nothing else, then starts Claude Code with `--permission-mode dontAsk --tools= --allowedTools <4 tools> --mcp-config .mcp.json --strict-mcp-config`. In that session Claude has no shell, file, web or other MCP tools.
+
+Ordinary Claude Code sessions in this repo do not load NotebookLM. The owner runs `tests/m01/m01_lock.py setup-local` once, which adds `gemini-notebook-mcp` to `disabledMcpjsonServers` in the git-ignored `.claude/settings.local.json`. This is needed because `claude -p` loads project `.mcp.json` servers without an approval prompt. `m01_lock.py surface --mode project` verifies that no NotebookLM/Gemini server or tool is visible in an ordinary session.
+
+The hard read-only guarantee covers the locked session only. In ordinary sessions the `.claude/settings.json` deny rules for the `nlm` CLI and the login-state directories are best effort: Claude Code documents that such rules do not match a program called by path or wrapped in another shell.
+
+Layers inside the locked session, all project-scoped (no other project on the machine is affected):
 
 1. `.mcp.json` starts the pinned server (`notebooklm-mcp-cli==0.15.1` via `uvx`, server name `gemini-notebook-mcp`) with `NOTEBOOKLM_DISABLED_GROUPS` set to every tool group and `NOTEBOOKLM_ENABLED_TOOLS` set to the four tools. Hidden tools are absent from `tools/list` and calls to them return `Unknown tool`.
-2. `.claude/settings.json` allows the four `mcp__gemini-notebook-mcp__*` tools and denies the other 49 by name, plus the `nlm` CLI bypass and reads of the local login state.
+2. `.claude/settings.json` allows the four `mcp__gemini-notebook-mcp__*` tools and denies the other 49 by name.
+3. The locked launch flags remove every built-in tool and every other MCP source.
 
-Both layers were verified against the real 0.15.1 package in a Linux sandbox (53 raw tools → 4 visible, in the probe and in Claude Code's own tool list). Verification on the Windows Claude Code machine with the owner's login is still pending; see [tests/m01/ACCEPTANCE.md](tests/m01/ACCEPTANCE.md).
+Each layer was verified against the real 0.15.1 package in a Linux sandbox. Verification on the Windows Claude Code machine with the owner's login is still pending; see [tests/m01/ACCEPTANCE.md](tests/m01/ACCEPTANCE.md).
 
 ## What is intentionally out of scope
 
