@@ -164,8 +164,10 @@ applicability gate, citation filter, public tool list, path confinement, verify 
 classification): 8 make the suite fail; the remaining one (applicability gate in `decide`) is masked by a second,
 independent guard (an unknown applicability always adds the blocking `APPLICABILITY_UNKNOWN` uncertainty), so the
 behaviour does not change. Round 2: reverting each F1–F7 fix separately (F1 also check by check, 7 checks; F6 hit
-and miss separately) makes exactly the matching regression class fail. Round 3: reverting F8 (all parts, only the
-queued-attempt guard, only the cancel flag) and F9 separately makes F8/F9 regression tests fail (see section 12).
+and miss separately) makes exactly the matching regression class fail. Round 3: reverting all of F8, or F9, makes F8/F9
+regression tests fail. Two F8 parts are layered guards: the queued-attempt check in `_tool` is backed by the
+before-send check in `_request` (reverting both fails `test_queued_attempts_never_send_after_expiry`), and the cancel
+flag fires at the same instant as the absolute deadline, so reverting it alone changes no observable behaviour.
 
 ## 7. How to run (Windows, from the repo root)
 
