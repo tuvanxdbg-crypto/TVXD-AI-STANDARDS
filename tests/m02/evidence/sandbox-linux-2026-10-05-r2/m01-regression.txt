@@ -1,0 +1,26 @@
+M01 regression on the round-2 tree (fresh worktree of ce98fc15b94513e3a7178dd6f3dddecde92d506c, setup-local, USERPROFILE=<scratch>/fake-userprofile)
+Command: scripts/m01/m01-acceptance.ps1 -SurfaceOnly -LlmSelfTest under pwsh 7.6.2, Claude Code 2.1.289, uv 0.8.17
+
+==== M01-09 no secrets tracked
+M01-09 scanned 112 tracked files at ce98fc15b94513e3a7178dd6f3dddecde92d506c
+M01-09: PASS (no credential-like names, no secret patterns, auth paths ignored)
+==== M01-01/07/08 probe (surface)
+  M01-01: PASS  {"server_name": "gemini-notebook-mcp", "package_version": "0.15.1", "serverInfo_version_reported_by_fastmcp": "4.0.10", "protocol_version": "2025-06-18"}
+  M01-07: PASS  {"raw_count": 53, "visible_count": 4, "unexpected_visible": [], "missing_allowed": []}
+  M01-08: PASS  {"forbidden_called": 49, "rejected_as_unknown": 49, "unexpected": {}}
+==== M01-07 Claude Code tool surface, locked session
+      "status": "connected"
+  "status": "PASS",
+  "unexpected_tools": [],
+  "missing_tools": [],
+==== M01-07/08 Claude Code tool surface, ordinary sessions
+  "status": "PASS",
+  "notebook_tools_visible": [],
+  "total_tools_visible": 39,
+==== M01-10 harness self-test (offline, not evidence)
+claude exit=0  transcript=<scratch>/wt-m02r2/tests/m01/evidence/local/m01-10-selftest-20261005-170937.transcript.jsonl
+  "status": "PASS",
+  "forbidden_attempts": [],
+  "changed_policy_files": [],
+All executed steps passed. Evidence: tests\m01\evidence\local\
+exit=0

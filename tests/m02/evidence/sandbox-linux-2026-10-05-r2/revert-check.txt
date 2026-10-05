@@ -1,0 +1,47 @@
+Revert check on ce98fc15b94513e3a7178dd6f3dddecde92d506c: each F1-F7 fix is reverted separately in a scratch copy
+of gateway/ + tests/m02/, then tests/m02/test_gateway_regressions.py is run. Expected: exactly the matching class fails.
+F6 is reverted for the cache-hit path and the miss path separately; F1 is reverted as a whole and then check by check
+(F1.1 CLAUSE, F1.2 SOURCE_ID, F1.3 DOCUMENT.title, F1.4 SOURCE_HASH claims, F1.5 EVIDENCE_ID, F1.6 SOURCE_LOCATION, F1.7 excerpt flags).
+
+F1       rc=1 failing classes: F1VerifyBindsEvidenceFields
+F2       rc=1 failing classes: F2NoExcerptIsNotVerified
+F3       rc=1 failing classes: F3ExplicitVersionEligibility
+F4       rc=1 failing classes: F4PointLetters
+F5       rc=1 failing classes: F5NotebookWhitelistRevocation
+F6-hit   rc=1 failing classes: F6SemanticSourceIdentity
+F6-miss  rc=1 failing classes: F6SemanticSourceIdentity
+F7       rc=1 failing classes: F7McpStartupReadiness
+F1.1     rc=1 failing classes: F1VerifyBindsEvidenceFields
+F1.2     rc=1 failing classes: F1VerifyBindsEvidenceFields
+F1.3     rc=1 failing classes: F1VerifyBindsEvidenceFields
+F1.4     rc=1 failing classes: F1VerifyBindsEvidenceFields
+F1.5     rc=1 failing classes: F1VerifyBindsEvidenceFields
+F1.6     rc=1 failing classes: F1VerifyBindsEvidenceFields
+F1.7     rc=1 failing classes: F1VerifyBindsEvidenceFields
+
+Harness (sanitized copy of the mutation table):
+MUT = {
+ "F1": [("gateway/service.py", 'add(*self._check_clause(ev, local_doc, span))', 'add("CLAUSE", "PASS", "x")'),
+        ("gateway/service.py", 'if ev["SOURCE_ID"] != version.source_key:', 'if False:'),
+        ("gateway/service.py", 'elif ev["DOCUMENT"]["title"] != doc.title:', 'elif False:'),
+        ("gateway/service.py", 'claim_result, claim_detail = self._hash_claim(ev, version)', 'claim_result, claim_detail = "PASS", "x"'),
+        ("gateway/service.py", 'if content_evidence_id(ev) == ev["EVIDENCE_ID"]:', 'if True:'),
+        ("gateway/service.py", 'add(*self._check_location(ev, version))', 'add("SOURCE_LOCATION", "PASS", "x")'),
+        ("gateway/service.py", "ok = (text == actual[:limit] and ev[\"EVIDENCE\"][\"truncated\"] == (len(actual) > limit)\n                      and ev[\"EVIDENCE\"][\"layout_dependent\"] == layout)",
+         "ok = loc[\"path\"] == version.path and (actual == text or (ev[\"EVIDENCE\"][\"truncated\"] and actual.startswith(text)))")],
+ "F2": [("gateway/service.py", 'add("EXCERPT_MATCH", "UNKNOWN", "evidence has no excerpt; nothing supports it")',
+         'add("EXCERPT_MATCH", "SKIPPED", "evidence has no excerpt")'),
+        ("gateway/service.py", '            return results.get(name) == "PASS"\n', '            return results.get(name) in ("PASS", "SKIPPED")\n')],
+ "F3": [("gateway/service.py", '        if req.get("version"):\n            # An explicit', '        if False:\n            # An explicit')],
+ "F4": [("gateway/clauses.py", "DIEM.match(letters(ln))", "DIEM.match(fold(ln))"),
+        ("gateway/clauses.py", "g = letters(ref)", "g = fold(ref)")],
+ "F5": [("gateway/service.py", "elif m.notebook_id not in index.whitelist_notebooks:", "elif False:")],
+ "F6-hit": [("gateway/service.py", "if current == cached[\"identities\"]:", "if True:")],
+ "F6-miss": [("gateway/service.py", "local_ok = local_identity == version.sha256", "local_ok = True"),
+             ("gateway/service.py", "        elif not local_ok:\n            unc.append({\"code\": \"SOURCE_DRIFT\", \"detail\": \"authoritative local",
+              "        elif False:\n            unc.append({\"code\": \"SOURCE_DRIFT\", \"detail\": \"authoritative local")],
+ "F7": [("gateway/adapters/notebooklm.py", "if self._ready and self._proc and self._proc.poll() is None:",
+         "if self._proc and self._proc.poll() is None:"),
+        ("gateway/adapters/notebooklm.py", "        except BaseException:\n            self._terminate()\n            raise\n",
+         "        except BaseException:\n            raise\n")],
+}
