@@ -24,7 +24,7 @@ execution request, kept verbatim in the appendix) and the roadmap
 | Retry/timeout | `gateway/retry.py` | bounded attempts and total budget; only transient errors retried |
 | Logs | `gateway/logs.py` | whitelisted keys only; no query, context or source text |
 | Fixtures | `tests/m02/fixtures/` | fake library, `INDEX.yaml`, `INDEX.md`, config, fixture MCP config |
-| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 71 offline unit/contract tests + real Claude Code checks on the fixture Gateway |
+| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 92 offline unit/contract tests (21 of them regressions for the review findings, `test_gateway_regressions.py`) + real Claude Code checks on the fixture Gateway |
 | Windows runner | `scripts/m02/m02-tests.ps1` | fail-fast; `-WithClaude` adds the real Claude Code checks |
 
 ## 2. Implementation decisions
@@ -43,7 +43,9 @@ execution request, kept verbatim in the appendix) and the roadmap
    INDEX, or NotebookLM mapping with a sync identity equal to the INDEX hash) **and** INDEX applicability for the
    given `work_code`/`assessment_date`/conditions all pass, and no blocking uncertainty remains. `NOT_APPLICABLE`
    when INDEX says it does not apply. Otherwise `UNKNOWN`. `VERIFIED` is never a legal-validity or design-compliance
-   conclusion (stated in every response's `disclaimer`).
+   conclusion (stated in every response's `disclaimer`). Blocking uncertainty codes: `APPLICABILITY_UNKNOWN`,
+   `MAPPING_MISSING`, `SYNC_IDENTITY_MISSING`, `SOURCE_DRIFT`, `PASSAGE_NOT_FOUND`, `NO_PASSAGE`,
+   `LOCAL_REREAD_FAILED`, `VERSION_UNRESOLVED`, `LOCAL_IDENTITY_UNAVAILABLE`.
 5. **Applicability comes only from owner-reviewed INDEX metadata** plus request context: missing `work_code` or
    `assessment_date`, an undefined work code, unreviewed metadata, unknown effective dates or unanswered conditions
    → `UNKNOWN` with a `missing` list. The Gateway never infers applicability from a document's existence.
@@ -52,22 +54,41 @@ execution request, kept verbatim in the appendix) and the roadmap
    `UNKNOWN` asking for `document_id`. No code → **semantic** route over whitelisted documents that have a NotebookLM
    mapping in a whitelisted notebook; everything else is listed in `excluded` with a reason.
 7. **NotebookLM results:** citations outside the whitelisted, mapped source ids are dropped and reported. A citation
-   is accepted directly only with a sync identity equal to the INDEX hash and no reread trigger. Reread triggers:
+   is accepted directly only with a sync identity equal to the INDEX hash, the authoritative local file's current
+   SHA-256 equal to the INDEX hash (an identity check only, no content reread; drift → `SOURCE_DRIFT`, unreadable →
+   `LOCAL_IDENTITY_UNAVAILABLE`, both blocking) and no reread trigger. Reread triggers:
    no passage, table/figure/note wording, several passages of one document, suspected drift. A reread locates the
    passage verbatim (whitespace-normalized) in the authoritative file; if it is not found → `UNKNOWN` without text.
    Missing mapping/sync identity or drift is never `VERIFIED`.
 8. **Clauses:** `numeric` scheme (TCVN/QCVN headings "2", "2.1", "2.1.3.") and `article` scheme ("Chương", "Điều N",
-   khoản "N.", điểm "a)"). Without a clause, a keyword search returns `CANDIDATES` marked `HEURISTIC_MATCH`, never an
-   exact match.
+   khoản "N.", điểm "a)"). Keywords are matched accent-insensitively, but point letters keep `đ` distinct from `d`
+   ("điểm d" and "điểm đ" are different points, in documents and in requests). Without a clause, a keyword search
+   returns `CANDIDATES` marked `HEURISTIC_MATCH`, never an exact match.
 9. **Cache** key = normalized request + context + resolved identities (document, version, INDEX file hash,
-   NotebookLM mapping and sync identity) + INDEX file hash + INDEX/rules versions. Hits are re-validated (current
-   INDEX; local file hash) before being returned; drift evicts the entry and returns `SOURCE_DRIFT`. Entries from an
-   older INDEX are dropped when the INDEX hash changes. In-memory per process (no persistence in v1).
+   NotebookLM mapping and sync identity) + INDEX file hash + INDEX/rules versions. Hits are re-validated against the
+   current INDEX and the current authoritative files before being returned: a local-route hit re-hashes the file
+   (drift evicts the entry and returns `SOURCE_DRIFT`); a semantic-route hit re-hashes every cited source (NotebookLM
+   and reread evidence alike) and compares it with the identity recorded when the entry was built; any change
+   evicts the entry and the query runs again, so drifted or unreadable sources come back as blocking uncertainty.
+   Entries from an older INDEX are dropped when the INDEX hash changes. In-memory per process (no persistence in v1).
 10. **INDEX is re-read on every request** (hash compare, re-parse on change). An invalid INDEX fails closed
     (`INDEX_INVALID` for lookups/verify, `ERROR` status).
-11. **`standards_verify` trusts nothing in the evidence object**: it re-resolves the version for the date, re-hashes
-    the file, checks the excerpt against the file at the stated lines (or locates a NotebookLM passage in the file),
-    re-checks the mapping/sync identity and re-evaluates applicability.
+11. **`standards_verify` trusts nothing in the evidence object.** It runs these checks against the current INDEX and
+    the authoritative file:
+    `EVIDENCE_ID` (the id matches the evidence content: a consistency check, not a signature),
+    `DOCUMENT_WHITELISTED`, `SOURCE_ID` (`SOURCE_ID` and `DOCUMENT.title` equal INDEX), `VERSION_RESOLVED` (same rules
+    as date-based selection: draft/withdrawn never eligible, overlap ambiguous, must be the version in force),
+    `SOURCE_LOCATION` (kind consistent with `RETRIEVAL_PATH`, path equal to INDEX), `SOURCE_HASH` (file hash equal to
+    INDEX, and every field of the evidence `SOURCE_HASH` equal to what the Gateway derives now), `EXCERPT_MATCH` (text
+    and truncated/layout flags reproduce the file at the stated lines, or the NotebookLM passage is found in the
+    file), `CLAUSE` (the clause that contains the excerpt in the file; a NotebookLM passage may claim none),
+    `MAPPING` (notebook still in the INDEX notebook whitelist, ids and sync identity equal INDEX) and `APPLICABILITY`.
+    `VERIFIED` needs every check to `PASS`, except `MAPPING`, which is `SKIPPED` for LOCAL-route evidence. Evidence
+    without an excerpt is `UNKNOWN`; any `FAIL` makes the result `FAILED`. `ANSWER.text` (NotebookLM's generated
+    answer) is bound into `EVIDENCE_ID` but never verified as a statement; Claude evaluates `EVIDENCE.text`.
+12. **Explicit `version` in a lookup only names the file to read.** It is checked with the same rules as
+    `standards_verify` (`VERSION_RESOLVED`); anything but `PASS` adds the blocking `VERSION_UNRESOLVED` uncertainty,
+    so a withdrawn/draft version or an overlapping effectivity is never `VERIFIED`.
 
 ## 3. Formats and extraction limits
 
@@ -96,7 +117,9 @@ Gateway never signs in, switches backend or widens the whitelist to get past an 
   `tests/m02/fixtures/gateway.mcp.json`) for the model-visible check.
 * **NotebookLM:** config `notebooklm.mode` is `disabled` by default and in all fixtures. The MCP stdio client
   (`mode: mcp_stdio`) launches the pinned M01 gated server from the project `.mcp.json`, refuses to proceed unless
-  `tools/list` is exactly the four M01 read tools, and refuses to call any other tool name. Enabling it is part of
+  `tools/list` is exactly the four M01 read tools, and refuses to call any other tool name. A process is used only
+  after `initialize` and that surface check both succeeded; any startup error or timeout kills it, and the next call
+  starts and validates a fresh process. Enabling it is part of
   the live pilot and needs a new review. M01 pin, `.mcp.json`, `.claude/settings.json` and
   `config/m01-tool-policy.yaml` are unchanged.
 * **Local source root:** callers never pass paths; INDEX paths must be relative, `/`-separated, NFC, without `..`,
@@ -127,13 +150,15 @@ No real NotebookLM call and no real library in this round.
 | Timeout, retry exhaustion, unavailable backend, missing input → structured | `test_gateway_resilience.*`, `ExactLocal.test_structured_errors` | mock |
 | Windows Unicode and published formats work or fail structurally | `LocalAdapter.test_unicode_windows_filename`, `*docx*`, `*pdf*`, `*utf8*`, `Paths` (NFD rejected); `.gitattributes` keeps fixture bytes on Windows | mock |
 | Model-visible isolation with evidence, mock vs real distinguished | `m02_surface.py` evidence records `kind` | real Claude Code |
+| Review findings F1–F7 (GPT_REVIEW_V1 at `d35b574`) | `test_gateway_regressions.F1…F7*` (see section 11) | mock |
 | Related M01 regression and secret scan PASS | `tests/m01/test_m01_10_llm_check.py`, `test_m01_console.py`, `check_no_secrets.py`; M01 surface acceptance | regression |
 
 Test-suite strength: 9 hand-made mutations of the Gateway (whitelist, sync identity, cache drift check,
 applicability gate, citation filter, public tool list, path confinement, verify excerpt check, retry
 classification): 8 make the suite fail; the remaining one (applicability gate in `decide`) is masked by a second,
 independent guard (an unknown applicability always adds the blocking `APPLICABILITY_UNKNOWN` uncertainty), so the
-behaviour does not change.
+behaviour does not change. Round 2: reverting each F1–F7 fix separately (F1 also check by check, 7 checks; F6 hit
+and miss separately) makes exactly the matching regression class fail.
 
 ## 7. How to run (Windows, from the repo root)
 
@@ -188,8 +213,25 @@ The Gateway is **not** added to the project `.mcp.json`, so ordinary sessions do
 * Cache and evidence registry are in memory; `standards_verify` by `evidence_id` only works in the same server
   process (the evidence object can always be passed instead).
 * `standards_status` `deep` re-hashes every INDEX file (fine for a pilot set, slow for a large library).
+* The semantic route hashes each cited authoritative file on every lookup, including cache hits (source identity
+  check, F6); fine for a pilot set, to be revisited with a persistent identity cache for a large library.
 * Windows junction refusal is implemented via `st_file_attributes` but only symlinks are exercised in the Linux
   sandbox; the Windows run of `scripts\m02\m02-tests.ps1` covers the rest of the suite on the owner machine.
+
+## 11. Review round 2 — GPT_REVIEW_V1 at `d35b574` (PATCH_REQUIRED)
+
+| Finding | Fix | Regression tests (`tests/m02/test_gateway_regressions.py`) |
+|---|---|---|
+| F1 [P1] verify accepted modified CLAUSE, SOURCE_ID, SOURCE_HASH | verify derives every identity field from INDEX and the file: checks `EVIDENCE_ID`, `SOURCE_ID`, `SOURCE_LOCATION`, `SOURCE_HASH` claims, excerpt flags and `CLAUSE` (decision 11) | `F1VerifyBindsEvidenceFields`: 15 field tampers, each with the id unchanged and with the id recomputed; NotebookLM evidence tampers; lookup→verify never upgrades |
+| F2 [P1] NO_PASSAGE evidence became VERIFIED | a missing excerpt is `UNKNOWN`; `VERIFIED` needs `PASS` everywhere (only `MAPPING` may be `SKIPPED`, for LOCAL evidence) | `F2NoExcerptIsNotVerified`: sources_used without passage, passage not found, failed local reread (unmodified lookup evidence) |
+| F3 [P1] explicit version bypassed eligibility/overlap | `index.version_check()` shared by lookup and verify; non-PASS → blocking `VERSION_UNRESOLVED` (decision 12) | `F3ExplicitVersionEligibility`: withdrawn, draft, TCVN-FAKE-9999 overlap; eligible explicit versions still work |
+| F4 [P1] points d) and đ) collided | `textnorm.letters()` keeps `đ`; used for point letters in parsing and `canonical_clause` | `F4PointLetters`: parser/canonical units and an end-to-end lookup + verify with both points in one khoản |
+| F5 [P1] revoked notebook still verified | `MAPPING` requires the notebook in the current INDEX whitelist for NOTEBOOKLM and NOTEBOOKLM_LOCAL_REREAD evidence | `F5NotebookWhitelistRevocation` |
+| F6 [P1] semantic cache hit survived local drift | cache entries record each cited source's file identity; hits compare it and re-run on change; the miss path also requires the current file hash (decisions 7, 9) | `F6SemanticSourceIdentity`: hit after drift, still drifted, restored, cold lookup with drifted or missing file |
+| F7 [P2] retry after startup timeout reused an unvalidated MCP process | client readiness flag set only after `initialize` + exact `tools/list`; startup errors kill the process; reader bound to its own process | `F7McpStartupReadiness` with `tests/m02/fake_mcp_server.py`: initialize timeout, restart re-checks the surface, tools/list timeout, dead process |
+
+Also changed: `verify.response.v1.json` lists the new check names (the schema is still unreleased draft v1);
+`EVIDENCE_ID` material now also covers `SOURCE_ID`, the excerpt flags and `ANSWER`.
 
 ## Appendix — Issue #4 specification (verbatim)
 

@@ -14,13 +14,31 @@ VERIFIED, NOT_APPLICABLE_STATUS, UNKNOWN_STATUS = "VERIFIED", "NOT_APPLICABLE", 
 # Uncertainty codes that prevent STATUS=VERIFIED. Others (HEURISTIC_MATCH, LAYOUT_DEPENDENT,
 # TRUNCATED, UNTRUSTED_CONTENT) are informational.
 BLOCKING = {"APPLICABILITY_UNKNOWN", "MAPPING_MISSING", "SYNC_IDENTITY_MISSING", "SOURCE_DRIFT",
-            "PASSAGE_NOT_FOUND", "NO_PASSAGE", "LOCAL_REREAD_FAILED"}
+            "PASSAGE_NOT_FOUND", "NO_PASSAGE", "LOCAL_REREAD_FAILED", "VERSION_UNRESOLVED",
+            "LOCAL_IDENTITY_UNAVAILABLE"}
 NULLABLE = ("VERSION", "CLAUSE", "SOURCE_ID", "SOURCE_LOCATION", "SOURCE_HASH", "VERIFIED_AT")
 
 
 def evidence_id(material: dict) -> str:
     blob = json.dumps(material, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
     return "ev_" + hashlib.sha256(blob.encode("utf-8")).hexdigest()[:24]
+
+
+def content_evidence_id(ev: dict) -> str:
+    """EVIDENCE_ID derived from the identity-bearing content of an evidence object.
+
+    A consistency check, not a signature: anyone can recompute it, so standards_verify
+    also checks every field against INDEX and the authoritative file.
+    """
+    def digest(value: str | None) -> str | None:
+        return None if value is None else hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+    return evidence_id({k: ev[k] for k in ("DOCUMENT", "VERSION", "CLAUSE", "SOURCE_ID", "SOURCE_LOCATION",
+                                           "SOURCE_HASH")} |
+                       {"route": ev["RETRIEVAL_PATH"]["route"], "resolved_by": ev["RETRIEVAL_PATH"]["resolved_by"],
+                        "text_sha256": digest(ev["EVIDENCE"]["text"]), "truncated": ev["EVIDENCE"]["truncated"],
+                        "layout_dependent": ev["EVIDENCE"]["layout_dependent"],
+                        "answer_sha256": digest(ev["ANSWER"]["text"]), "answer_origin": ev["ANSWER"]["origin"]})
 
 
 def decide(app: Applicability, identity_ok: bool, uncertainty: list[dict]) -> str:
@@ -81,8 +99,5 @@ def make_evidence(*, doc: Document, version: Version | None, clause: dict | None
     if answer is None:
         keep.add("ANSWER.text")
     ev["NULL_REASONS"] = {k: v for k, v in reasons.items() if k in keep}
-    ev["EVIDENCE_ID"] = evidence_id({k: ev[k] for k in ("DOCUMENT", "VERSION", "CLAUSE", "SOURCE_LOCATION",
-                                                        "SOURCE_HASH")} |
-                                    {"route": route, "resolved_by": resolved_by,
-                                     "text_sha256": hashlib.sha256((text or "").encode("utf-8")).hexdigest()})
+    ev["EVIDENCE_ID"] = content_evidence_id(ev)
     return ev

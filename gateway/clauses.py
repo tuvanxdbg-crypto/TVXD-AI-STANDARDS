@@ -7,19 +7,20 @@ article  Vietnamese legal style: "Chương II", "Điều 5." (article), inside a
          "2." (khoản) and inside a khoản "a)" (điểm).
          Ids: "Điều 5", "Điều 5 khoản 2", "Điều 5 khoản 2 điểm a".
 Matching of keywords is diacritic-insensitive; returned headings keep the source text.
+Point letters keep đ distinct from d ("điểm d" and "điểm đ" are different points).
 """
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass
 
-from .textnorm import fold
+from .textnorm import fold, letters
 
 NUMERIC_HEAD = re.compile(r"^\s*(#{1,6}\s*)?(\d{1,3}(?:\.\d{1,3}){0,5})(\.?)\s+(\S.*)$")
 CHAPTER = re.compile(r"^\s*(?:#{1,6}\s*)?chuong\s+([ivxlcdm]+|\d+)\b")
 ARTICLE = re.compile(r"^\s*(?:#{1,6}\s*)?dieu\s+(\d{1,4}[a-z]?)\b")
 KHOAN = re.compile(r"^\s*(\d{1,3})\.\s+\S")
-DIEM = re.compile(r"^\s*([a-z])\)\s+\S")
+DIEM = re.compile(r"^\s*([a-zđ])\)\s+\S")   # matched on letters(): đ stays đ
 
 
 @dataclass(frozen=True)
@@ -74,8 +75,8 @@ def _article(lines: tuple[str, ...]) -> list[Section]:
         elif article and KHOAN.match(ln):
             khoan = KHOAN.match(ln).group(1)
             heads.append((f"Điều {article} khoản {khoan}", ln.strip(), i, 2))
-        elif article and khoan and DIEM.match(f):
-            heads.append((f"Điều {article} khoản {khoan} điểm {DIEM.match(f).group(1)}", ln.strip(), i, 3))
+        elif article and khoan and (dm := DIEM.match(letters(ln))):
+            heads.append((f"Điều {article} khoản {khoan} điểm {dm.group(1)}", ln.strip(), i, 3))
     return _close(heads, len(lines))
 
 
@@ -87,16 +88,17 @@ def canonical_clause(ref: str, scheme: str, *, strict: bool = True) -> str | Non
             r"(?:muc|dieu|khoan|clause|section)\s+(\d{1,3}(?:\.\d{1,3}){0,5})(?![0-9.])"
         m = re.search(pat, f)
         return m.group(1) if m else None
-    art = re.search(r"dieu\s+(\d{1,4}[a-z]?)\b", f)
+    g = letters(ref)  # keeps đ: the point letter "đ" must not become "d"
+    art = re.search(r"[dđ]ieu\s+(\d{1,4}[a-z]?)\b", g)
     if not art:
         return None
     out = f"Điều {art.group(1)}"
-    kh = re.search(r"khoan\s+(\d{1,3})\b", f)
+    kh = re.search(r"khoan\s+(\d{1,3})\b", g)
     if kh:
         out += f" khoản {kh.group(1)}"
-        dm = re.search(r"diem\s+([a-z])\b", f)
+        dm = re.search(r"[dđ]iem\s+([a-zđ])(?![0-9a-zđ])", g)
         if dm:
             out += f" điểm {dm.group(1)}"
-    if strict and re.sub(r"(dieu|khoan|diem)\s+[0-9a-z]+", "", f).strip(" ,.;"):
+    if strict and re.sub(r"([dđ]ieu|khoan|[dđ]iem)\s+[0-9a-zđ]+", "", g).strip(" ,.;"):
         return None
     return out

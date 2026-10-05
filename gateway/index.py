@@ -202,7 +202,11 @@ for _first, _resolvers in list(_StringDateLoader.yaml_implicit_resolvers.items()
 
 
 def select_version(doc: Document, day: dt.date | None, requested: str | None) -> tuple[Version, list[str]]:
-    """Pick the version to read. Returns (version, notes). Raises on not-found or ambiguity."""
+    """Pick the version to read. Returns (version, notes). Raises on not-found or ambiguity.
+
+    An explicitly requested version only says which file to read. It does not make the
+    version eligible or unambiguous: callers must gate VERIFIED on version_check().
+    """
     usable = [v for v in doc.versions if v.status not in ("draft", "withdrawn")]
     if requested is not None:
         for v in doc.versions:
@@ -226,6 +230,25 @@ def select_version(doc: Document, day: dt.date | None, requested: str | None) ->
         raise GatewayError("VERSION_AMBIGUOUS", f"{doc.id}: effective dates unknown in INDEX",
                            details={"versions": [v.version for v in unknown]})
     raise GatewayError("SOURCE_NOT_FOUND", f"{doc.id}: no version in force on {day.isoformat()}")
+
+
+def version_check(doc: Document, version: Version, day: dt.date | None) -> tuple[str, str]:
+    """Is `version` the eligible, unambiguous version for `day`? -> (PASS | FAIL | UNKNOWN, detail).
+
+    Same rules as date-based select_version: draft/withdrawn versions are never eligible,
+    overlapping or unknown effectivity is ambiguous, and the version must be the one in force.
+    """
+    if version.status in ("draft", "withdrawn"):
+        return "FAIL", f"{version.source_key} has status {version.status} in INDEX"
+    if day is None:
+        return "UNKNOWN", "no assessment_date; cannot confirm the version in force"
+    try:
+        chosen, _ = select_version(doc, day, None)
+    except GatewayError as e:
+        return ("UNKNOWN" if e.code == "VERSION_AMBIGUOUS" else "FAIL"), f"{e.code}: {e.message}"
+    if chosen.version != version.version:
+        return "FAIL", f"version in force on {day.isoformat()} is {chosen.version}"
+    return "PASS", f"{version.source_key} in force on {day.isoformat()}"
 
 
 def applicability(index: Index, doc: Document, version: Version, work_code: str | None,

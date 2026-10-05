@@ -3,9 +3,10 @@
 The key covers the normalized request and context, the resolved source identities
 (document, version, INDEX sha256 of the file, NotebookLM mapping + sync identity),
 the INDEX file hash and the INDEX/rules versions. Any change gives a different key.
-A hit is still re-validated by the service against the current INDEX and, for local
-evidence, the current file hash before it is returned; a failed revalidation evicts
-the entry. The cache never bypasses whitelist, applicability or drift checks.
+A hit is still re-validated by the service against the current INDEX and the current
+hash of every cited authoritative file (local and NotebookLM routes) before it is
+returned; a failed revalidation evicts the entry. The cache never bypasses whitelist,
+applicability or drift checks.
 """
 from __future__ import annotations
 

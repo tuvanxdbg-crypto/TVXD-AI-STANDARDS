@@ -8,8 +8,10 @@ Clients:
   * any object implementing NotebookLMClient (tests use a fake backend);
   * McpStdioNotebookLMClient: launches the M01 gated server from the project
     .mcp.json, refuses to proceed unless tools/list is exactly the four approved
-    tools, and refuses to call any other tool name. Not used in the offline round
-    (config mode "disabled"); enabling it needs the live-pilot review.
+    tools, and refuses to call any other tool name. A process is used only after
+    initialize and that surface check both succeeded; any startup failure kills it.
+    Not used in the offline round (config mode "disabled"); enabling it needs the
+    live-pilot review.
 """
 from __future__ import annotations
 
@@ -136,6 +138,7 @@ class McpStdioNotebookLMClient:
     PROTOCOL_VERSION = "2025-06-18"
 
     def __init__(self, mcp_config: Path, server: str = "gemini-notebook-mcp", start_timeout_s: float = 120.0):
+        """start_timeout_s bounds each startup step (initialize, tools/list)."""
         cfg = json.loads(Path(mcp_config).read_text(encoding="utf-8"))
         try:
             spec = cfg["mcpServers"][server]
@@ -148,37 +151,49 @@ class McpStdioNotebookLMClient:
         self._q: queue.Queue = queue.Queue()
         self._id = 0
         self._lock = threading.Lock()
+        self._ready = False   # True only after initialize + exact tools/list check on the current process
 
     def _start(self) -> None:
-        if self._proc and self._proc.poll() is None:
+        if self._ready and self._proc and self._proc.poll() is None:
             return
+        self._terminate()     # a dead process, or a live one that never passed the startup checks
         env = dict(os.environ, **self._spec["env"])
         exe = shutil.which(self._spec["command"]) or self._spec["command"]
         try:
-            self._proc = subprocess.Popen([exe, *self._spec["args"]], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-                                          stderr=subprocess.DEVNULL, env=env)
+            proc = subprocess.Popen([exe, *self._spec["args"]], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                    stderr=subprocess.DEVNULL, env=env)
         except OSError:
             raise GatewayError("BACKEND_UNAVAILABLE", "cannot start the NotebookLM MCP server") from None
-        self._q = queue.Queue()
-        threading.Thread(target=self._reader, daemon=True).start()
-        self._request("initialize", {"protocolVersion": self.PROTOCOL_VERSION, "capabilities": {},
-                                     "clientInfo": {"name": "tvxd-standards-gateway", "version": "0.1.0"}},
-                      timeout=self._start_timeout)
-        self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
-        tools = sorted(t.get("name") for t in self._request("tools/list", {}, timeout=60).get("tools", []))
-        if tools != sorted(M01_READ_TOOLS):
-            self.close()
-            raise GatewayError("BACKEND_UNAVAILABLE", "NotebookLM server tool surface is not exactly the four "
-                               "M01-approved read tools; refusing to use it", details={"visible_tools": len(tools)})
+        self._proc, self._q = proc, queue.Queue()
+        threading.Thread(target=self._reader, args=(proc, self._q), daemon=True).start()
+        try:
+            self._request("initialize", {"protocolVersion": self.PROTOCOL_VERSION, "capabilities": {},
+                                         "clientInfo": {"name": "tvxd-standards-gateway", "version": "0.1.0"}},
+                          timeout=self._start_timeout)
+            self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            tools = sorted(str(t.get("name")) for t in
+                           self._request("tools/list", {}, timeout=self._start_timeout).get("tools", []))
+            if tools != sorted(M01_READ_TOOLS):
+                raise GatewayError("BACKEND_UNAVAILABLE", "NotebookLM server tool surface is not exactly the four "
+                                   "M01-approved read tools; refusing to use it", details={"visible_tools": len(tools)})
+        except BaseException:
+            self._terminate()
+            raise
+        self._ready = True
 
-    def _reader(self) -> None:
-        assert self._proc and self._proc.stdout
-        for raw in self._proc.stdout:
-            try:
-                self._q.put(json.loads(raw.decode("utf-8", "replace")))
-            except json.JSONDecodeError:
-                continue
-        self._q.put(None)
+    @staticmethod
+    def _reader(proc: subprocess.Popen, q: queue.Queue) -> None:
+        # Bound to one process and its queue, so output of a replaced process never reaches a new one.
+        assert proc.stdout
+        try:
+            for raw in proc.stdout:
+                try:
+                    q.put(json.loads(raw.decode("utf-8", "replace")))
+                except json.JSONDecodeError:
+                    continue
+        except (OSError, ValueError):
+            pass
+        q.put(None)
 
     def _send(self, msg: dict) -> None:
         assert self._proc and self._proc.stdin
@@ -229,7 +244,26 @@ class McpStdioNotebookLMClient:
         return self._tool("notebook_query", {"notebook_id": notebook_id, "query": query,
                                              "source_ids": source_ids, "new_conversation": True})
 
+    def _terminate(self) -> None:
+        """Kill the current process (startup failure or replacement) and forget it."""
+        self._ready = False
+        proc, self._proc = self._proc, None
+        if proc is None:
+            return
+        try:
+            proc.kill()
+            proc.wait(timeout=10)
+        except Exception:  # noqa: BLE001
+            pass
+        for stream in (proc.stdin, proc.stdout):
+            try:
+                if stream:
+                    stream.close()
+            except OSError:
+                pass
+
     def close(self) -> None:
+        self._ready = False
         if self._proc:
             try:
                 if self._proc.stdin:
@@ -237,6 +271,7 @@ class McpStdioNotebookLMClient:
                 self._proc.wait(timeout=10)
             except Exception:  # noqa: BLE001
                 self._proc.kill()
+                self._proc.wait(timeout=10)
             if self._proc.stdout:
                 self._proc.stdout.close()
             self._proc = None

@@ -53,10 +53,14 @@
             "type": "string",
             "enum": [
               "INDEX_VALID",
+              "EVIDENCE_ID",
               "DOCUMENT_WHITELISTED",
+              "SOURCE_ID",
               "VERSION_RESOLVED",
+              "SOURCE_LOCATION",
               "SOURCE_HASH",
               "EXCERPT_MATCH",
+              "CLAUSE",
               "MAPPING",
               "APPLICABILITY"
             ]
