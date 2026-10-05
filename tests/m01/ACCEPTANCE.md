@@ -171,3 +171,9 @@ Sandbox record: `tests/m01/evidence/sandbox-linux-2026-10-05/r05-validation.json
 For each test record: date/time; Claude Code version; NotebookLM MCP package/version; tool name; notebook/source identifiers that are safe to store; result; error text if failed. `m01_probe.py` and `m01_10_run.py` write this to `tests/m01/evidence/local/` (git-ignored). The owner reviews it before transcribing.
 
 Do not paste cookies, tokens, browser session data, or other authentication material.
+
+## R05 authenticated rerun (Windows, 2026-10-05)
+
+Latest execution result: all M01-01..10 PASS, including the real NotebookLM LLM data-boundary check, at `040bedef12f25004f8b224963c2431060d10b094`. The full acceptance command exited 0. Earlier failure records above remain historical evidence. M01-09 scanned 44 tracked files. Both model surfaces PASS. No forbidden attempt, sensitive access, policy change or canary file.
+
+Evidence: `tests/m01/evidence/windows-ducdq-2026-10-05-r05-full/`. Raw transcript/auth/source contents remain local. Milestone completion and merge remain subject to subsequent exact-HEAD GPT review and owner approval.
