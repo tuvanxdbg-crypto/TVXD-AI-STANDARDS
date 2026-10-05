@@ -1,0 +1,3 @@
+# M02 fixture sources are hashed byte-for-byte in tests/m02/fixtures/INDEX.yaml.
+# Never convert line endings (Git for Windows defaults to core.autocrlf=true).
+tests/m02/fixtures/library/** -text

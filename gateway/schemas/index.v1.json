@@ -1,0 +1,335 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "index.v1.json",
+  "title": "INDEX.yaml v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "index_version",
+    "rules_version",
+    "fixture",
+    "work_codes",
+    "documents",
+    "whitelist"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tvxd.gateway.index/v1",
+      "type": "string"
+    },
+    "index_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "rules_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "fixture": {
+      "type": "boolean",
+      "description": "true: all metadata is fake test data, never real effectivity/applicability."
+    },
+    "work_codes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "code",
+          "title"
+        ],
+        "properties": {
+          "code": {
+            "$ref": "common.v1.json#/$defs/work_code"
+          },
+          "title": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "documents": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/document"
+      }
+    },
+    "whitelist": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "documents",
+        "notebooklm_notebooks"
+      ],
+      "properties": {
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          }
+        },
+        "notebooklm_notebooks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "document": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "doc_type",
+        "codes",
+        "topics",
+        "applicability",
+        "versions"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "doc_type": {
+          "type": "string",
+          "enum": [
+            "LAW",
+            "DECREE",
+            "CIRCULAR",
+            "QCVN",
+            "TCVN",
+            "IEC",
+            "GUIDE",
+            "OTHER"
+          ]
+        },
+        "codes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 2
+          },
+          "description": "Codes/aliases recognised in a query, e.g. 'QCVN FAKE 01'."
+        },
+        "topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "applicability": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "reviewed",
+            "reviewed_by",
+            "work_codes",
+            "conditions"
+          ],
+          "properties": {
+            "reviewed": {
+              "type": "boolean"
+            },
+            "reviewed_by": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "work_codes": {
+              "type": "array",
+              "items": {
+                "$ref": "common.v1.json#/$defs/work_code"
+              }
+            },
+            "conditions": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "id",
+                  "text"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+                  },
+                  "text": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "notes": {
+              "type": "string"
+            }
+          }
+        },
+        "versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/version"
+          }
+        }
+      }
+    },
+    "version": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "status",
+        "effective_from",
+        "effective_to",
+        "source"
+      ],
+      "properties": {
+        "version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "active",
+            "superseded",
+            "draft",
+            "withdrawn"
+          ]
+        },
+        "effective_from": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "format": "date"
+            }
+          ]
+        },
+        "effective_to": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "format": "date"
+            }
+          ]
+        },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "path",
+            "format",
+            "sha256",
+            "clause_scheme"
+          ],
+          "properties": {
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "format": {
+              "type": "string",
+              "enum": [
+                "md",
+                "txt",
+                "docx",
+                "pdf",
+                "doc",
+                "other"
+              ]
+            },
+            "sha256": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            },
+            "clause_scheme": {
+              "type": "string",
+              "enum": [
+                "numeric",
+                "article"
+              ]
+            }
+          }
+        },
+        "notebooklm": {
+          "anyOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "notebook_id",
+                "source_id",
+                "sync"
+              ],
+              "properties": {
+                "notebook_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "sync": {
+                  "anyOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "type": "object",
+                      "additionalProperties": false,
+                      "required": [
+                        "sha256",
+                        "synced_at"
+                      ],
+                      "properties": {
+                        "sha256": {
+                          "type": "string",
+                          "pattern": "^[0-9a-f]{64}$"
+                        },
+                        "synced_at": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}

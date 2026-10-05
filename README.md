@@ -26,7 +26,11 @@ Nextcloud is the authoritative document store. NotebookLM is a semantic retrieva
 
 M01 covers only one leg of this design, the NotebookLM read path, as a pilot. Nothing in M01 implements the Gateway, the INDEX or local retrieval.
 
-## Current milestone: M01 — NotebookLM content-read-only pilot
+## M02 — Standards Gateway (in progress, offline-first)
+
+The Gateway (`gateway/`) exposes exactly three MCP tools to Claude Code: `standards_lookup`, `standards_verify` and `standards_status`. Behind them are INDEX metadata, a read-only local adapter over the Nextcloud sync/mount, and a NotebookLM semantic adapter limited to the four M01 read tools (disabled in this round). It is built and tested on fixture data only; the real library pilot comes after review. See [docs/M02_STANDARDS_GATEWAY.md](docs/M02_STANDARDS_GATEWAY.md) and [Issue #4](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/4).
+
+## M01 — NotebookLM content-read-only pilot (closed 2026-10-05)
 
 M01 proves that Claude Code can:
 

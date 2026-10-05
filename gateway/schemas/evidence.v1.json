@@ -1,0 +1,301 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence.v1.json",
+  "title": "Evidence item v1 (Issue #2 fields)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "EVIDENCE_ID",
+    "STATUS",
+    "DOCUMENT",
+    "VERSION",
+    "CLAUSE",
+    "APPLICABILITY",
+    "SOURCE_ID",
+    "SOURCE_LOCATION",
+    "SOURCE_HASH",
+    "RETRIEVAL_PATH",
+    "EVIDENCE",
+    "ANSWER",
+    "UNCERTAINTY",
+    "VERIFIED_AT",
+    "NULL_REASONS"
+  ],
+  "properties": {
+    "EVIDENCE_ID": {
+      "type": "string",
+      "pattern": "^ev_[0-9a-f]{24}$"
+    },
+    "STATUS": {
+      "type": "string",
+      "enum": [
+        "VERIFIED",
+        "NOT_APPLICABLE",
+        "UNKNOWN"
+      ],
+      "description": "VERIFIED: source identity, version, hash/mapping and INDEX applicability all checked for this request. Never legal validity or design compliance."
+    },
+    "DOCUMENT": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      }
+    },
+    "VERSION": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "CLAUSE": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "heading"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "heading": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "APPLICABILITY": {
+      "$ref": "common.v1.json#/$defs/applicability"
+    },
+    "SOURCE_ID": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "SOURCE_LOCATION": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "path",
+            "line_start",
+            "line_end"
+          ],
+          "properties": {
+            "kind": {
+              "const": "local",
+              "type": "string"
+            },
+            "path": {
+              "type": "string"
+            },
+            "line_start": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "line_end": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "notebook_id",
+            "source_id"
+          ],
+          "properties": {
+            "kind": {
+              "const": "notebooklm",
+              "type": "string"
+            },
+            "notebook_id": {
+              "type": "string"
+            },
+            "source_id": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "SOURCE_HASH": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "algorithm",
+            "expected",
+            "observed",
+            "observed_from",
+            "match"
+          ],
+          "properties": {
+            "algorithm": {
+              "const": "sha256",
+              "type": "string"
+            },
+            "expected": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "observed": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "observed_from": {
+              "type": "string",
+              "enum": [
+                "local_file",
+                "notebooklm_sync_identity",
+                "none"
+              ]
+            },
+            "match": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "RETRIEVAL_PATH": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "resolved_by",
+        "cache_hit"
+      ],
+      "properties": {
+        "route": {
+          "type": "string",
+          "enum": [
+            "LOCAL",
+            "NOTEBOOKLM",
+            "NOTEBOOKLM_LOCAL_REREAD"
+          ]
+        },
+        "resolved_by": {
+          "type": "string",
+          "enum": [
+            "DOCUMENT_ID",
+            "INDEX_CODE",
+            "SEMANTIC"
+          ]
+        },
+        "cache_hit": {
+          "type": "boolean"
+        }
+      }
+    },
+    "EVIDENCE": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "truncated",
+        "untrusted_data",
+        "layout_dependent"
+      ],
+      "properties": {
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "untrusted_data": {
+          "const": true,
+          "type": "boolean"
+        },
+        "layout_dependent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ANSWER": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "origin"
+      ],
+      "properties": {
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "origin": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "NOTEBOOKLM"
+          ]
+        }
+      }
+    },
+    "UNCERTAINTY": {
+      "type": "array",
+      "items": {
+        "$ref": "common.v1.json#/$defs/uncertainty"
+      }
+    },
+    "VERIFIED_AT": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "format": "date-time"
+        }
+      ]
+    },
+    "NULL_REASONS": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Reason for every top-level field that is null."
+    }
+  }
+}

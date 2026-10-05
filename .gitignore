@@ -240,3 +240,7 @@ chrome-profiles/
 # M01 local evidence (raw probe/transcript output; owner reviews before transcribing)
 tests/m01/evidence/local/
 m01_pwned.txt
+
+# M02 local evidence (raw Claude Code runs)
+tests/m02/evidence/local/
+m02_pwned.txt

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "status.request.v1.json",
+  "title": "standards_status request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "scope": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "string",
+        "enum": [
+          "index",
+          "local",
+          "cache",
+          "notebooklm"
+        ]
+      }
+    },
+    "deep": {
+      "type": "boolean",
+      "description": "Hash every INDEX source file under the local root (slower)."
+    },
+    "probe_backend": {
+      "type": "boolean",
+      "description": "Call the NotebookLM backend (notebook_list) to check reachability. Default false."
+    }
+  }
+}

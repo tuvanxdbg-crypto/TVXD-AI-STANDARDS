@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tvxd-standards-gateway": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "--no-project", "--python", "3.11", "--with", "pyyaml==6.0.2",
+               "--exclude-newer", "2026-10-03T00:00:00Z",
+               "python", "-m", "gateway.server", "--config", "tests/m02/fixtures/gateway.fixture.json"]
+    }
+  }
+}

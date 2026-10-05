@@ -1,0 +1,20 @@
+M02 test-suite mutation check (sandbox, 2026-10-05, Python 3.11, PyYAML 6.0.2)
+Each mutation was applied alone to a copy of the tree; the full suite
+(python -m unittest discover -s tests/m02 -p "test_gateway_*.py", 71 tests) was run.
+
+CAUGHT  notebook whitelist check removed            FAILED (failures=2, errors=1)
+CAUGHT  sync identity always trusted                FAILED (failures=1)
+CAUGHT  cache hit skips drift check                 FAILED (errors=1)
+MASKED  UNKNOWN applicability treated as verified   OK  (second guard: unknown applicability always adds the
+                                                         blocking APPLICABILITY_UNKNOWN uncertainty, so STATUS
+                                                         stays UNKNOWN; behaviour unchanged)
+CAUGHT  dropped citations kept                      FAILED (failures=2)
+CAUGHT  extra public tool exposed                   FAILED (failures=1, errors=2)
+CAUGHT  local path confinement removed              FAILED (failures=1)
+CAUGHT  verify trusts excerpt                       FAILED (failures=1)
+CAUGHT  transient errors not retried                FAILED (failures=2, errors=1)
+8/9 caught; 1 masked by an independent guard.
+
+Found and fixed during development: NotebookLM error payloads were classified after the
+retry loop, so transient payload errors were never retried
+(test_gateway_resilience.Retry.test_transient_retry_exhaustion caught it).
