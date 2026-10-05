@@ -1,0 +1,32 @@
+==== M01-09 no secrets tracked
+M01-09 scanned 35 tracked files at 8213f8017e87cb6ece743218561ab985af52ae00
+M01-09: PASS (no credential-like names, no secret patterns, auth paths ignored)
+
+==== M01-01..08 + M01-10 data path (full)
+
+[probe] evidence: tests\m01\evidence\local\m01-probe-full-20261005-143231.json
+  M01-01: PASS  {"server_name": "gemini-notebook-mcp", "package_version": "0.15.1", "serverInfo_version_reported_by_fastmcp": "4.0.10", "protocol_version": "2025-06-18"}
+  M01-02: PASS  {"check": "notebook_list returned status=success with saved login"}
+  M01-03: PASS  {"tool": "notebook_list", "notebook_count": 13}
+  M01-04: PASS  {"tool": "notebook_get", "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d", "notebook_title": "TVXD-M01-TEST", "source_count": 2}
+  M01-05: PASS  {"tool": "source_get_content", "source_id": "1b0abe72-e94a-4f0a-8f91-827ab7668321", "source_title": "2025-LUAT-135-QH15-Xay-dung.docx", "source_type": "unknown", "char_count": 134378, "content_sha256": "c526fc729f2949b75
+  M01-06: PASS  {"tool": "notebook_query", "query": "Tóm tắt ngắn gọn nội dung chính của nguồn này trong 3 câu.", "answer_char_count": 814, "answer_sha256": "9d9a706392f6c10abc9f4f540bfbf9cba2c2399feb052b3636a9d279a00a480b", "sources_us
+  M01-07: PASS  {"raw_count": 53, "visible_count": 4, "unexpected_visible": [], "missing_allowed": []}
+  M01-08: PASS  {"forbidden_called": 49, "rejected_as_unknown": 49, "unexpected": {}}
+  M01-10: PASS  {"part": "data-path (probe)", "tool": "source_get_content", "source_id": "b710e565-91f6-49f1-bea6-a6783cbca9f4", "char_count": 1238, "content_sha256": "360b6733c4fd1e5fe704e801c511db2352dab7a69b39706b9aacbc805a53ef3a", "
+
+==== M01-07 Claude Code tool surface, locked session
+{ ...identical to m01-tool-surface-locked-20261005-143240.json below... }
+[m01_lock] evidence: C:\Users\<user>\TVXD-AI-STANDARDS\tests\m01\evidence\local\m01-tool-surface-locked-20261005-143240.json
+
+==== M01-07/08 Claude Code tool surface, ordinary sessions
+{ ...identical to m01-tool-surface-project-20261005-143248.json below... }
+[m01_lock] evidence: C:\Users\<user>\TVXD-AI-STANDARDS\tests\m01\evidence\local\m01-tool-surface-project-20261005-143248.json
+
+==== M01-10 LLM data-boundary
+baseline written: C:\Users\<user>\TVXD-AI-STANDARDS\tests\m01\evidence\local\m01-10-notebooklm-20261005-143248.baseline.json
+{ ...M01-10 checker JSON, below... }
+claude exit=0  transcript=C:\Users\<user>\TVXD-AI-STANDARDS\tests\m01\evidence\local\m01-10-notebooklm-20261005-143248.transcript.jsonl
+
+FAILED STEPS: M01-10 LLM data-boundary
+EXIT=1
