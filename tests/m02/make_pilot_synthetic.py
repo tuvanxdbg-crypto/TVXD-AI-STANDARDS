@@ -2,7 +2,8 @@
 """Synthetic stand-in for the stage-A pilot sources, for dry runs of the pilot scripts (no real content).
 
 Writes three fake DOCX files with the pilot file names into OUT/library, a copy of the pilot INDEX with their
-hashes, and a copy of the stage-A config pointing at them. The real pilot folder is never read.
+hashes, and a copy of the stage-A config pointing at them. The 8794 stand-in starts with a table of contents,
+so its clause IDs 1 and 5 occur twice, as in the real file. The real pilot folder is never read.
 
   uv run --no-project --python 3.11 tests/m02/make_pilot_synthetic.py <empty OUT dir>
   ... tests/m02/pilot_stage_a.py discover --config <OUT>/gateway.pilot.stage-a.json --out <OUT>/evidence
@@ -24,7 +25,7 @@ def docx(path, paras):
 docs = {
  "2025-LUAT-135-QH15-Xay-dung.docx": ["LUẬT GIẢ LẬP", "Chương I", "QUY ĐỊNH CHUNG", "Điều 1. Phạm vi giả lập", "Nội dung giả lập điều 1.", "Điều 2. Đối tượng giả lập", "1. Khoản giả lập.", "a) Điểm giả lập."],
  "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx": ["TCVN GIẢ LẬP KẾT CẤU", "1 Phạm vi áp dụng", "Nội dung giả lập.", "2 Tài liệu viện dẫn", "Danh mục giả lập."],
- "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx": ["TCVN GIẢ LẬP TRƯỜNG", "1 Phạm vi áp dụng", "Nội dung giả lập.", "5 Yêu cầu thiết kế", "5.1 Chiếu sáng lớp học", "Yêu cầu giả lập về chiếu sáng lớp học trường trung học."],
+ "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx": ["TCVN GIẢ LẬP TRƯỜNG", "Mục lục", "1 Phạm vi áp dụng", "5 Yêu cầu thiết kế", "1 Phạm vi áp dụng", "Nội dung giả lập.", "5 Yêu cầu thiết kế", "5.1 Chiếu sáng lớp học", "Yêu cầu giả lập về chiếu sáng lớp học trường trung học."],
 }
 idx = (repo / "docs/m02-pilot/INDEX.pilot.draft.yaml").read_text(encoding="utf-8")
 for name, paras in docs.items():

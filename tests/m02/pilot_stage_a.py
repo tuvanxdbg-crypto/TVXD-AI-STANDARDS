@@ -141,10 +141,19 @@ def resp_summary(r: dict) -> dict:
     return out
 
 
+def duplicate_ids(sections) -> dict[str, list[int]]:
+    """Section IDs that occur more than once (e.g. a table of contents or numbered table rows), with start lines."""
+    seen: dict[str, list[int]] = {}
+    for s in sections:
+        seen.setdefault(s.id, []).append(s.start)
+    return {k: v for k, v in seen.items() if len(v) > 1}
+
+
 class Run:
     def __init__(self, mode: str, config: Path):
         self.mode, self.config = mode, config
         self.cases: list[dict] = []
+        self.findings: list[dict] = []   # recorded defects/observations, not PASS/FAIL cases
         self.raw: list[dict] = []
 
     def case(self, cid: str, desc: str, ok: bool, expected: str, observed: dict) -> None:
@@ -180,6 +189,9 @@ def discover(run: Run) -> None:
         for s in local.sections:
             levels[s.level] = levels.get(s.level, 0) + 1
         ids = [s.id for s in local.sections]
+        dups = duplicate_ids(local.sections)
+        run.findings.append({"id": f"DUPLICATE-IDS-{doc.id}", "duplicate_section_ids": len(dups),
+                             "occurrences": {k: [ln + 1 for ln in v] for k, v in list(dups.items())[:40]}})
         run.keep(f"outline {doc.id}", {"sections": [{"id": s.id, "level": s.level, "heading": s.heading}
                                                    for s in local.sections]})
         run.case(f"D-{doc.id}", "load and parse the pilot document", bool(ids), "document loads, >=1 section",
@@ -206,9 +218,17 @@ def p_run(run: Run, p1: dict[str, str]) -> None:
     docs = load_index(load_config(run.config).index_path).documents
     evidence: dict[str, dict] = {}
 
-    # P1: exact/local lookup of each owner-confirmed clause
+    # P1: exact/local lookup of each owner-confirmed clause; the clause ID must be unique in the outline,
+    # because the Gateway returns the first section with a matching ID.
     for doc_id, clause in p1.items():
         canon = canonical_clause(clause, docs[doc_id].versions[0].clause_scheme)
+        outline = svc.local.load(docs[doc_id].versions[0]).sections
+        occurrences = [s.start + 1 for s in outline if s.id == canon]
+        if len(occurrences) != 1:
+            run.case(f"P1-{doc_id}", f"exact/local lookup of owner-confirmed clause {canon}", False,
+                     "clause ID occurs exactly once in the document outline",
+                     {"occurrences_at_lines": occurrences})
+            continue
         r = svc.call("standards_lookup", lookup_args(doc_id, query=f"{doc_id} {clause}", clause=clause))
         run.keep(f"P1 {doc_id}", r)
         res = r.get("results") or []
@@ -221,6 +241,19 @@ def p_run(run: Run, p1: dict[str, str]) -> None:
                  + (" (COND-KET-CAU-THEP unknown)" if doc_id == "TCVN-5575-2024" else ""), resp_summary(r))
         if res:
             evidence[doc_id] = res[0]
+
+    # Finding probe (not a case): what a lookup returns for an ambiguous clause ID
+    for doc_id in docs:
+        dups = duplicate_ids(svc.local.load(docs[doc_id].versions[0]).sections)
+        if not dups:
+            continue
+        amb, lines = next(iter(dups.items()))
+        r = svc.call("standards_lookup", lookup_args(doc_id, query=f"{doc_id} {amb}", clause=amb))
+        run.keep(f"ambiguous {doc_id}", r)
+        res = r.get("results") or []
+        run.findings.append({"id": f"AMBIGUOUS-CLAUSE-{doc_id}", "clause": amb,
+                             "occurrences_at_lines": [ln + 1 for ln in lines], "lookup": resp_summary(r),
+                             "returned_line_start": res[0]["SOURCE_LOCATION"].get("line_start") if res else None})
 
     # P2: verify the genuine evidence, then tampered copies (in memory only)
     for doc_id, ev in evidence.items():
@@ -349,7 +382,7 @@ def main() -> int:
     unchanged = after == before
     run.case("SOURCE-UNCHANGED", "pilot file hashes after the run equal the hashes before and INDEX", unchanged,
              "identical", {"hashes_after": after})
-    summary.update(hashes_after=after, source_unchanged=unchanged, cases=run.cases,
+    summary.update(hashes_after=after, source_unchanged=unchanged, cases=run.cases, findings=run.findings,
                    status="PASS" if all(c["result"] == "PASS" for c in run.cases) else "FAIL",
                    utc_end=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
     summary = strip_text(summary)
