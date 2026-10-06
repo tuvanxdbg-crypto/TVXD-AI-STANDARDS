@@ -1,7 +1,12 @@
 # M02 — Bounded live pilot plan (preparation only)
 
-Status: **STAGE A RUN, AWAITING REVIEW** (`M02_STAGE_A_PREFLIGHT_AND_OWNER_APPROVAL`; result in §6a). GPT_REVIEW_V1 at
-`a4b630b` passed this plan for stage A (local) with the preflight conditions in section 6a; stage B is not open.
+Status: **STAGE A DONE AND REVIEWED; STAGE B PLAN UNDER REVIEW, NOT AUTHORIZED.**
+- Stage A ran on the owner's machine (§6a).
+- Its open finding (non-unique clause IDs) was fixed as F11, re-run on the real files, and passed GPT_REVIEW_V1 at
+  `5f6f254`.
+- The out-of-scope citation fix F12 passed code review at `8ac4e6b`.
+- The stage B plan (§6b) awaits review of the P10 criteria. Stage B, including B0, runs only after that review
+  **and** the owner's direct approval of the exact plan.
 
 What has been executed so far, on the owner's machine, metadata only: ACL/token checks on the Nextcloud folder and
 on `C:\Vanban_XDCB` (section 1), and `Get-Item`/`Get-FileHash` on the three owner-named files (section 2). The
@@ -317,10 +322,26 @@ Steps after approval:
   - P7 notebook removed from the whitelist in a temporary copy;
   - P8 timeout recovery with a small `timeout_s` copy;
   - P9 surface;
-  - **P10 (gate, F12)**: if a response cites any source outside the queried, mapped sources (e.g. the M01 injection
-    source), the whole response is discarded. PASS requires all of: `ERROR CITED_SOURCE_NOT_WHITELISTED`, no answer
-    text, no evidence, no cache entry (a repeat lookup queries again), and 0 `VERIFIED`. A failure stops stage B.
-    The mixed M01 notebook may be used for P10 only because the Gateway fails closed (GPT_REVIEW_V1 at `a9877ec`);
+  - **P10 (gate, F12)**: the out-of-scope boundary on live responses. The client sends only the mapped,
+    whitelisted `source_ids`. Record those ids, and for each response the cited and `sources_used` ids (ids and
+    counts only). Exactly one of two outcomes PASSes:
+    - **P10-A `OUT_OF_SCOPE_NOT_OBSERVED`.** Every cited and `sources_used` id is in the sent `source_ids`, or
+      there is no citation outside them.
+      - Record that the backend kept to the requested scope, and that the live F12 branch was not triggered.
+      - Out-of-scope handling then rests on the offline F12 regressions (`F12OutOfScopeCitations`).
+    - **P10-B `OUT_OF_SCOPE_OBSERVED`.** A response cites an id outside the sent `source_ids`, or a citation has no
+      source id. PASS requires all of:
+      - the Gateway returns `ERROR CITED_SOURCE_NOT_WHITELISTED`;
+      - no answer text and no evidence;
+      - no cache entry (a repeat lookup queries the backend again);
+      - 0 `VERIFIED`.
+    - **FAIL**, which stops stage B: any other behaviour, e.g. an out-of-scope id with a `FOUND`/`VERIFIED` result,
+      an answer or evidence kept, a cached result, or ids that cannot be recorded.
+    - **Not allowed:** forcing P10-B by adding the M01 injection source (or any other unmapped source) to
+      `source_ids`, the INDEX mapping or the whitelist. That would make it an allowed source, stop testing the
+      whitelist boundary, and widen the source set beyond what the owner approved.
+    - The mixed M01 notebook may be used only because the Gateway fails closed (GPT_REVIEW_V1 at `a9877ec`,
+      `8ac4e6b`).
   - **P11**: a document whose source has no sync identity gives `SYNC_IDENTITY_MISSING` / `UNKNOWN`.
   - Preflight before and after, as in stage A.
 - **B3, report.** IDs, counts, citation key names, statuses, codes, hashes and timings only. No answer text,
