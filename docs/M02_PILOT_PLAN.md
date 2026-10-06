@@ -74,15 +74,28 @@ summary or conversion.
 
 | # | File (path under `source_root`) | Bytes | SHA-256 | Last write (UTC) | Document ID / version / status / effectivity |
 |---|---|---|---|---|---|
-| 1 | `2025-LUAT-135-QH15-Xay-dung.docx` | 47,416 | `c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af` | 2026-06-05T01:30:05Z | `<OWNER_INPUT: e.g. LUAT-135-2025-QH15, version, status, effective_from>` |
-| 2 | `2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx` | 14,444,867 | `87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124` | 2026-08-05T07:05:39Z | `<OWNER_INPUT: e.g. TCVN-5575-2024, version, status, effective_from>` |
-| 3 | `2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx` | 35,242 | `827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f` | 2019-06-09T08:57:34Z | `<OWNER_INPUT: e.g. TCVN-8794-2011, version, status, effective_from>` |
+| 1 | `2025-LUAT-135-QH15-Xay-dung.docx` | 47,416 | `c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af` | 2026-06-05T01:30:05Z | `LUAT-135-2025-QH15` (proposed) / `2025` / active (owner) / effective_from `2026-07-01` (web, see below) |
+| 2 | `2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx` | 14,444,867 | `87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124` | 2026-08-05T07:05:39Z | `TCVN-5575-2024` (proposed) / `2024` / active (owner) / effective_from `2024-12-24` (web, see below) |
+| 3 | `2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx` | 35,242 | `827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f` | 2019-06-09T08:57:34Z | `TCVN-8794-2011` (proposed) / `2011` / active (owner) / effective_from `2011-08-23` (web, see below) |
 
 These are the owner-named files (2026-10-06). Inventory was metadata and SHA-256 only, on the owner's machine: no
 content opened or parsed, no other file name printed. All three are plain files (`Archive`): no reparse point, NFC
 names, ACEs inherited from the folder (the Claude account gets `RX` when non-elevated). Each copy's SHA-256 must
 match the Nextcloud original (`Thu-vien-chung/Vanban_XDCB`). The owner's confirmation of that match is still
 `<OWNER_INPUT>`.
+
+Effective dates (owner asked Claude to look them up, 2026-10-06). They come from web search summaries only: the
+official publication sites (`vanban.chinhphu.vn`, `tieuchuan.vsqi.gov.vn`) were not reachable from the sandbox, so
+none of them is checked against the official text. The owner should confirm them before the live pilot.
+
+| Document | effective_from | Basis found | Secondary sources |
+|---|---|---|---|
+| Luật Xây dựng 135/2025/QH15 | 2026-07-01 | Passed 2025-12-10; in force 2026-07-01, some provisions from 2026-01-01 (INDEX keeps one version; per-provision dates are not modelled) | xaydungchinhsach.chinhphu.vn, baomoi.com, vanban.chinhphu.vn search listing |
+| TCVN 5575:2024 | 2024-12-24 | Announced by QĐ 3366/QĐ-BKHCN dated 2024-12-24; replaces TCVN 5575:2012 | caselaw.vn, luatvietnam.vn, icci.vn |
+| TCVN 8794:2011 | 2011-08-23 | Issue date per secondary sites; the announcing decision number was not confirmed | thuvienphapluat.vn, caselaw.vn, hethongphapluat.com |
+
+With these dates the draft INDEX passes schema validation, and `version_check` returns `PASS` for each version on
+2026-10-06. Applicability still returns `UNKNOWN` for all three documents because they remain `reviewed: false`.
 
 Note for stage A: file 2 is 14.4 MB, under `max_source_bytes` (20 MB). Its uncompressed size has not been checked.
 The Gateway refuses a docx above `max_docx_uncompressed_bytes` (50 MB) with `EXTRACTION_FAILED`. That would be a
@@ -109,8 +122,8 @@ Get-FileHash -Algorithm SHA256 "<source_root>\<path>"
 
 | Item | Value |
 |---|---|
-| Reviewer of effectivity/applicability (`reviewed_by`) | `<OWNER_INPUT: name/role>` |
-| Reviewed work codes and conditions per document | `<OWNER_INPUT>` |
+| Reviewer of effectivity/applicability (`reviewed_by`) | The owner (owner input, 2026-10-06), recorded as `owner (tuvanxdbg-crypto)` |
+| Reviewed work codes and conditions per document | `<OWNER_INPUT>`: owner confirmation of the proposed `THIET-KE-DAN-DUNG` for all three, `COND-KET-CAU-THEP` (TCVN 5575) and `COND-TRUONG-TRUNG-HOC` (TCVN 8794), and of the web-sourced effective dates. Until then `reviewed: false` |
 
 A document without owner-reviewed metadata stays `reviewed: false`, so every result for it is `UNKNOWN`.
 
@@ -169,8 +182,8 @@ Any FAIL stops the pilot. The result is reported as FAIL with the case ID; nothi
 | # | Input | Status |
 |---|---|---|
 | 1 | Source path, Claude account, sync state, `icacls` output | RECEIVED: `source_root` `C:\Vanban_XDCB` (outside the Nextcloud sync root); READ_ONLY_PROOF PASS when non-elevated (§1); optional deny-write hardening |
-| 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | PARTIAL: 3 files inventoried (§2); owner: types LUAT/TCVN, all in force. Draft metadata in `m02-pilot/INDEX.pilot.draft.yaml`. MISSING: effective_from dates, confirmation of the proposed IDs/conditions, and the Nextcloud-copy hash match |
+| 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | PARTIAL: 3 files inventoried (§2); owner: types LUAT/TCVN, all in force. Draft metadata in `m02-pilot/INDEX.pilot.draft.yaml`. effective_from filled from web search (§2, not checked on official sites). MISSING: owner confirmation of the dates and proposed IDs/conditions, and the Nextcloud-copy hash match |
 | 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | PARTIAL: WORK_CODE `THIET-KE-DAN-DUNG`, Q-S1; semantic-first (no exact questions). MISSING: assessment_date, confirmation of proposed conditions (COND-KET-CAU-THEP, COND-TRUONG-TRUNG-HOC) |
-| 4 | Applicability reviewer and reviewed metadata | MISSING |
+| 4 | Applicability reviewer and reviewed metadata | PARTIAL: reviewer is the owner. MISSING: owner confirmation of the proposed metadata (`reviewed: true` is set only after that) |
 | 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: owner says the sources already exist in NotebookLM. MISSING: notebook name/URL and source titles; IDs to be read in stage B with the M01 read tool `notebook_get`; sync proof that each source was uploaded from the same file (SHA-256 in §2) |
 | 6 | Approval of the live scope (stages A and B) after review of this plan | MISSING |

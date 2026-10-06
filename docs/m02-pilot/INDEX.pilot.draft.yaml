@@ -1,6 +1,9 @@
 # INDEX.pilot.draft.yaml — DRAFT metadata for the M02 bounded pilot (docs/M02_PILOT_PLAN.md).
-# Not loaded by anything; the remaining <OWNER_INPUT ...> placeholders make it fail schema validation (fail closed).
+# Not loaded by anything. It now passes schema validation, but every document stays `reviewed: false`, so the
+# Gateway returns applicability UNKNOWN for all of them (fail closed) until the owner confirms the proposals.
 # Values marked "proposed" are Claude's proposals awaiting owner confirmation, not owner-reviewed metadata.
+# effective_from values come from web search summaries (official sites were unreachable from the sandbox);
+# the owner should confirm them against the official publication before the live pilot.
 schema: tvxd.gateway.index/v1
 index_version: "2026-10-pilot.1"
 rules_version: "pilot-rules.1"
@@ -17,14 +20,14 @@ documents:
     codes: ["Luật 135/2025/QH15", "135/2025/QH15", "Luật Xây dựng 2025"]
     topics: [phap-luat, xay-dung]
     applicability:
-      reviewed: false                  # true only after the owner-named reviewer approves
-      reviewed_by: null
+      reviewed: false                  # true only after the owner confirms the proposed work_codes/conditions
+      reviewed_by: "owner (tuvanxdbg-crypto)"   # owner input 2026-10-06: the owner is the applicability reviewer
       work_codes: [THIET-KE-DAN-DUNG]  # proposed
       conditions: []
     versions:
       - version: "2025"
         status: active                 # owner: còn hiệu lực
-        effective_from: "<OWNER_INPUT: YYYY-MM-DD>"
+        effective_from: "2026-07-01"   # web search 2026-10-06: law passed 2025-12-10, in force 2026-07-01 (some provisions from 2026-01-01); not yet checked on vanban.chinhphu.vn
         effective_to: null
         source: {path: "2025-LUAT-135-QH15-Xay-dung.docx", format: docx, sha256: "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af", clause_scheme: article}
         notebooklm: null               # stage B: {notebook_id, source_id, sync: {sha256, synced_at}}
@@ -36,14 +39,14 @@ documents:
     topics: [ket-cau-thep, thiet-ke]
     applicability:
       reviewed: false
-      reviewed_by: null
+      reviewed_by: "owner (tuvanxdbg-crypto)"
       work_codes: [THIET-KE-DAN-DUNG]  # proposed
       conditions:                      # proposed
         - {id: COND-KET-CAU-THEP, text: "Công trình có kết cấu thép"}
     versions:
       - version: "2024"
         status: active
-        effective_from: "<OWNER_INPUT: YYYY-MM-DD>"
+        effective_from: "2024-12-24"   # web search 2026-10-06: announced by QD 3366/QD-BKHCN of 2024-12-24, replaces TCVN 5575:2012; not yet checked on tieuchuan.vsqi.gov.vn
         effective_to: null
         source: {path: "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx", format: docx, sha256: "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124", clause_scheme: numeric}
         notebooklm: null
@@ -55,14 +58,14 @@ documents:
     topics: [truong-hoc, trung-hoc, thiet-ke]
     applicability:
       reviewed: false
-      reviewed_by: null
+      reviewed_by: "owner (tuvanxdbg-crypto)"
       work_codes: [THIET-KE-DAN-DUNG]  # proposed
       conditions:                      # proposed
         - {id: COND-TRUONG-TRUNG-HOC, text: "Công trình là trường trung học"}
     versions:
       - version: "2011"
         status: active
-        effective_from: "<OWNER_INPUT: YYYY-MM-DD>"
+        effective_from: "2011-08-23"   # web search 2026-10-06: issue date per secondary sites; announcing decision number not confirmed; not yet checked on tieuchuan.vsqi.gov.vn
         effective_to: null
         source: {path: "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx", format: docx, sha256: "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f", clause_scheme: numeric}
         notebooklm: null
