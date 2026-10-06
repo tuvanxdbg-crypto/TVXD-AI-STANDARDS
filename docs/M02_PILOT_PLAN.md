@@ -20,8 +20,8 @@ so every lookup returns `INDEX_INVALID` and `standards_status` reports `ERROR`. 
 | Item | Value |
 |---|---|
 | Gateway `source_root` (dedicated read-only pilot folder; copies of Nextcloud `Thu-vien-chung/Vanban_XDCB` files) | `C:\Vanban_XDCB` (owner input, 2026-10-06) |
-| Windows account that runs Claude Code / the Gateway | `<OWNER_INPUT: DOMAIN\user>` |
-| Nextcloud client sync state for that folder | `<OWNER_INPUT: "up to date" + time>` |
+| Windows account that runs Claude Code / the Gateway | The owner's account on machine `ducdq`, non-elevated (the account checked in the second check below) |
+| Nextcloud client sync state for that folder | Not applicable: `C:\Vanban_XDCB` is outside the sync root. Instead the owner confirmed (2026-10-06) that each copy equals its Nextcloud original (§2) |
 
 Read-only proof, gathered **without writing to the library**:
 
@@ -65,7 +65,7 @@ Metadata only: no file name printed, no file opened, no write.
   also applies when elevated.
 - `ALL APPLICATION PACKAGES` has an inherited `RX,W`. It applies only to AppContainer apps, not to Claude or the
   Gateway.
-- `source_root` for the pilot: `C:\Vanban_XDCB`. The 1–3 pilot documents are still to be named by the owner.
+- `source_root` for the pilot: `C:\Vanban_XDCB`. The owner named 3 pilot documents (§2).
 
 ## 2. Bounded document set (1–3 files)
 
@@ -81,12 +81,12 @@ summary or conversion.
 These are the owner-named files (2026-10-06). Inventory was metadata and SHA-256 only, on the owner's machine: no
 content opened or parsed, no other file name printed. All three are plain files (`Archive`): no reparse point, NFC
 names, ACEs inherited from the folder (the Claude account gets `RX` when non-elevated). Each copy's SHA-256 must
-match the Nextcloud original (`Thu-vien-chung/Vanban_XDCB`). The owner's confirmation of that match is still
-`<OWNER_INPUT>`.
+match the Nextcloud original (`Thu-vien-chung/Vanban_XDCB`). The owner confirmed that match on 2026-10-06 (owner
+statement; Claude did not hash the Nextcloud originals).
 
 Effective dates (owner asked Claude to look them up, 2026-10-06). They come from web search summaries only: the
 official publication sites (`vanban.chinhphu.vn`, `tieuchuan.vsqi.gov.vn`) were not reachable from the sandbox, so
-none of them is checked against the official text. The owner should confirm them before the live pilot.
+none of them is checked against the official text. The owner confirmed all three dates on 2026-10-06.
 
 | Document | effective_from | Basis found | Secondary sources |
 |---|---|---|---|
@@ -95,7 +95,14 @@ none of them is checked against the official text. The owner should confirm them
 | TCVN 8794:2011 | 2011-08-23 | Issue date per secondary sites; the announcing decision number was not confirmed | thuvienphapluat.vn, caselaw.vn, hethongphapluat.com |
 
 With these dates the draft INDEX passes schema validation, and `version_check` returns `PASS` for each version on
-2026-10-06. Applicability still returns `UNKNOWN` for all three documents because they remain `reviewed: false`.
+2026-10-06. With the owner-reviewed metadata (§4), `applicability()` on 2026-10-06 with `THIET-KE-DAN-DUNG` gives
+(offline check against the draft INDEX, no source read):
+
+| project_context.conditions | LUAT-135-2025-QH15 | TCVN-5575-2024 | TCVN-8794-2011 |
+|---|---|---|---|
+| none | APPLICABLE | UNKNOWN (missing COND-KET-CAU-THEP) | UNKNOWN (missing COND-TRUONG-TRUNG-HOC) |
+| COND-TRUONG-TRUNG-HOC: true | APPLICABLE | UNKNOWN (missing COND-KET-CAU-THEP) | APPLICABLE |
+| COND-TRUONG-TRUNG-HOC: true, COND-KET-CAU-THEP: false | APPLICABLE | NOT_APPLICABLE | APPLICABLE |
 
 Note for stage A: file 2 is 14.4 MB, under `max_source_bytes` (20 MB). Its uncompressed size has not been checked.
 The Gateway refuses a docx above `max_docx_uncompressed_bytes` (50 MB) with `EXTRACTION_FAILED`. That would be a
@@ -113,8 +120,8 @@ Get-FileHash -Algorithm SHA256 "<source_root>\<path>"
 | Item | Value |
 |---|---|
 | WORK_CODE(s) | `THIET-KE-DAN-DUNG` (owner input, 2026-10-06) |
-| assessment_date | `<OWNER_INPUT: YYYY-MM-DD>` |
-| project_context.conditions | `<OWNER_INPUT: condition id → true/false>` |
+| assessment_date | `2026-10-06` (owner-confirmed, 2026-10-06) |
+| project_context.conditions | Condition definitions owner-confirmed: `COND-KET-CAU-THEP` (TCVN 5575), `COND-TRUONG-TRUNG-HOC` (TCVN 8794). Values are set per pilot case: Q-S1 uses `COND-TRUONG-TRUNG-HOC: true` (the question is about a secondary school) and leaves `COND-KET-CAU-THEP` unset, so TCVN 5575 stays `UNKNOWN` for it (P3) |
 | Exact/local questions (document + clause known) | None from the owner. Users usually do not remember clauses or wording, so **semantic lookup is the primary pilot case**. Exact/local cases (P1) will be drawn from clauses that stage A shows exist in the files, and the owner confirms them. |
 | Semantic questions (discovery needed) | Q-S1 (owner, 2026-10-06): "Tiêu chuẩn thiết kế chiếu sáng lớp học trường trung học" (lighting design requirements for secondary-school classrooms). Stage A: with `document_id` of the TCVN 8794:2011 copy, the expected result is `CANDIDATES` (heuristic keyword match, never exact); without `document_id` it is `BACKEND_UNAVAILABLE` while NotebookLM is disabled. Stage B: semantic lookup over the whitelisted, mapped pilot sources. Whether the document has a lighting clause is unverified (contents not opened). Further questions: `<OWNER_INPUT: optional>` |
 
@@ -123,7 +130,7 @@ Get-FileHash -Algorithm SHA256 "<source_root>\<path>"
 | Item | Value |
 |---|---|
 | Reviewer of effectivity/applicability (`reviewed_by`) | The owner (owner input, 2026-10-06), recorded as `owner (tuvanxdbg-crypto)` |
-| Reviewed work codes and conditions per document | `<OWNER_INPUT>`: owner confirmation of the proposed `THIET-KE-DAN-DUNG` for all three, `COND-KET-CAU-THEP` (TCVN 5575) and `COND-TRUONG-TRUNG-HOC` (TCVN 8794), and of the web-sourced effective dates. Until then `reviewed: false` |
+| Reviewed work codes and conditions per document | Owner-confirmed 2026-10-06: `THIET-KE-DAN-DUNG` for all three; `COND-KET-CAU-THEP` (TCVN 5575), `COND-TRUONG-TRUNG-HOC` (TCVN 8794), none for the law; the document IDs and the effective dates in §2. The draft INDEX now has `reviewed: true` for all three |
 
 A document without owner-reviewed metadata stays `reviewed: false`, so every result for it is `UNKNOWN`.
 
@@ -132,6 +139,10 @@ A document without owner-reviewed metadata stays `reviewed: false`, so every res
 | Document | notebook_id | source_id | SHA-256 of the file uploaded/synced | synced_at |
 |---|---|---|---|---|
 | `<doc>` | `<OWNER_INPUT>` | `<OWNER_INPUT>` | `<OWNER_INPUT: must equal section 2 hash>` | `<OWNER_INPUT>` |
+
+Owner statement (2026-10-06): the three documents already exist as NotebookLM sources, uploaded from these same
+files. Still `<OWNER_INPUT>`: the notebook name/URL and the source titles. `notebook_id`/`source_id` are read in
+stage B with the M01 read tool `notebook_get`; a mapping with no sync identity stays `UNKNOWN` (never `VERIFIED`).
 
 Whitelists: `whitelist.documents` = the documents in section 2; `whitelist.notebooklm_notebooks` = only the
 notebook(s) above. Mappings are read from the owner's notes and M01-approved read tools; nothing is uploaded,
@@ -182,8 +193,8 @@ Any FAIL stops the pilot. The result is reported as FAIL with the case ID; nothi
 | # | Input | Status |
 |---|---|---|
 | 1 | Source path, Claude account, sync state, `icacls` output | RECEIVED: `source_root` `C:\Vanban_XDCB` (outside the Nextcloud sync root); READ_ONLY_PROOF PASS when non-elevated (§1); optional deny-write hardening |
-| 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | PARTIAL: 3 files inventoried (§2); owner: types LUAT/TCVN, all in force. Draft metadata in `m02-pilot/INDEX.pilot.draft.yaml`. effective_from filled from web search (§2, not checked on official sites). MISSING: owner confirmation of the dates and proposed IDs/conditions, and the Nextcloud-copy hash match |
-| 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | PARTIAL: WORK_CODE `THIET-KE-DAN-DUNG`, Q-S1; semantic-first (no exact questions). MISSING: assessment_date, confirmation of proposed conditions (COND-KET-CAU-THEP, COND-TRUONG-TRUNG-HOC) |
-| 4 | Applicability reviewer and reviewed metadata | PARTIAL: reviewer is the owner. MISSING: owner confirmation of the proposed metadata (`reviewed: true` is set only after that) |
-| 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: owner says the sources already exist in NotebookLM. MISSING: notebook name/URL and source titles; IDs to be read in stage B with the M01 read tool `notebook_get`; sync proof that each source was uploaded from the same file (SHA-256 in §2) |
+| 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | RECEIVED: 3 files inventoried (§2); IDs, types, status and effective dates owner-confirmed (dates web-sourced, not checked on official sites); Nextcloud-copy match owner-confirmed. Metadata in `m02-pilot/INDEX.pilot.draft.yaml` |
+| 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | RECEIVED: WORK_CODE `THIET-KE-DAN-DUNG`, assessment_date 2026-10-06, conditions COND-KET-CAU-THEP / COND-TRUONG-TRUNG-HOC, Q-S1; semantic-first (exact cases drawn in stage A and confirmed by the owner) |
+| 4 | Applicability reviewer and reviewed metadata | RECEIVED: reviewer is the owner; metadata owner-reviewed 2026-10-06 (`reviewed: true`) |
+| 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: owner states the sources exist in NotebookLM and were uploaded from these same files. MISSING: notebook name/URL and source titles; IDs are read in stage B with the M01 read tool `notebook_get` |
 | 6 | Approval of the live scope (stages A and B) after review of this plan | MISSING |
