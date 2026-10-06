@@ -1,0 +1,38 @@
+# INDEX.pilot.template.yaml — TEMPLATE for the M02 bounded live pilot (docs/M02_PILOT_PLAN.md).
+# Not loaded by anything. Every <OWNER_INPUT ...> is filled by the owner; the placeholders fail schema validation,
+# so an unfilled copy is refused by the Gateway. Copy it outside the repo (or to an ignored path) before filling.
+schema: tvxd.gateway.index/v1
+index_version: "<OWNER_INPUT: e.g. 2026-10-pilot.1>"
+rules_version: "<OWNER_INPUT: e.g. pilot-rules.1>"
+fixture: false
+
+work_codes:
+  - code: <OWNER_INPUT_WORK_CODE>
+    title: "<OWNER_INPUT: work code title>"
+
+documents:
+  - id: <OWNER_INPUT_DOCUMENT_ID>
+    title: "<OWNER_INPUT: document title>"
+    doc_type: <OWNER_INPUT: QCVN|TCVN|LAW|GUIDE|IEC>
+    codes: ["<OWNER_INPUT: code as written in questions>"]
+    topics: [<OWNER_INPUT_TOPIC>]
+    applicability:
+      reviewed: false                      # true only after the owner-named reviewer approves
+      reviewed_by: null                    # "<OWNER_INPUT: reviewer>" when reviewed: true
+      work_codes: [<OWNER_INPUT_WORK_CODE>]
+      conditions: []                       # - {id: <COND-ID>, text: "<OWNER_INPUT>"}
+    versions:
+      - version: "<OWNER_INPUT>"
+        status: <OWNER_INPUT: active|superseded|draft|withdrawn>
+        effective_from: "<OWNER_INPUT: YYYY-MM-DD or null>"
+        effective_to: null
+        source:
+          path: "<OWNER_INPUT: relative path under source_root, / separators, NFC>"
+          format: <OWNER_INPUT: md|txt|docx>
+          sha256: "<computed: Get-FileHash -Algorithm SHA256>"
+          clause_scheme: <OWNER_INPUT: numeric|article>
+        notebooklm: null                   # stage B: {notebook_id, source_id, sync: {sha256, synced_at}}
+
+whitelist:
+  documents: [<OWNER_INPUT_DOCUMENT_ID>]
+  notebooklm_notebooks: []                 # stage B: only the owner-named pilot notebook
