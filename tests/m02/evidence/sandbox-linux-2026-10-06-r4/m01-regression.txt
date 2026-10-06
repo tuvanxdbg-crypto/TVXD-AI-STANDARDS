@@ -1,5 +1,5 @@
 M01 regression (fresh worktree of 746fac2d823ea4d044d69748f7438401f73c5cd3, setup-local, USERPROFILE=<scratch>/fake-userprofile)
-Command: scripts/m01/m01-acceptance.ps1 -SurfaceOnly -LlmSelfTest under pwsh 7.6.2, Claude Code 2.1.289, uv 0.8.17
+Command: scripts/m01/m01-acceptance.ps1 -SurfaceOnly -LlmSelfTest under pwsh 7.6.2, Claude Code 2.1.290, uv 0.8.17
 
 ==== M01-09 no secrets tracked
 M01-09 scanned 126 tracked files at 746fac2d823ea4d044d69748f7438401f73c5cd3

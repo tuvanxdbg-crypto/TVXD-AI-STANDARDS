@@ -115,8 +115,10 @@ cancelled (`notifications/cancelled`) and its server process killed, so no backe
 continues after the caller has received `TIMEOUT`. Writes to the server's stdin are made by a per-process writer
 thread; the caller only waits for a write until its deadline, so a server that stops reading cannot hold the caller,
 the client lock or the worker. Retiring a timed-out request first hands `notifications/cancelled` to the writer
-best-effort, waiting at most 50 ms, and then kills the process; `_terminate`/`close` kill the process before closing
-any stream (the kill also unblocks a stuck write) and never close or flush a stdin that a blocked write still holds.
+best-effort, waiting at most 50 ms, and then kills the process. `_terminate` kills the process before closing any
+stream (the kill also unblocks a stuck write). `close` stops gracefully: once the writer has drained it closes stdin
+so the server exits on EOF, and it kills the process when the writer is stuck or the server does not exit. Neither
+closes or flushes a stdin that a blocked write still holds.
 `APPLICABILITY_UNKNOWN` normally appears as an evidence uncertainty (not a request error), with the missing inputs.
 
 ## 5. Security boundary
