@@ -40,6 +40,19 @@ hard links or junctions inside the root. This matters because:
 
 If write access cannot be removed, the pilot stops here (`READ_ONLY_PROOF: FAIL`).
 
+**First check, 2026-10-06 (owner-named Nextcloud folder `Thu-vien-chung/Vanban_XDCB`, local sync path under the
+user profile).** Metadata only: no listing, no file opened, no write. Result:
+- **READ_ONLY_PROOF: FAIL.** The account that runs Claude has inherited Full Control on the folder and both parents.
+- **Unusable as `source_root`.** The Nextcloud client uses virtual files (`virtualFilesMode=wincfapi`). The sync root
+  and the folder are Cloud Files reparse points and are Unpinned. The adapter refuses every reparse point by design.
+  Reading a placeholder may also trigger a download.
+
+Proposed remedy, pending the owner's decision (option A): a dedicated pilot folder **outside** the sync root. The
+owner copies the 1–3 pilot files into it; these are real files, not placeholders. Its ACL gives the Claude account
+read-only access, for example a deny-write ACE for that account, while the folder is managed from a different
+account. Each copy's SHA-256 must equal the Nextcloud original. Supporting Cloud Files placeholders in the adapter
+would be a code change and needs its own review.
+
 ## 2. Bounded document set (1–3 files)
 
 Only formats the Gateway supports: `md`, `txt`, `docx`. A PDF stays `UNSUPPORTED_FORMAT`; it is not replaced by a
@@ -131,7 +144,7 @@ Any FAIL stops the pilot. The result is reported as FAIL with the case ID; nothi
 
 | # | Input | Status |
 |---|---|---|
-| 1 | Source path, Claude account, sync state, `icacls` output | MISSING |
+| 1 | Source path, Claude account, sync state, `icacls` output | PARTIAL: Nextcloud folder named; READ_ONLY_PROOF FAIL and virtual files (see §1); owner decision on option A pending |
 | 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | MISSING |
 | 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | MISSING |
 | 4 | Applicability reviewer and reviewed metadata | MISSING |
