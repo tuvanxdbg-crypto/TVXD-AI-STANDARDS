@@ -128,9 +128,8 @@ class Semantic(unittest.TestCase):
         r = lookup(svc, query="khoảng cách trước tủ điện", **ELEC)
         self.assertEqual(r["error"]["code"], "BACKEND_UNAVAILABLE")
 
-    def test_only_whitelisted_mapped_sources_are_queried_and_kept(self):
-        fake = FakeNotebookLM(answers(("src-qcvn01-2024", QCVN_PASSAGE), ("src-qcvn02", "ngoài whitelist"),
-                                      ("src-unreviewed", "notebook không được phép"), ("src-unknown", "lạ")))
+    def test_only_whitelisted_mapped_sources_are_queried(self):
+        fake = FakeNotebookLM(answers(("src-qcvn01-2024", QCVN_PASSAGE)))
         svc, _ = make_service(client=fake)
         r = lookup(svc, query="khoảng cách trước tủ điện", **ELEC)
         (_, nb, _q, sent), = fake.calls
@@ -145,12 +144,18 @@ class Semantic(unittest.TestCase):
         self.assertEqual(ev["SOURCE_HASH"]["observed_from"], "notebooklm_sync_identity")
         self.assertIsNone(ev["CLAUSE"])
         self.assertIn("CLAUSE", ev["NULL_REASONS"])
-        dropped = {x["document_id"] for x in r["excluded"] if x["reason"] == "CITED_SOURCE_NOT_WHITELISTED"}
-        self.assertEqual(dropped, {"notebooklm:src-qcvn02", "notebooklm:src-unreviewed", "notebooklm:src-unknown"})
         reasons = {x["document_id"]: x["reason"] for x in r["excluded"]}
         self.assertEqual(reasons["IEC-FAKE-60000"], "MAPPING_MISSING")
         self.assertEqual(reasons["TCVN-FAKE-9999"], "VERSION_AMBIGUOUS")
         self.assertEqual(reasons["HD-FAKE-UNREVIEWED"], "NOTEBOOK_NOT_WHITELISTED")
+
+    def test_response_citing_non_whitelisted_sources_is_discarded(self):
+        fake = FakeNotebookLM(answers(("src-qcvn01-2024", QCVN_PASSAGE), ("src-qcvn02", "ngoài whitelist"),
+                                      ("src-unreviewed", "notebook không được phép"), ("src-unknown", "lạ")))
+        svc, _ = make_service(client=fake)
+        r = lookup(svc, query="khoảng cách trước tủ điện", **ELEC)
+        self.assertEqual((r["status"], r["error"]["code"], r["results"]), ("ERROR", "CITED_SOURCE_NOT_WHITELISTED", []))
+        self.assertEqual(r["error"]["details"]["out_of_scope_source_ids"], ["src-qcvn02", "src-unknown", "src-unreviewed"])
 
     def test_missing_sync_identity_is_never_verified(self):
         fake = FakeNotebookLM(answers(("src-tcvn7777", "Độ rọi giả lập tối thiểu tại mặt bàn làm việc là 333 lx.")))
@@ -189,10 +194,15 @@ class Semantic(unittest.TestCase):
         self.assertIsNone(ev["EVIDENCE"]["text"])
         self.assertIn("PASSAGE_NOT_FOUND", [u["code"] for u in ev["UNCERTAINTY"]])
 
-    def test_no_usable_citation_is_unknown(self):
-        svc, _ = make_service(client=FakeNotebookLM(answers(("src-unknown", "x"))))
+    def test_no_citation_is_unknown(self):
+        svc, _ = make_service(client=FakeNotebookLM(answers()))
         r = lookup(svc, query="câu hỏi khám phá", **ELEC)
         self.assertEqual((r["status"], r["results"]), ("UNKNOWN", []))
+
+    def test_only_out_of_scope_citations_fail_closed(self):
+        svc, _ = make_service(client=FakeNotebookLM(answers(("src-unknown", "x"))))
+        r = lookup(svc, query="câu hỏi khám phá", **ELEC)
+        self.assertEqual((r["status"], r["error"]["code"], r["results"]), ("ERROR", "CITED_SOURCE_NOT_WHITELISTED", []))
 
 
 class Cache(unittest.TestCase):

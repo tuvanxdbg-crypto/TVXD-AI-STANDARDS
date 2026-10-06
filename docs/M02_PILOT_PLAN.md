@@ -170,8 +170,8 @@ Sync identity rules:
   exact file.
 - Otherwise `sync` stays absent. The evidence is then `SYNC_IDENTITY_MISSING` and stays `UNKNOWN`, never
   `VERIFIED`.
-- The M01 injection source and any other source in the notebook are never mapped. A citation to them is excluded
-  and never becomes evidence (case P10).
+- The M01 injection source and any other source in the notebook are never mapped. A response citing them is
+  discarded whole: no answer, no evidence, no cache (F12; case P10).
 - Owner input 2026-10-06: all three sources were uploaded from the exact `C:\Vanban_XDCB` files, the law re-uploaded
   that day. This is owner provenance; NotebookLM exposes no file hash, so `sync.sha256` records the owner's statement,
   not a hash Claude measured.
@@ -299,6 +299,9 @@ plus the NotebookLM client settings:
 The Gateway's client refuses any tool surface other than the four M01 read tools, and Claude still sees only the
 three Gateway tools (P9).
 
+Approval: B0 is a real NotebookLM call. It runs only under the owner's direct approval of this exact plan
+(GPT_REVIEW_V1 at `a9877ec`: one approval may cover B0 and B2 when it says so). Owner inputs are not that approval.
+
 Steps after approval:
 - **B0, mapping, read-only.** In the M01 locked session (`scripts/m01/m01-session.ps1`), one `notebook_get` on
   `8ca84143-…`. Record source IDs, titles and the source count; no content is read. Map only sources whose titles
@@ -314,8 +317,10 @@ Steps after approval:
   - P7 notebook removed from the whitelist in a temporary copy;
   - P8 timeout recovery with a small `timeout_s` copy;
   - P9 surface;
-  - **P10**: a citation to an unmapped source (e.g. the M01 injection source) is excluded, never evidence. Any
-    returned text stays untrusted data;
+  - **P10 (gate, F12)**: if a response cites any source outside the queried, mapped sources (e.g. the M01 injection
+    source), the whole response is discarded. PASS requires all of: `ERROR CITED_SOURCE_NOT_WHITELISTED`, no answer
+    text, no evidence, no cache entry (a repeat lookup queries again), and 0 `VERIFIED`. A failure stops stage B.
+    The mixed M01 notebook may be used for P10 only because the Gateway fails closed (GPT_REVIEW_V1 at `a9877ec`);
   - **P11**: a document whose source has no sync identity gives `SYNC_IDENTITY_MISSING` / `UNKNOWN`.
   - Preflight before and after, as in stage A.
 - **B3, report.** IDs, counts, citation key names, statuses, codes, hashes and timings only. No answer text,

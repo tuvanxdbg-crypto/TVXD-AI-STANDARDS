@@ -24,7 +24,7 @@ execution request, kept verbatim in the appendix) and the roadmap
 | Retry/timeout | `gateway/retry.py` | bounded attempts and total budget; only transient errors retried |
 | Logs | `gateway/logs.py` | whitelisted keys only; no query, context or source text |
 | Fixtures | `tests/m02/fixtures/` | fake library, `INDEX.yaml`, `INDEX.md`, config, fixture MCP config |
-| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 114 offline unit/contract tests (39 regressions for the review findings F1–F11 in `test_gateway_regressions.py`; 4 Windows-only junction/reparse controls in `test_gateway_windows.py`, skipped elsewhere) + real Claude Code checks on the fixture Gateway |
+| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 121 offline unit/contract tests (44 regressions for the review findings F1–F12 in `test_gateway_regressions.py`; 4 Windows-only junction/reparse controls in `test_gateway_windows.py`, skipped elsewhere) + real Claude Code checks on the fixture Gateway |
 | Windows runner | `scripts/m02/m02-tests.ps1` | fail-fast; `-WithClaude` adds the real Claude Code checks |
 
 ## 2. Implementation decisions
@@ -53,7 +53,9 @@ execution request, kept verbatim in the appendix) and the roadmap
    selects the **local** route; NotebookLM is not called (tests assert zero calls). Several codes in one query →
    `UNKNOWN` asking for `document_id`. No code → **semantic** route over whitelisted documents that have a NotebookLM
    mapping in a whitelisted notebook; everything else is listed in `excluded` with a reason.
-7. **NotebookLM results:** citations outside the whitelisted, mapped source ids are dropped and reported. A citation
+7. **NotebookLM results:** a response that cites any source outside the queried, whitelisted, mapped source ids (or a
+   citation without a source id, in `citations` or `sources_used`) is discarded as a whole (F12): no answer, no
+   evidence, no cache entry, structured error `CITED_SOURCE_NOT_WHITELISTED` listing the out-of-scope ids. A citation
    is accepted directly only with a sync identity equal to the INDEX hash, the authoritative local file's current
    SHA-256 equal to the INDEX hash (an identity check only, no content reread; drift → `SOURCE_DRIFT`, unreadable →
    `LOCAL_IDENTITY_UNAVAILABLE`, both blocking) and no reread trigger. Reread triggers:
@@ -103,8 +105,10 @@ execution request, kept verbatim in the appendix) and the roadmap
 
 `INVALID_REQUEST`, `INDEX_INVALID`, `SOURCE_NOT_ALLOWED`, `SOURCE_NOT_FOUND`, `VERSION_AMBIGUOUS`, `SOURCE_DRIFT`,
 `APPLICABILITY_UNKNOWN`, `BACKEND_UNAVAILABLE`, `AUTH_REQUIRED`, `TIMEOUT` (Issue #4 minimum) plus
-`UNSUPPORTED_FORMAT`, `EXTRACTION_FAILED`, `INTERNAL_ERROR` and `CLAUSE_AMBIGUOUS` (F11: an exact clause ID that
-occurs more than once in the file; `details` carries `clause`, `occurrences` and up to 20 `line_starts`). Errors are structured
+`UNSUPPORTED_FORMAT`, `EXTRACTION_FAILED`, `INTERNAL_ERROR`, `CLAUSE_AMBIGUOUS` (F11: an exact clause ID that
+occurs more than once in the file; `details` carries `clause`, `occurrences` and up to 20 `line_starts`) and
+`CITED_SOURCE_NOT_WHITELISTED` (F12: a NotebookLM response cited a source outside the queried, whitelisted sources;
+`details` carries `notebook_id`, `count` and up to 20 `out_of_scope_source_ids`). Errors are structured
 (`code`, `message`, `retryable`, `details`); unexpected exceptions are reported by type only.
 Retries: only transient `TIMEOUT`/`BACKEND_UNAVAILABLE`, `max_attempts` (default 2) and `total_budget_s`
 (default 120 s), exponential backoff. Auth, permission, version, mapping and scope errors are never retried; the
@@ -164,7 +168,7 @@ No real NotebookLM call and no real library in this round.
 | Timeout, retry exhaustion, unavailable backend, missing input → structured | `test_gateway_resilience.*`, `ExactLocal.test_structured_errors` | mock |
 | Windows Unicode and published formats work or fail structurally | `LocalAdapter.test_unicode_windows_filename`, `*docx*`, `*pdf*`, `*utf8*`, `Paths` (NFD rejected); `.gitattributes` keeps fixture bytes on Windows | mock |
 | Model-visible isolation with evidence, mock vs real distinguished | `m02_surface.py` evidence records `kind` | real Claude Code |
-| Review findings F1–F11 (GPT_REVIEW_V1 at `d35b574`, `eeb76bc`, `cb26095`, `fb14c65`) | `test_gateway_regressions.F1…F11*` (see sections 11–14) | mock |
+| Review findings F1–F12 (GPT_REVIEW_V1 at `d35b574`, `eeb76bc`, `cb26095`, `fb14c65`, `a9877ec`) | `test_gateway_regressions.F1…F12*` (see sections 11–15) | mock |
 | Related M01 regression and secret scan PASS | `tests/m01/test_m01_10_llm_check.py`, `test_m01_console.py`, `check_no_secrets.py`; M01 surface acceptance | regression |
 
 Test-suite strength: 9 hand-made mutations of the Gateway (whitelist, sync identity, cache drift check,
@@ -282,6 +286,14 @@ Against the previous client (`e361f42`) the four stalled-stdin tests hang (caugh
 Against the pre-fix Gateway all five F11 tests fail (2 errors, 3 failures). `CLAUSE_AMBIGUOUS` is added to
 `errors.py` and the `common.v1.json` error enum. The stage-A runner now checks ambiguous IDs as cases
 (`PA-ambiguous-<doc>`: `ERROR CLAUSE_AMBIGUOUS`, occurrence count, no results).
+
+## 15. Stage B plan review — GPT_REVIEW_V1 at `a9877ec` (PATCH_REQUIRED, out-of-scope citations)
+
+| Finding | Fix | Regression tests |
+|---|---|---|
+| F12 [BLOCKER] citations outside the whitelist were dropped, but the full NotebookLM `ANSWER` was kept and attached to evidence from the allowed citations, so out-of-scope content (e.g. the M01 injection source) could shape a `FOUND`/`VERIFIED`, cached result | `NotebookLMAdapter.query` treats any citation or `sources_used` entry outside the queried source ids, or without a source id, as out of scope and returns no answer and no citations, only the out-of-scope ids. The service then raises `CITED_SOURCE_NOT_WHITELISTED` before any evidence is built, across all notebooks of the lookup, so nothing is returned, registered or cached | `test_gateway_regressions.F12OutOfScopeCitations`: mixed allowed + injection source, out-of-scope `sources_used`, unattributed citation (each: error, no answer/passage text in the response or logs, no registered evidence, the repeat lookup queries the backend again), the all-whitelisted control (`VERIFIED`, cached), and the adapter unit; `test_gateway_service.Semantic`: mixed response discarded, only-out-of-scope response, no-citation response `UNKNOWN`, queried-set control |
+
+Against the pre-fix Gateway the six new negative tests fail (5 errors, 1 failure); the controls pass on both.
 
 ## Appendix — Issue #4 specification (verbatim)
 

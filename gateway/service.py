@@ -327,13 +327,20 @@ class GatewayService:
         groups: dict[str, list[tuple[Document, Version, Applicability]]] = {}
         for item in allowed:
             groups.setdefault(item[1].mapping.notebook_id, []).append(item)
-        results, dropped = [], set()
+        results = []
         identities: dict[str, str] = {}
         for nb_id in sorted(groups):
             items = groups[nb_id]
             by_source = {v.mapping.source_id: (d, v, a) for d, v, a in items}
             res = self.notebooklm.query(nb_id, query, sorted(by_source))
-            dropped.update(res.dropped_source_ids)
+            if res.out_of_scope_source_ids:
+                # F12: a response that cites anything outside the queried, whitelisted sources is discarded as a
+                # whole (answer and every citation, across all notebooks), never FOUND/VERIFIED and never cached.
+                raise GatewayError("CITED_SOURCE_NOT_WHITELISTED",
+                                   f"NotebookLM cited {len(res.out_of_scope_source_ids)} source(s) outside the "
+                                   "whitelisted, mapped sources; the whole response is discarded",
+                                   details={"notebook_id": nb_id, "count": len(res.out_of_scope_source_ids),
+                                            "out_of_scope_source_ids": res.out_of_scope_source_ids[:20]})
             cited_docs = Counter(by_source[c.source_id][0].id for c in res.citations)
             seen = set()
             for c in res.citations:
@@ -349,8 +356,6 @@ class GatewayService:
                                                        multi=cited_docs[d.id] > 1,
                                                        local_identity=identities[v.source_key]))
         results = results[: req.get("max_results", 3)]
-        for sid in sorted(dropped):
-            excluded.append({"document_id": f"notebooklm:{sid}", "reason": "CITED_SOURCE_NOT_WHITELISTED"})
         if not results:
             return {"status": "UNKNOWN", "results": [], "excluded": excluded,
                     "missing_inputs": ["NotebookLM returned no citation inside the whitelisted, mapped sources"]}

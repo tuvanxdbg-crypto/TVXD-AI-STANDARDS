@@ -58,7 +58,9 @@ class SemanticResult:
     notebook_id: str
     answer: str
     citations: list[Citation]
-    dropped_source_ids: list[str] = field(default_factory=list)
+    # Non-empty when the response cited anything outside the queried source ids (or a citation without a source
+    # id). Then answer and citations are already discarded: the whole response is out of scope (F12).
+    out_of_scope_source_ids: list[str] = field(default_factory=list)
 
 
 def classify_backend_error(message: str) -> GatewayError:
@@ -73,19 +75,29 @@ def classify_backend_error(message: str) -> GatewayError:
     return GatewayError("BACKEND_UNAVAILABLE", "NotebookLM returned an error", retryable=False)
 
 
-def _parse_citations(result: dict) -> list[Citation]:
+UNATTRIBUTED = "<unattributed>"
+
+
+def _parse_citations(result: dict) -> tuple[list[Citation], bool]:
+    """Citations plus whether any citation or sources_used entry could not be attributed to a source id."""
     out: list[Citation] = []
+    unattributed = False
     raw = result.get("citations")
     items = raw.values() if isinstance(raw, dict) else (raw or [])
     for item in items:
-        if isinstance(item, dict) and isinstance(item.get("source_id"), str):
+        if isinstance(item, dict) and isinstance(item.get("source_id"), str) and item["source_id"]:
             passage = item.get("passage") or item.get("cited_text") or item.get("text")
             out.append(Citation(item["source_id"], passage if isinstance(passage, str) else None))
+        else:
+            unattributed = True
     cited = {c.source_id for c in out}
     for sid in result.get("sources_used") or []:
-        if isinstance(sid, str) and sid not in cited:
-            out.append(Citation(sid, None))
-    return out
+        if isinstance(sid, str) and sid:
+            if sid not in cited:
+                out.append(Citation(sid, None))
+        else:
+            unattributed = True
+    return out, unattributed
 
 
 class NotebookLMAdapter:
@@ -118,16 +130,24 @@ class NotebookLMAdapter:
         return result
 
     def query(self, notebook_id: str, query: str, source_ids: list[str]) -> SemanticResult:
-        """Semantic query restricted to source_ids. Citations outside source_ids are dropped."""
+        """Semantic query restricted to source_ids.
+
+        If the response cites any source outside source_ids (or a citation without a source id), the backend did
+        not honour the restriction and out-of-scope content may have shaped the answer: the whole response is
+        discarded (no answer, no citations) and only the out-of-scope ids are returned.
+        """
         if not source_ids:
             raise GatewayError("SOURCE_NOT_ALLOWED", "no whitelisted NotebookLM sources to query")
         result = self._call(lambda: self.client.notebook_query(notebook_id, query, list(source_ids)))
         allowed = set(source_ids)
-        kept, dropped = [], []
-        for c in _parse_citations(result):
-            (kept if c.source_id in allowed else dropped).append(c)
+        citations, unattributed = _parse_citations(result)
+        outside = sorted({c.source_id for c in citations if c.source_id not in allowed})
+        if unattributed:
+            outside.append(UNATTRIBUTED)
+        if outside:
+            return SemanticResult(notebook_id, "", [], outside)
         answer = result.get("answer") if isinstance(result.get("answer"), str) else ""
-        return SemanticResult(notebook_id, answer, kept, sorted({c.source_id for c in dropped}))
+        return SemanticResult(notebook_id, answer, citations)
 
     def probe(self) -> dict:
         result = self._call(self.client.notebook_list)

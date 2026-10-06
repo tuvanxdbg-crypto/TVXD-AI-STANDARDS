@@ -7,6 +7,8 @@ ERROR_CODES = {
     "SOURCE_NOT_ALLOWED": "The document, path or NotebookLM source is outside the configured whitelist/root.",
     "SOURCE_NOT_FOUND": "The document, version, file or clause does not exist.",
     "CLAUSE_AMBIGUOUS": "The clause ID occurs more than once in the document; the Gateway will not choose.",
+    "CITED_SOURCE_NOT_WHITELISTED": "NotebookLM cited a source outside the whitelisted, mapped sources; the whole "
+                                    "response is discarded.",
     "VERSION_AMBIGUOUS": "More than one version could apply; the Gateway will not choose.",
     "SOURCE_DRIFT": "The source content or sync identity no longer matches the hash recorded in INDEX.",
     "APPLICABILITY_UNKNOWN": "Applicability cannot be determined from INDEX and the request context.",

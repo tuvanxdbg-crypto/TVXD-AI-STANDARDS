@@ -21,6 +21,7 @@
             "SOURCE_NOT_ALLOWED",
             "SOURCE_NOT_FOUND",
             "CLAUSE_AMBIGUOUS",
+            "CITED_SOURCE_NOT_WHITELISTED",
             "VERSION_AMBIGUOUS",
             "SOURCE_DRIFT",
             "APPLICABILITY_UNKNOWN",
