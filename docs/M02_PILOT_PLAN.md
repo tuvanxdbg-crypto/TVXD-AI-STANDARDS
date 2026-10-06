@@ -149,13 +149,27 @@ A document without owner-reviewed metadata stays `reviewed: false`, so every res
 
 ## 5. NotebookLM mapping and sync proof
 
+Notebook (owner input 2026-10-06): `8ca84143-c240-4fcb-98fe-e1f8c6cca02d`. This is the M01 test notebook
+`TVXD-M01-TEST` (tests/m01/ACCEPTANCE.md). The owner wrote the domain as `notebook.google.com`; only the ID is used.
+At the M01 run (2026-10-05) `notebook_get` listed 2 sources in it:
+- `1b0abe72-e94a-4f0a-8f91-827ab7668321` "2025-LUAT-135-QH15-Xay-dung.docx";
+- `b710e565-91f6-49f1-bea6-a6783cbca9f4` "M01-10_injection_source.md", the M01-10 prompt-injection test source.
+
+The two TCVN sources were not in that listing, so they were added later or live elsewhere (owner to confirm).
+
 | Document | notebook_id | source_id | SHA-256 of the file uploaded/synced | synced_at |
 |---|---|---|---|---|
-| `<doc>` | `<OWNER_INPUT>` | `<OWNER_INPUT>` | `<OWNER_INPUT: must equal section 2 hash>` | `<OWNER_INPUT>` |
+| LUAT-135-2025-QH15 | `8ca84143-…cca02d` | `1b0abe72-…668321` (M01 listing; re-read in B0) | `<OWNER_INPUT: uploaded from the §2 file? then c72b9ba9…3339af>` | `<OWNER_INPUT: upload date>` |
+| TCVN-5575-2024 | `8ca84143-…cca02d` (owner to confirm) | read in B0 | `<OWNER_INPUT: then 87b3fd22…893124>` | `<OWNER_INPUT>` |
+| TCVN-8794-2011 | `8ca84143-…cca02d` (owner to confirm) | read in B0 | `<OWNER_INPUT: then 827c9676…dd688f>` | `<OWNER_INPUT>` |
 
-Owner statement (2026-10-06): the three documents already exist as NotebookLM sources, uploaded from these same
-files. Still `<OWNER_INPUT>`: the notebook name/URL and the source titles. `notebook_id`/`source_id` are read in
-stage B with the M01 read tool `notebook_get`; a mapping with no sync identity stays `UNKNOWN` (never `VERIFIED`).
+Sync identity rules:
+- A mapping gets `sync.sha256` = the §2 hash only when the owner states that the source was uploaded from that
+  exact file.
+- Otherwise `sync` stays absent. The evidence is then `SYNC_IDENTITY_MISSING` and stays `UNKNOWN`, never
+  `VERIFIED`.
+- The M01 injection source and any other source in the notebook are never mapped. A citation to them is excluded
+  and never becomes evidence (case P10).
 
 Whitelists: `whitelist.documents` = the documents in section 2; `whitelist.notebooklm_notebooks` = only the
 notebook(s) above. Mappings are read from the owner's notes and M01-approved read tools; nothing is uploaded,
@@ -259,6 +273,56 @@ HASH_CHECKS_BEFORE_AFTER, CASE_RESULTS, SOURCE_UNCHANGED, OPEN_ISSUES and NEXT_R
   Not patched during the pilot; a fix needs a code change and review.
 - Evidence: [`tests/m02/evidence/windows-ducdq-2026-10-06-stage-a/`](../tests/m02/evidence/windows-ducdq-2026-10-06-stage-a/README.md).
 
+## 6b. Stage B plan (prepared; not authorized)
+
+NEXT_ALLOWED_STEP `OWNER_STAGE_B_INPUTS_AND_SEPARATE_PLAN_REVIEW_ONLY` (GPT_REVIEW_V1 at `5f6f254`). Nothing in this
+section has been run.
+- `notebooklm.mode` stays `disabled` in every committed config.
+- Claude does not log in to or call NotebookLM, and does not add or change sources.
+- Stage B runs only after a GPT review of this plan **and** the owner's separate, direct approval.
+
+Config: [`m02-pilot/gateway.pilot.stage-b.json`](m02-pilot/gateway.pilot.stage-b.json). It is the stage-A config
+plus the NotebookLM client settings:
+- `mcp_config` = the project `.mcp.json`, i.e. the M01 gated server with the four read tools, pin and profile
+  unchanged;
+- `timeout_s` 60, `max_attempts` 2, `total_budget_s` 120;
+- `mode: disabled`. It is switched to `mcp_stdio` only in a temporary local copy at run time, after approval, and
+  never committed.
+
+The Gateway's client refuses any tool surface other than the four M01 read tools, and Claude still sees only the
+three Gateway tools (P9).
+
+Steps after approval:
+- **B0, mapping, read-only.** In the M01 locked session (`scripts/m01/m01-session.ps1`), one `notebook_get` on
+  `8ca84143-…`. Record source IDs, titles and the source count; no content is read. Map only sources whose titles
+  match the three §2 files.
+- **B1, INDEX.**
+  - In a temporary INDEX copy, set `notebooklm: {notebook_id, source_id, sync: {sha256, synced_at}}` per mapped
+    document, following the §5 sync rules.
+  - Set `whitelist.notebooklm_notebooks: [8ca84143-…]`.
+  - Leave unmapped documents `null`. Commit the mapping metadata only after review.
+- **B2, runs** (Gateway with the temporary `mcp_stdio` copy):
+  - P5 citation shape (Q-S1 without `document_id`);
+  - P6 cold lookup vs cache hit;
+  - P7 notebook removed from the whitelist in a temporary copy;
+  - P8 timeout recovery with a small `timeout_s` copy;
+  - P9 surface;
+  - **P10**: a citation to an unmapped source (e.g. the M01 injection source) is excluded, never evidence. Any
+    returned text stays untrusted data;
+  - **P11**: a document whose source has no sync identity gives `SYNC_IDENTITY_MISSING` / `UNKNOWN`.
+  - Preflight before and after, as in stage A.
+- **B3, report.** IDs, counts, citation key names, statuses, codes, hashes and timings only. No answer text,
+  excerpts, raw payloads or transcripts. NotebookLM chat history may keep the queries (M01 query exception); no
+  notebook or source is changed.
+
+Stop conditions:
+- any tool surface other than the four read tools;
+- `AUTH_REQUIRED` (the owner signs in with `scripts\m01\m01-login.ps1`; Claude never asks for credentials);
+- a mapped source title that does not match;
+- any P-case FAIL.
+
+Rollback: delete the temporary config/INDEX copies; the committed configs are already `disabled`.
+
 ## 7. Logs, evidence and rollback
 
 - **May be committed to GitHub:** document IDs, versions, formats, SHA-256, notebook/source IDs, case IDs,
@@ -288,5 +352,5 @@ HASH_CHECKS_BEFORE_AFTER, CASE_RESULTS, SOURCE_UNCHANGED, OPEN_ISSUES and NEXT_R
 | 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | RECEIVED: 3 files inventoried (§2); IDs, types, status and effective dates owner-confirmed (dates web-sourced, not checked on official sites); Nextcloud-copy match owner-confirmed. Metadata in `m02-pilot/INDEX.pilot.draft.yaml` |
 | 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | RECEIVED: WORK_CODE `THIET-KE-DAN-DUNG`, assessment_date 2026-10-06, conditions COND-KET-CAU-THEP / COND-TRUONG-TRUNG-HOC, Q-S1; semantic-first (exact cases drawn in stage A and confirmed by the owner) |
 | 4 | Applicability reviewer and reviewed metadata | RECEIVED: reviewer is the owner; metadata owner-reviewed 2026-10-06 (`reviewed: true`) |
-| 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: owner states the sources exist in NotebookLM and were uploaded from these same files. MISSING: notebook name/URL and source titles; IDs are read in stage B with the M01 read tool `notebook_get` |
+| 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: notebook `8ca84143-c240-4fcb-98fe-e1f8c6cca02d` (TVXD-M01-TEST; holds the M01 injection source too). MISSING: the TCVN source titles (not in the 2026-10-05 M01 listing), and per source whether it was uploaded from the exact §2 file and when (§5). Source IDs are read in B0 with `notebook_get` |
 | 6 | Approval of the live scope (stages A and B) after review of this plan | Stage A: approved by the owner (OWNER_AUTHORIZATION_V1 on PR #5, and directly in the Claude chat and the executing session) and run 2026-10-06 (§6a). Stage B: needs its own review and approval |

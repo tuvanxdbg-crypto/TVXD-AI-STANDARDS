@@ -1,0 +1,16 @@
+{
+  "schema": "tvxd.gateway.config/v1",
+  "index_path": "INDEX.pilot.draft.yaml",
+  "source_root": "C:\\Vanban_XDCB",
+  "notebooklm": {
+    "mode": "disabled",
+    "mcp_config": "../../.mcp.json",
+    "server": "gemini-notebook-mcp",
+    "timeout_s": 60,
+    "max_attempts": 2,
+    "total_budget_s": 120
+  },
+  "cache": {"max_entries": 256},
+  "limits": {"max_source_bytes": 20971520, "max_excerpt_chars": 4000, "max_docx_uncompressed_bytes": 52428800},
+  "logging": {"level": "info"}
+}
