@@ -1,6 +1,6 @@
 # M02 — Bounded live pilot plan (preparation only)
 
-Status: **STAGE A PREFLIGHT AND OWNER APPROVAL** (`M02_STAGE_A_PREFLIGHT_AND_OWNER_APPROVAL`). GPT_REVIEW_V1 at
+Status: **STAGE A RUN, AWAITING REVIEW** (`M02_STAGE_A_PREFLIGHT_AND_OWNER_APPROVAL`; result in §6a). GPT_REVIEW_V1 at
 `a4b630b` passed this plan for stage A (local) with the preflight conditions in section 6a; stage B is not open.
 
 What has been executed so far, on the owner's machine, metadata only: ACL/token checks on the Nextcloud folder and
@@ -250,6 +250,15 @@ content, a `.raw.json` file:
 The report is `M02_STAGE_A_LOCAL_REPORT` with HEAD/CODE_COMMIT, OWNER_AUTHORIZATION_REFERENCE, READ_ONLY_PROOF,
 HASH_CHECKS_BEFORE_AFTER, CASE_RESULTS, SOURCE_UNCHANGED, OPEN_ISSUES and NEXT_REQUEST: REQUEST_GPT_REVIEW.
 
+**Stage A result (2026-10-06, owner machine, non-elevated).**
+- Preflight before and after: PASS. Discover: PASS. P1–P4: 16/16 PASS. P9: PASS. Source files unchanged.
+- P1 clauses (owner-confirmed): law "Điều 1", TCVN 8794 "6.2.1". No TCVN 5575 clause was given, so P3 checks it on
+  keyword candidates.
+- Open finding: section IDs are not unique in the real documents (table-of-contents entries and numbered table rows
+  parse as sections), and lookup returns the first match, which can be a table-of-contents line marked `VERIFIED`.
+  Not patched during the pilot; a fix needs a code change and review.
+- Evidence: [`tests/m02/evidence/windows-ducdq-2026-10-06-stage-a/`](../tests/m02/evidence/windows-ducdq-2026-10-06-stage-a/README.md).
+
 ## 7. Logs, evidence and rollback
 
 - **May be committed to GitHub:** document IDs, versions, formats, SHA-256, notebook/source IDs, case IDs,
@@ -280,4 +289,4 @@ HASH_CHECKS_BEFORE_AFTER, CASE_RESULTS, SOURCE_UNCHANGED, OPEN_ISSUES and NEXT_R
 | 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | RECEIVED: WORK_CODE `THIET-KE-DAN-DUNG`, assessment_date 2026-10-06, conditions COND-KET-CAU-THEP / COND-TRUONG-TRUNG-HOC, Q-S1; semantic-first (exact cases drawn in stage A and confirmed by the owner) |
 | 4 | Applicability reviewer and reviewed metadata | RECEIVED: reviewer is the owner; metadata owner-reviewed 2026-10-06 (`reviewed: true`) |
 | 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: owner states the sources exist in NotebookLM and were uploaded from these same files. MISSING: notebook name/URL and source titles; IDs are read in stage B with the M01 read tool `notebook_get` |
-| 6 | Approval of the live scope (stages A and B) after review of this plan | Plan reviewed (GPT PASS at `a4b630b`, stage A only). MISSING: the owner's direct approval of stage A on the three files and hashes in §2 (section 6a, item 1). Stage B needs its own review and approval |
+| 6 | Approval of the live scope (stages A and B) after review of this plan | Stage A: approved by the owner (OWNER_AUTHORIZATION_V1 on PR #5, and directly in the Claude chat and the executing session) and run 2026-10-06 (§6a). Stage B: needs its own review and approval |
