@@ -8,12 +8,21 @@ Status: **STAGE A DONE AND REVIEWED; STAGE B PLAN UNDER REVIEW, NOT AUTHORIZED.*
 - The stage B plan (§6b) awaits review of the P10 criteria. Stage B, including B0, runs only after that review
   **and** the owner's direct approval of the exact plan.
 
-What has been executed so far, on the owner's machine, metadata only: ACL/token checks on the Nextcloud folder and
-on `C:\Vanban_XDCB` (section 1), and `Get-Item`/`Get-FileHash` on the three owner-named files (section 2). The
-offline checks of the draft INDEX (`load_index`, `version_check`, `applicability()`) read no source.
-Not executed: any content read of the pilot files (stage A), any NotebookLM call (stage B), `notebooklm.mode:
-mcp_stdio`, NotebookLM login, upload or source change. No merge, no M03, no AutoCAD, no change to the M01 pin or
-permissions. Stage A runs only after the owner approves it directly **and** the section-6a preflight passes.
+Executed so far, all on the owner's machine, non-elevated:
+- Preparation, metadata only: ACL/token checks on the Nextcloud folder and on `C:\Vanban_XDCB` (§1), and
+  `Get-Item`/`Get-FileHash` on the three owner-named files (§2). The offline checks of the draft INDEX
+  (`load_index`, `version_check`, `applicability()`) read no source.
+- **Stage A, 2026-10-06, completed and reviewed.**
+  - It was approved directly by the owner and ran after a preflight PASS.
+  - Through the Gateway's read-only local adapter it read the content of exactly the three owner-authorized files,
+    and nothing else.
+  - It ran discover, P1–P4 and P9, with preflight PASS before and after and the file hashes unchanged. Results:
+    §6a and the review at `fb14c65`.
+  - Its finding (non-unique clause IDs) was fixed as F11 and re-run on the same three files. That review PASSed at
+    `5f6f254`.
+
+Not executed: any stage B step, including B0. No NotebookLM call, no `notebooklm.mode: mcp_stdio`, no NotebookLM
+login, upload, source or notebook change. No merge, no M03, no AutoCAD, no change to the M01 pin or permissions.
 
 Every `<OWNER_INPUT: ...>` below is a placeholder that only the owner can fill. Claude does not choose documents,
 work codes, reviewers or mappings.
@@ -212,8 +221,7 @@ and Q-S1 without `document_id` (`UNKNOWN`, every document excluded as `MAPPING_M
 
 ## 6a. Stage A preflight and run (GPT_REVIEW_V1 at `a4b630b`)
 
-Stage A starts only when every item below holds. If one does not, stop before any content read and report what is
-missing. No other source is chosen.
+These were the stage A start conditions; all held for the 2026-10-06 run (result at the end of this section). Had one not held, the run would have stopped before any content read and reported what was missing; no other source would have been chosen.
 
 1. **Owner approval.** The owner approves stage A directly, naming the three files and SHA-256 values in §2. A
    generic "continue" is not approval of a real-source run.
@@ -340,8 +348,9 @@ Steps after approval:
     - **Not allowed:** forcing P10-B by adding the M01 injection source (or any other unmapped source) to
       `source_ids`, the INDEX mapping or the whitelist. That would make it an allowed source, stop testing the
       whitelist boundary, and widen the source set beyond what the owner approved.
-    - The mixed M01 notebook may be used only because the Gateway fails closed (GPT_REVIEW_V1 at `a9877ec`,
-      `8ac4e6b`).
+    - The mixed M01 notebook may be used only because the Gateway now fails closed on out-of-scope citations.
+      The F12 code fix is `028535d`, and the review at `8ac4e6b` confirmed it; that review's PATCH_REQUIRED was for
+      these P10 criteria only.
   - **P11**: a document whose source has no sync identity gives `SYNC_IDENTITY_MISSING` / `UNKNOWN`.
   - Preflight before and after, as in stage A.
 - **B3, report.** IDs, counts, citation key names, statuses, codes, hashes and timings only. No answer text,
