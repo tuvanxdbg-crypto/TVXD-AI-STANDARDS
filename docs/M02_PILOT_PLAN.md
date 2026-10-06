@@ -161,9 +161,9 @@ stays unmapped.
 
 | Document | notebook_id | source_id | SHA-256 of the file uploaded/synced | synced_at |
 |---|---|---|---|---|
-| LUAT-135-2025-QH15 | `8ca84143-…cca02d` | `1b0abe72-…668321` (M01 listing; re-read in B0) | `<OWNER_INPUT: uploaded from the §2 file? then c72b9ba9…3339af>` | `<OWNER_INPUT: upload date>` |
-| TCVN-5575-2024 | `8ca84143-…cca02d` (owner: uploaded 2026-10-06) | read in B0 | `<OWNER_INPUT: uploaded from the §2 file? then 87b3fd22…893124>` | 2026-10-06 (owner; exact time from B0 if shown) |
-| TCVN-8794-2011 | `8ca84143-…cca02d` (owner: uploaded 2026-10-06) | read in B0 | `<OWNER_INPUT: uploaded from the §2 file? then 827c9676…dd688f>` | 2026-10-06 (owner; exact time from B0 if shown) |
+| LUAT-135-2025-QH15 | `8ca84143-…cca02d` | read in B0 (re-uploaded 2026-10-06; the M01 ID `1b0abe72-…` may be obsolete) | `c72b9ba9…3339af` (owner: uploaded from the §2 file) | 2026-10-06 (owner) |
+| TCVN-5575-2024 | `8ca84143-…cca02d` (owner: uploaded 2026-10-06) | read in B0 | `87b3fd22…893124` (owner: uploaded from the §2 file) | 2026-10-06 (owner) |
+| TCVN-8794-2011 | `8ca84143-…cca02d` (owner: uploaded 2026-10-06) | read in B0 | `827c9676…dd688f` (owner: uploaded from the §2 file) | 2026-10-06 (owner) |
 
 Sync identity rules:
 - A mapping gets `sync.sha256` = the §2 hash only when the owner states that the source was uploaded from that
@@ -172,6 +172,11 @@ Sync identity rules:
   `VERIFIED`.
 - The M01 injection source and any other source in the notebook are never mapped. A citation to them is excluded
   and never becomes evidence (case P10).
+- Owner input 2026-10-06: all three sources were uploaded from the exact `C:\Vanban_XDCB` files, the law re-uploaded
+  that day. This is owner provenance; NotebookLM exposes no file hash, so `sync.sha256` records the owner's statement,
+  not a hash Claude measured.
+- If B0 finds two sources with the same title (e.g. the old M01 law source next to the re-upload), neither is mapped
+  until the owner names the source ID to use. The Gateway never picks one.
 
 Whitelists: `whitelist.documents` = the documents in section 2; `whitelist.notebooklm_notebooks` = only the
 notebook(s) above. Mappings are read from the owner's notes and M01-approved read tools; nothing is uploaded,
@@ -354,5 +359,5 @@ Rollback: delete the temporary config/INDEX copies; the committed configs are al
 | 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | RECEIVED: 3 files inventoried (§2); IDs, types, status and effective dates owner-confirmed (dates web-sourced, not checked on official sites); Nextcloud-copy match owner-confirmed. Metadata in `m02-pilot/INDEX.pilot.draft.yaml` |
 | 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | RECEIVED: WORK_CODE `THIET-KE-DAN-DUNG`, assessment_date 2026-10-06, conditions COND-KET-CAU-THEP / COND-TRUONG-TRUNG-HOC, Q-S1; semantic-first (exact cases drawn in stage A and confirmed by the owner) |
 | 4 | Applicability reviewer and reviewed metadata | RECEIVED: reviewer is the owner; metadata owner-reviewed 2026-10-06 (`reviewed: true`) |
-| 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: notebook `8ca84143-c240-4fcb-98fe-e1f8c6cca02d` (TVXD-M01-TEST; holds the M01 injection source too). Owner: both TCVN files uploaded to this notebook on 2026-10-06 (titles checked in B0). MISSING: per source, whether it was uploaded from the exact §2 file in `C:\Vanban_XDCB` (§5), and the LUAT upload date. Source IDs are read in B0 with `notebook_get` |
+| 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: notebook `8ca84143-c240-4fcb-98fe-e1f8c6cca02d` (TVXD-M01-TEST; holds the M01 injection source too). RECEIVED (owner, 2026-10-06): all three files uploaded to this notebook from the exact §2 files (law re-uploaded, TCVN added) on 2026-10-06. Source IDs and titles are read in B0 with `notebook_get`; duplicate titles stop the mapping |
 | 6 | Approval of the live scope (stages A and B) after review of this plan | Stage A: approved by the owner (OWNER_AUTHORIZATION_V1 on PR #5, and directly in the Claude chat and the executing session) and run 2026-10-06 (§6a). Stage B: needs its own review and approval |
