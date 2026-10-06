@@ -1,0 +1,72 @@
+# INDEX.pilot.draft.yaml — DRAFT metadata for the M02 bounded pilot (docs/M02_PILOT_PLAN.md).
+# Not loaded by anything; the remaining <OWNER_INPUT ...> placeholders make it fail schema validation (fail closed).
+# Values marked "proposed" are Claude's proposals awaiting owner confirmation, not owner-reviewed metadata.
+schema: tvxd.gateway.index/v1
+index_version: "2026-10-pilot.1"
+rules_version: "pilot-rules.1"
+fixture: false
+
+work_codes:
+  - code: THIET-KE-DAN-DUNG            # owner input 2026-10-06
+    title: "Thiết kế công trình dân dụng"
+
+documents:
+  - id: LUAT-135-2025-QH15             # proposed id; owner: type LUAT, in force
+    title: "Luật Xây dựng số 135/2025/QH15"
+    doc_type: LAW
+    codes: ["Luật 135/2025/QH15", "135/2025/QH15", "Luật Xây dựng 2025"]
+    topics: [phap-luat, xay-dung]
+    applicability:
+      reviewed: false                  # true only after the owner-named reviewer approves
+      reviewed_by: null
+      work_codes: [THIET-KE-DAN-DUNG]  # proposed
+      conditions: []
+    versions:
+      - version: "2025"
+        status: active                 # owner: còn hiệu lực
+        effective_from: "<OWNER_INPUT: YYYY-MM-DD>"
+        effective_to: null
+        source: {path: "2025-LUAT-135-QH15-Xay-dung.docx", format: docx, sha256: "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af", clause_scheme: article}
+        notebooklm: null               # stage B: {notebook_id, source_id, sync: {sha256, synced_at}}
+
+  - id: TCVN-5575-2024                 # proposed id; owner: type TCVN, in force
+    title: "TCVN 5575:2024 Thiết kế kết cấu thép"
+    doc_type: TCVN
+    codes: ["TCVN 5575:2024", "TCVN 5575"]
+    topics: [ket-cau-thep, thiet-ke]
+    applicability:
+      reviewed: false
+      reviewed_by: null
+      work_codes: [THIET-KE-DAN-DUNG]  # proposed
+      conditions:                      # proposed
+        - {id: COND-KET-CAU-THEP, text: "Công trình có kết cấu thép"}
+    versions:
+      - version: "2024"
+        status: active
+        effective_from: "<OWNER_INPUT: YYYY-MM-DD>"
+        effective_to: null
+        source: {path: "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx", format: docx, sha256: "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124", clause_scheme: numeric}
+        notebooklm: null
+
+  - id: TCVN-8794-2011                 # proposed id; owner: type TCVN, in force
+    title: "TCVN 8794:2011 Trường trung học - Yêu cầu thiết kế"
+    doc_type: TCVN
+    codes: ["TCVN 8794:2011", "TCVN 8794"]
+    topics: [truong-hoc, trung-hoc, thiet-ke]
+    applicability:
+      reviewed: false
+      reviewed_by: null
+      work_codes: [THIET-KE-DAN-DUNG]  # proposed
+      conditions:                      # proposed
+        - {id: COND-TRUONG-TRUNG-HOC, text: "Công trình là trường trung học"}
+    versions:
+      - version: "2011"
+        status: active
+        effective_from: "<OWNER_INPUT: YYYY-MM-DD>"
+        effective_to: null
+        source: {path: "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx", format: docx, sha256: "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f", clause_scheme: numeric}
+        notebooklm: null
+
+whitelist:
+  documents: [LUAT-135-2025-QH15, TCVN-5575-2024, TCVN-8794-2011]
+  notebooklm_notebooks: []             # stage B: only the owner-named pilot notebook

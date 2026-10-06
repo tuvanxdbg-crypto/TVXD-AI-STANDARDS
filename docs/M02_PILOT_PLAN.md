@@ -99,10 +99,10 @@ Get-FileHash -Algorithm SHA256 "<source_root>\<path>"
 
 | Item | Value |
 |---|---|
-| WORK_CODE(s) | `<OWNER_INPUT>` |
+| WORK_CODE(s) | `THIET-KE-DAN-DUNG` (owner input, 2026-10-06) |
 | assessment_date | `<OWNER_INPUT: YYYY-MM-DD>` |
 | project_context.conditions | `<OWNER_INPUT: condition id → true/false>` |
-| Exact/local questions (document + clause known) | `<OWNER_INPUT: 1–3 questions with expected clause>` |
+| Exact/local questions (document + clause known) | None from the owner. Users usually do not remember clauses or wording, so **semantic lookup is the primary pilot case**. Exact/local cases (P1) will be drawn from clauses that stage A shows exist in the files, and the owner confirms them. |
 | Semantic questions (discovery needed) | Q-S1 (owner, 2026-10-06): "Tiêu chuẩn thiết kế chiếu sáng lớp học trường trung học" (lighting design requirements for secondary-school classrooms). Stage A: with `document_id` of the TCVN 8794:2011 copy, the expected result is `CANDIDATES` (heuristic keyword match, never exact); without `document_id` it is `BACKEND_UNAVAILABLE` while NotebookLM is disabled. Stage B: semantic lookup over the whitelisted, mapped pilot sources. Whether the document has a lighting clause is unverified (contents not opened). Further questions: `<OWNER_INPUT: optional>` |
 
 ## 4. Applicability review
@@ -169,8 +169,8 @@ Any FAIL stops the pilot. The result is reported as FAIL with the case ID; nothi
 | # | Input | Status |
 |---|---|---|
 | 1 | Source path, Claude account, sync state, `icacls` output | RECEIVED: `source_root` `C:\Vanban_XDCB` (outside the Nextcloud sync root); READ_ONLY_PROOF PASS when non-elevated (§1); optional deny-write hardening |
-| 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | PARTIAL: 3 files named, inventoried (size, SHA-256, §2); IDs/versions/status/effectivity and the Nextcloud-copy hash match still MISSING |
-| 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | PARTIAL: semantic question Q-S1 received; WORK_CODE, assessment_date, conditions, exact/local questions MISSING |
+| 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | PARTIAL: 3 files inventoried (§2); owner: types LUAT/TCVN, all in force. Draft metadata in `m02-pilot/INDEX.pilot.draft.yaml`. MISSING: effective_from dates, confirmation of the proposed IDs/conditions, and the Nextcloud-copy hash match |
+| 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | PARTIAL: WORK_CODE `THIET-KE-DAN-DUNG`, Q-S1; semantic-first (no exact questions). MISSING: assessment_date, confirmation of proposed conditions (COND-KET-CAU-THEP, COND-TRUONG-TRUNG-HOC) |
 | 4 | Applicability reviewer and reviewed metadata | MISSING |
-| 5 | NotebookLM notebook/source mapping and sync proof per file | MISSING |
+| 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: owner says the sources already exist in NotebookLM. MISSING: notebook name/URL and source titles; IDs to be read in stage B with the M01 read tool `notebook_get`; sync proof that each source was uploaded from the same file (SHA-256 in §2) |
 | 6 | Approval of the live scope (stages A and B) after review of this plan | MISSING |
