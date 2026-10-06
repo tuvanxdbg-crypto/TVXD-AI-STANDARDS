@@ -22,8 +22,8 @@ from pathlib import Path
 from typing import Callable
 
 from . import GATEWAY_VERSION, PUBLIC_TOOLS, schema
-from .adapters.local import (LocalDoc, LocalSourceAdapter, find_clause, find_passage, search_sections,
-                             section_for_lines, section_text)
+from .adapters.local import (LocalDoc, LocalSourceAdapter, clause_occurrences, find_clauses, find_passage,
+                             search_sections, section_for_lines, section_text)
 from .adapters.notebooklm import McpStdioNotebookLMClient, NotebookLMAdapter, NotebookLMClient
 from .cache import EvidenceCache
 from .clauses import Section, canonical_clause
@@ -187,6 +187,10 @@ class GatewayService:
                         span: tuple[int, int], app: Applicability, route: str, resolved_by: str,
                         uncertainty: list[dict], answer: str | None = None) -> dict:
         text, truncated, layout = section_text(local_doc, span[0], span[1], self.config.limits.max_excerpt_chars)
+        if sec is not None and clause_occurrences(local_doc, sec.id) > 1:
+            # Candidate or reread evidence whose clause ID repeats elsewhere in the file cannot be VERIFIED.
+            uncertainty = uncertainty + [{"code": "CLAUSE_AMBIGUOUS", "detail": f"clause ID {sec.id} occurs "
+                                          f"{clause_occurrences(local_doc, sec.id)} times in {version.source_key}"}]
         return make_evidence(
             doc=doc, version=version, clause={"id": sec.id, "heading": sec.heading} if sec else None, app=app,
             location={"kind": "local", "path": version.path, "line_start": span[0] + 1, "line_end": span[1]},
@@ -239,9 +243,15 @@ class GatewayService:
         ctx["cache"] = "miss"
         local_doc = self.local.load(version)
         if clause_id:
-            sec = find_clause(local_doc, clause_id)
-            if sec is None:
+            hits = find_clauses(local_doc, clause_id)
+            if not hits:
                 raise GatewayError("SOURCE_NOT_FOUND", f"clause {clause_id} not found in {version.source_key}")
+            if len(hits) > 1:
+                raise GatewayError("CLAUSE_AMBIGUOUS", f"clause {clause_id} occurs {len(hits)} times in "
+                                   f"{version.source_key}; the Gateway will not choose one",
+                                   details={"clause": clause_id, "occurrences": len(hits),
+                                            "line_starts": [h.start + 1 for h in hits[:20]]})
+            sec = hits[0]
             results = [self._local_evidence(doc, version, local_doc, sec, (sec.start, sec.end), app, "LOCAL",
                                             resolved_by, info)]
             body = {"status": "FOUND", "results": results, "missing_inputs": list(app.missing), "excluded": []}
@@ -630,6 +640,9 @@ class GatewayService:
             return "CLAUSE", "UNKNOWN", "clause cannot be checked without the excerpt location in the file"
         sec = section_for_lines(local_doc, *span)
         expected = {"id": sec.id, "heading": sec.heading} if sec else None
+        if claimed == expected and sec is not None and clause_occurrences(local_doc, sec.id) > 1:
+            return "CLAUSE", "UNKNOWN", (f"clause ID {sec.id} occurs {clause_occurrences(local_doc, sec.id)} times "
+                                         "in the file; an ambiguous clause reference is never VERIFIED")
         if claimed == expected:
             return "CLAUSE", "PASS", f"clause {sec.id} contains the excerpt" if sec else \
                 "excerpt is outside any recognised clause and none is claimed"

@@ -20,6 +20,7 @@
             "INDEX_INVALID",
             "SOURCE_NOT_ALLOWED",
             "SOURCE_NOT_FOUND",
+            "CLAUSE_AMBIGUOUS",
             "VERSION_AMBIGUOUS",
             "SOURCE_DRIFT",
             "APPLICABILITY_UNKNOWN",

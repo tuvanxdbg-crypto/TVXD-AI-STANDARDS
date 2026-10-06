@@ -6,6 +6,7 @@ ERROR_CODES = {
     "INDEX_INVALID": "INDEX.yaml is missing, unreadable or fails validation; the Gateway fails closed.",
     "SOURCE_NOT_ALLOWED": "The document, path or NotebookLM source is outside the configured whitelist/root.",
     "SOURCE_NOT_FOUND": "The document, version, file or clause does not exist.",
+    "CLAUSE_AMBIGUOUS": "The clause ID occurs more than once in the document; the Gateway will not choose.",
     "VERSION_AMBIGUOUS": "More than one version could apply; the Gateway will not choose.",
     "SOURCE_DRIFT": "The source content or sync identity no longer matches the hash recorded in INDEX.",
     "APPLICABILITY_UNKNOWN": "Applicability cannot be determined from INDEX and the request context.",

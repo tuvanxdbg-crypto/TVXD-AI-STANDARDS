@@ -24,7 +24,7 @@ execution request, kept verbatim in the appendix) and the roadmap
 | Retry/timeout | `gateway/retry.py` | bounded attempts and total budget; only transient errors retried |
 | Logs | `gateway/logs.py` | whitelisted keys only; no query, context or source text |
 | Fixtures | `tests/m02/fixtures/` | fake library, `INDEX.yaml`, `INDEX.md`, config, fixture MCP config |
-| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 109 offline unit/contract tests (34 regressions for the review findings F1–F10 in `test_gateway_regressions.py`; 4 Windows-only junction/reparse controls in `test_gateway_windows.py`, skipped elsewhere) + real Claude Code checks on the fixture Gateway |
+| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 114 offline unit/contract tests (39 regressions for the review findings F1–F11 in `test_gateway_regressions.py`; 4 Windows-only junction/reparse controls in `test_gateway_windows.py`, skipped elsewhere) + real Claude Code checks on the fixture Gateway |
 | Windows runner | `scripts/m02/m02-tests.ps1` | fail-fast; `-WithClaude` adds the real Claude Code checks |
 
 ## 2. Implementation decisions
@@ -103,7 +103,8 @@ execution request, kept verbatim in the appendix) and the roadmap
 
 `INVALID_REQUEST`, `INDEX_INVALID`, `SOURCE_NOT_ALLOWED`, `SOURCE_NOT_FOUND`, `VERSION_AMBIGUOUS`, `SOURCE_DRIFT`,
 `APPLICABILITY_UNKNOWN`, `BACKEND_UNAVAILABLE`, `AUTH_REQUIRED`, `TIMEOUT` (Issue #4 minimum) plus
-`UNSUPPORTED_FORMAT`, `EXTRACTION_FAILED`, `INTERNAL_ERROR`. Errors are structured
+`UNSUPPORTED_FORMAT`, `EXTRACTION_FAILED`, `INTERNAL_ERROR` and `CLAUSE_AMBIGUOUS` (F11: an exact clause ID that
+occurs more than once in the file; `details` carries `clause`, `occurrences` and up to 20 `line_starts`). Errors are structured
 (`code`, `message`, `retryable`, `details`); unexpected exceptions are reported by type only.
 Retries: only transient `TIMEOUT`/`BACKEND_UNAVAILABLE`, `max_attempts` (default 2) and `total_budget_s`
 (default 120 s), exponential backoff. Auth, permission, version, mapping and scope errors are never retried; the
@@ -163,7 +164,7 @@ No real NotebookLM call and no real library in this round.
 | Timeout, retry exhaustion, unavailable backend, missing input → structured | `test_gateway_resilience.*`, `ExactLocal.test_structured_errors` | mock |
 | Windows Unicode and published formats work or fail structurally | `LocalAdapter.test_unicode_windows_filename`, `*docx*`, `*pdf*`, `*utf8*`, `Paths` (NFD rejected); `.gitattributes` keeps fixture bytes on Windows | mock |
 | Model-visible isolation with evidence, mock vs real distinguished | `m02_surface.py` evidence records `kind` | real Claude Code |
-| Review findings F1–F10 (GPT_REVIEW_V1 at `d35b574`, `eeb76bc`, `cb26095`) | `test_gateway_regressions.F1…F10*` (see sections 11–13) | mock |
+| Review findings F1–F11 (GPT_REVIEW_V1 at `d35b574`, `eeb76bc`, `cb26095`, `fb14c65`) | `test_gateway_regressions.F1…F11*` (see sections 11–14) | mock |
 | Related M01 regression and secret scan PASS | `tests/m01/test_m01_10_llm_check.py`, `test_m01_console.py`, `check_no_secrets.py`; M01 surface acceptance | regression |
 
 Test-suite strength: 9 hand-made mutations of the Gateway (whitelist, sync identity, cache drift check,
@@ -225,6 +226,9 @@ The Gateway is **not** added to the project `.mcp.json`, so ordinary sessions do
 ## 10. Known limitations / open items
 
 * Clause heading detection is pattern-based; a body line that starts like a heading ("2.1 ...") is taken as one.
+  Real documents therefore repeat IDs (table of contents, numbered table rows). Since F11 a repeated ID fails
+  closed (`CLAUSE_AMBIGUOUS`, never `VERIFIED`), so such clauses cannot be looked up exactly until the parser
+  learns to skip tables of contents; this is a usability limit, not a safety gap.
 * Local passage matching is exact after whitespace normalization; NotebookLM paraphrases will not match (→ `UNKNOWN`).
 * Cache and evidence registry are in memory; `standards_verify` by `evidence_id` only works in the same server
   process (the evidence object can always be passed instead).
@@ -268,6 +272,16 @@ The offline stand-in `tests/m02/fake_mcp_server.py` gained `--call-delay`, `--no
 | F10 [P2] a synchronous stdin write could block before the deadline loop; cleanup also wrote to the blocked pipe | `_StdinWriter` thread per process; `_send` waits for the write only until the request/attempt deadline (and the cancel flag), then raises `TIMEOUT` so the call is retired; `_retire` sends `notifications/cancelled` best-effort (≤ 50 ms) and kills; `_terminate`/`close` kill first and never close a stdin still held by a blocked write | `F10StalledStdin` with `fake_mcp_server.py --stall-after-list --small-stdin-pipe` (one-page pipe on Linux; Windows pipes are small by default) and the schema-maximum query of 2,000 `đ` (~12 KB after JSON escaping): the reviewer's repro returns `TIMEOUT` and within 0.5 s the lock is free, no worker or writer thread is alive and the old process is dead; a direct call without a retry deadline; recovery through a fresh validated process; `close()` while a write is stuck; the same large request still succeeds when the server reads |
 
 Against the previous client (`e361f42`) the four stalled-stdin tests hang (caught); the positive control passes on both.
+
+## 14. Stage A review — GPT_REVIEW_V1 at `fb14c65` (PATCH_REQUIRED, ambiguous clause IDs)
+
+| Finding | Fix | Regression tests (`tests/m02/test_gateway_regressions.py`) |
+|---|---|---|
+| F11 [BLOCKER] exact lookup took the first section with a matching ID; real files repeat IDs (table of contents, repeated point letters), so an arbitrary occurrence (e.g. a table-of-contents line) came back `VERIFIED`; verify only checked the chosen span | `local.find_clauses()` returns every match: 0 → `SOURCE_NOT_FOUND`, 1 → continue, more → structured error `CLAUSE_AMBIGUOUS` with the occurrence count and line starts, no evidence. Evidence built for a section whose ID repeats (heuristic candidates, NotebookLM local reread) carries the blocking uncertainty `CLAUSE_AMBIGUOUS` (`STATUS: UNKNOWN`). `standards_verify` returns `CLAUSE: UNKNOWN` when the claimed clause ID occurs more than once in the current file, so legacy evidence is never `VERIFIED`. `find_clause()` returns `None` unless the ID is unique | `F11AmbiguousClause`: numeric table-of-contents/body duplicate (query and explicit `clause`), article nested point duplicate (`Điều 4 khoản 1 điểm a` twice), heuristic candidates with a duplicated ID, legacy evidence verified after the file gained a second occurrence (hash, excerpt still `PASS`; clause `UNKNOWN`), and match counting; unique IDs in the same files stay `VERIFIED` |
+
+Against the pre-fix Gateway all five F11 tests fail (2 errors, 3 failures). `CLAUSE_AMBIGUOUS` is added to
+`errors.py` and the `common.v1.json` error enum. The stage-A runner now checks ambiguous IDs as cases
+(`PA-ambiguous-<doc>`: `ERROR CLAUSE_AMBIGUOUS`, occurrence count, no results).
 
 ## Appendix — Issue #4 specification (verbatim)
 

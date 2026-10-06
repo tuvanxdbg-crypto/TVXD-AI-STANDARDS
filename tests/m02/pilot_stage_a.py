@@ -242,7 +242,7 @@ def p_run(run: Run, p1: dict[str, str]) -> None:
         if res:
             evidence[doc_id] = res[0]
 
-    # Finding probe (not a case): what a lookup returns for an ambiguous clause ID
+    # PA (F11): an exact lookup of a clause ID that occurs more than once must fail closed (CLAUSE_AMBIGUOUS)
     for doc_id in docs:
         dups = duplicate_ids(svc.local.load(docs[doc_id].versions[0]).sections)
         if not dups:
@@ -250,10 +250,13 @@ def p_run(run: Run, p1: dict[str, str]) -> None:
         amb, lines = next(iter(dups.items()))
         r = svc.call("standards_lookup", lookup_args(doc_id, query=f"{doc_id} {amb}", clause=amb))
         run.keep(f"ambiguous {doc_id}", r)
-        res = r.get("results") or []
-        run.findings.append({"id": f"AMBIGUOUS-CLAUSE-{doc_id}", "clause": amb,
-                             "occurrences_at_lines": [ln + 1 for ln in lines], "lookup": resp_summary(r),
-                             "returned_line_start": res[0]["SOURCE_LOCATION"].get("line_start") if res else None})
+        details = (r.get("error") or {}).get("details") or {}
+        run.case(f"PA-ambiguous-{doc_id}", f"exact lookup of duplicated clause ID {amb} ({len(lines)} occurrences)",
+                 r["status"] == "ERROR" and (r["error"] or {}).get("code") == "CLAUSE_AMBIGUOUS"
+                 and not r.get("results") and details.get("occurrences") == len(lines),
+                 "ERROR CLAUSE_AMBIGUOUS with the occurrence count, no results",
+                 {**resp_summary(r), "clause": amb, "occurrences_at_lines": [ln + 1 for ln in lines],
+                  "error_occurrences": details.get("occurrences")})
 
     # P2: verify the genuine evidence, then tampered copies (in memory only)
     for doc_id, ev in evidence.items():

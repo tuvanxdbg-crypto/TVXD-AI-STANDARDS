@@ -345,6 +345,82 @@ class F6SemanticSourceIdentity(Base):
         self.assertIn("LOCAL_IDENTITY_UNAVAILABLE", [u["code"] for u in ev["UNCERTAINTY"]])
 
 
+class F11AmbiguousClause(Base):
+    """F11: a clause ID that occurs more than once (table of contents, repeated point letter) fails closed."""
+
+    TOC = "Mục lục\n2.1 Khoảng cách an toàn\n2.2 Chiều cao lắp đặt\n\n".encode("utf-8")
+    POINTS = "\n\nĐiều 4. Giá trị giả lập\n1. Các giá trị sau:\na) Giá trị 5 mm.\na) Giá trị 6 mm.\n".encode("utf-8")
+
+    def with_toc(self):
+        anchor = "1 Phạm vi áp dụng\n".encode("utf-8")
+        rehash(self.fx, QCVN_2024, lambda b: b.replace(anchor, self.TOC + anchor, 1))
+        return make_service(self.fx.config)[0]
+
+    def assertAmbiguous(self, r, clause, count):
+        self.assertFalse(schema.check(r, "lookup.response.v1.json"))
+        self.assertEqual((r["status"], r["error"]["code"]), ("ERROR", "CLAUSE_AMBIGUOUS"))
+        self.assertEqual(r["results"], [])
+        self.assertEqual((r["error"]["details"]["clause"], r["error"]["details"]["occurrences"]), (clause, count))
+        self.assertEqual(len(r["error"]["details"]["line_starts"]), count)
+
+    def test_numeric_toc_and_body_duplicate_fails_closed(self):
+        svc = self.with_toc()
+        self.assertAmbiguous(lookup(svc, query="QCVN FAKE 01 mục 2.1", **ELEC), "2.1", 2)
+        self.assertAmbiguous(lookup(svc, query="x", document_id="QCVN-FAKE-01", clause="2.1", **ELEC), "2.1", 2)
+        unique = lookup(svc, query="QCVN FAKE 01 mục 1", **ELEC)["results"][0]   # control: a unique ID still works
+        self.assertEqual((unique["CLAUSE"]["id"], unique["STATUS"]), ("1", "VERIFIED"))
+
+    def test_article_nested_point_duplicate_fails_closed(self):
+        rehash(self.fx, "01_PHAP_LUAT/LUAT-FAKE-99-2025.txt", lambda b: b + self.POINTS)
+        svc, _ = make_service(self.fx.config)
+        self.assertAmbiguous(lookup(svc, query="x", document_id="LUAT-FAKE-99", clause="Điều 4 khoản 1 điểm a", **GEN),
+                             "Điều 4 khoản 1 điểm a", 2)
+        self.assertAmbiguous(lookup(svc, query="LUAT FAKE 99 Điều 4 khoản 1 điểm a", **GEN), "Điều 4 khoản 1 điểm a", 2)
+        ev = lookup(svc, query="x", document_id="LUAT-FAKE-99", clause="Điều 4 khoản 1", **GEN)["results"][0]
+        self.assertEqual((ev["CLAUSE"]["id"], ev["STATUS"]), ("Điều 4 khoản 1", "VERIFIED"))
+
+    def test_candidates_with_a_duplicated_id_are_never_verified(self):
+        svc = self.with_toc()
+        r = lookup(svc, query="khoảng cách an toàn", document_id="QCVN-FAKE-01", **ELEC)
+        self.assertEqual(r["status"], "CANDIDATES")
+        dup = [ev for ev in r["results"] if ev["CLAUSE"] and ev["CLAUSE"]["id"] == "2.1"]
+        self.assertEqual(len(dup), 2)
+        for ev in dup:
+            self.assertEqual(ev["STATUS"], "UNKNOWN")
+            self.assertIn("CLAUSE_AMBIGUOUS", [u["code"] for u in ev["UNCERTAINTY"]])
+            v = self.verify(svc, ev)
+            self.assertEqual((v["status"], checks(v)["CLAUSE"]), ("UNKNOWN", "UNKNOWN"))
+
+    def test_legacy_evidence_for_a_now_duplicated_id_is_not_verified(self):
+        svc, _ = make_service(self.fx.config)
+        old = lookup(svc, query="QCVN FAKE 01 mục 2.1", **ELEC)["results"][0]
+        self.assertEqual(old["STATUS"], "VERIFIED")
+        self.assertEqual(self.verify(svc, old)["status"], "VERIFIED")
+        # The same file gains a second "2.1" after the end; the original span and text are unchanged.
+        rehash(self.fx, QCVN_2024, lambda b: b + "\n2.1 Phụ lục trùng số hiệu\nNội dung phụ lục giả lập.\n".encode("utf-8"))
+        new_sha = hashlib.sha256((self.fx.library / QCVN_2024).read_bytes()).hexdigest()
+        legacy = copy.deepcopy(old)   # as an unpatched Gateway would have issued it for the current file
+        legacy["SOURCE_HASH"].update(expected=new_sha, observed=new_sha)
+        legacy = reid(legacy)
+        svc2, _ = make_service(self.fx.config)
+        v = self.verify(svc2, legacy)
+        got = checks(v)
+        self.assertEqual((got["SOURCE_HASH"], got["EXCERPT_MATCH"], got["CLAUSE"]), ("PASS", "PASS", "UNKNOWN"))
+        self.assertEqual(v["status"], "UNKNOWN")
+        self.assertIsNone(v["verified_at"])
+
+    def test_resolution_counts_matches(self):
+        from gateway.adapters.local import LocalDoc, clause_occurrences, find_clause, find_clauses
+        lines = tuple("Mục lục\n2.1 A\n\n1 Phạm vi\n2 Yêu cầu\n2.1 A\nx\n2.2 B\ny".split("\n"))
+        from gateway.extract import Extracted
+        doc = LocalDoc("x.md", "0" * 64, 0, Extracted(lines=lines, layout_lines=frozenset()),
+                       tuple(parse_sections(lines, "numeric")))
+        self.assertEqual((len(find_clauses(doc, "2.1")), clause_occurrences(doc, "2.1")), (2, 2))
+        self.assertIsNone(find_clause(doc, "2.1"))
+        self.assertIsNone(find_clause(doc, "9.9"))
+        self.assertEqual(find_clause(doc, "2.2").id, "2.2")
+
+
 class McpStandIn(unittest.TestCase):
     """McpStdioNotebookLMClient against tests/m02/fake_mcp_server.py (offline)."""
 

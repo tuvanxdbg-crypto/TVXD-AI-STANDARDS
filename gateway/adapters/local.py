@@ -117,11 +117,20 @@ class LocalSourceAdapter:
 
 # ---------------------------------------------------------------------- doc helpers
 
+def find_clauses(doc: LocalDoc, clause_id: str) -> list[Section]:
+    """Every section with this ID. Real documents repeat IDs (a table of contents, numbered table rows),
+    so callers must treat more than one match as ambiguous, never pick one."""
+    return [s for s in doc.sections if s.id == clause_id]
+
+
 def find_clause(doc: LocalDoc, clause_id: str) -> Section | None:
-    for s in doc.sections:
-        if s.id == clause_id:
-            return s
-    return None
+    """The section with this ID when it is unique; None when it is absent or occurs more than once."""
+    hits = find_clauses(doc, clause_id)
+    return hits[0] if len(hits) == 1 else None
+
+
+def clause_occurrences(doc: LocalDoc, clause_id: str) -> int:
+    return sum(1 for s in doc.sections if s.id == clause_id)
 
 
 def section_text(doc: LocalDoc, start: int, end: int, max_chars: int) -> tuple[str, bool, bool]:
@@ -181,5 +190,5 @@ def section_for_lines(doc: LocalDoc, start: int, end: int) -> Section | None:
     return best
 
 
-__all__ = ["LocalSourceAdapter", "LocalDoc", "find_clause", "section_text", "search_sections",
-           "find_passage", "section_for_lines"]
+__all__ = ["LocalSourceAdapter", "LocalDoc", "find_clause", "find_clauses", "clause_occurrences", "section_text",
+           "search_sections", "find_passage", "section_for_lines"]
