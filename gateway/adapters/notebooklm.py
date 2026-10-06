@@ -13,7 +13,10 @@ Clients:
     Every wait uses one absolute deadline per request (notifications do not extend
     it), bounded by the retry attempt's Deadline: an expired or cancelled attempt
     never sends, and a request that times out in flight is cancelled and its
-    process retired, so no late work of a timed-out attempt remains.
+    process retired, so no late work of a timed-out attempt remains. Writes to the
+    server's stdin go through a per-process writer thread, so a server that stops
+    reading can never block the caller past its deadline; teardown kills the process
+    first and never waits on that pipe.
     Not used in the offline round (config mode "disabled"); enabling it needs the
     live-pilot review.
 """
@@ -137,11 +140,52 @@ class NotebookLMAdapter:
 
 # ---------------------------------------------------------------------------- MCP stdio transport
 
+class _WriteItem:
+    __slots__ = ("data", "done", "error")
+
+    def __init__(self, data: bytes):
+        self.data, self.done, self.error = data, threading.Event(), False
+
+
+class _StdinWriter:
+    """Owns one process's stdin. Callers wait for a write with a deadline instead of blocking in it."""
+
+    def __init__(self, stream):
+        self._stream = stream
+        self._q: queue.Queue = queue.Queue()
+        self.thread = threading.Thread(target=self._run, daemon=True, name="gateway-mcp-stdin")
+        self.thread.start()
+
+    def submit(self, data: bytes) -> _WriteItem:
+        item = _WriteItem(data)
+        self._q.put(item)
+        return item
+
+    def stop(self) -> None:
+        self._q.put(None)
+
+    def _run(self) -> None:
+        broken = False
+        while True:
+            item = self._q.get()
+            if item is None:
+                return
+            if not broken:
+                try:
+                    self._stream.write(item.data)
+                    self._stream.flush()
+                except (OSError, ValueError):   # process killed or pipe closed: fail this and later items
+                    broken = True
+            item.error = broken
+            item.done.set()
+
+
 class McpStdioNotebookLMClient:
     """Minimal MCP stdio client for the M01 gated server (four read tools only, fail closed)."""
 
     PROTOCOL_VERSION = "2025-06-18"
     POLL_S = 0.05   # how often a waiting request re-checks cancellation of its attempt
+    CANCEL_NOTICE_S = 0.05   # at most this long to hand notifications/cancelled to a live writer
 
     def __init__(self, mcp_config: Path, server: str = "gemini-notebook-mcp", start_timeout_s: float = 120.0):
         """start_timeout_s bounds each startup step (initialize, tools/list)."""
@@ -158,6 +202,7 @@ class McpStdioNotebookLMClient:
         self._id = 0
         self._lock = threading.Lock()
         self._ready = False   # True only after initialize + exact tools/list check on the current process
+        self._writer: _StdinWriter | None = None
 
     @staticmethod
     def _bounded(timeout: float, dl: Deadline | None) -> float:
@@ -176,12 +221,14 @@ class McpStdioNotebookLMClient:
         except OSError:
             raise GatewayError("BACKEND_UNAVAILABLE", "cannot start the NotebookLM MCP server") from None
         self._proc, self._q = proc, queue.Queue()
+        self._writer = _StdinWriter(proc.stdin)
         threading.Thread(target=self._reader, args=(proc, self._q), daemon=True).start()
         try:
             self._request("initialize", {"protocolVersion": self.PROTOCOL_VERSION, "capabilities": {},
                                          "clientInfo": {"name": "tvxd-standards-gateway", "version": "0.1.0"}},
                           timeout=self._bounded(self._start_timeout, dl), dl=dl)
-            self._send({"jsonrpc": "2.0", "method": "notifications/initialized"})
+            self._send({"jsonrpc": "2.0", "method": "notifications/initialized"},
+                       time.monotonic() + self._bounded(self._start_timeout, dl), dl)
             tools = sorted(str(t.get("name")) for t in self._request(
                 "tools/list", {}, timeout=self._bounded(self._start_timeout, dl), dl=dl).get("tools", []))
             if tools != sorted(M01_READ_TOOLS):
@@ -206,10 +253,23 @@ class McpStdioNotebookLMClient:
             pass
         q.put(None)
 
-    def _send(self, msg: dict) -> None:
-        assert self._proc and self._proc.stdin
-        self._proc.stdin.write((json.dumps(msg) + "\n").encode("utf-8"))
-        self._proc.stdin.flush()
+    def _send(self, msg: dict, deadline: float, dl: Deadline | None = None, request_id: int | None = None) -> None:
+        """Hand one message to the writer thread and wait for it until `deadline` (absolute, monotonic).
+
+        A server that stops reading stdin cannot hold the caller: on expiry or cancellation this
+        raises TIMEOUT (with request_id, so the caller retires the process) while the blocked
+        write stays in the writer thread until the process is killed.
+        """
+        if self._writer is None:
+            raise GatewayError("BACKEND_UNAVAILABLE", "NotebookLM MCP server is not running", retryable=True)
+        item = self._writer.submit((json.dumps(msg) + "\n").encode("utf-8"))
+        while not item.done.wait(max(0.0, min(deadline - time.monotonic(), self.POLL_S))):
+            if time.monotonic() >= deadline or (dl is not None and dl.cancelled.is_set()):
+                raise GatewayError("TIMEOUT", "NotebookLM MCP server is not reading its input", retryable=True,
+                                   details={"request_id": request_id})
+        if item.error:
+            raise GatewayError("BACKEND_UNAVAILABLE", "NotebookLM MCP server input closed", retryable=True,
+                               details={"request_id": request_id})
 
     def _request(self, method: str, params: dict, timeout: float, dl: Deadline | None = None) -> dict:
         """Send one request and wait for its response until a single absolute deadline.
@@ -221,7 +281,7 @@ class McpStdioNotebookLMClient:
         deadline = time.monotonic() + timeout
         self._id += 1
         rid = self._id
-        self._send({"jsonrpc": "2.0", "id": rid, "method": method, "params": params})
+        self._send({"jsonrpc": "2.0", "id": rid, "method": method, "params": params}, deadline, dl, rid)
         while True:
             remaining = deadline - time.monotonic()
             if remaining <= 0 or (dl is not None and dl.cancelled.is_set()):
@@ -289,11 +349,13 @@ class McpStdioNotebookLMClient:
         The next call starts and validates a fresh process (F7), so no late response or work
         of the timed-out request survives into a later attempt.
         """
-        if request_id is not None:
+        if request_id is not None and self._writer is not None:
+            # Best effort and bounded: if stdin is stalled the notice is simply dropped by the kill below.
             try:
                 self._send({"jsonrpc": "2.0", "method": "notifications/cancelled",
-                            "params": {"requestId": request_id, "reason": "timeout"}})
-            except (OSError, ValueError, AssertionError):
+                            "params": {"requestId": request_id, "reason": "timeout"}},
+                           time.monotonic() + self.CANCEL_NOTICE_S)
+            except GatewayError:
                 pass
         self._terminate()
 
@@ -301,33 +363,51 @@ class McpStdioNotebookLMClient:
         """Kill the current process (startup failure or replacement) and forget it."""
         self._ready = False
         proc, self._proc = self._proc, None
+        writer, self._writer = self._writer, None
         if proc is None:
             return
         try:
-            proc.kill()
+            proc.kill()   # first: this also unblocks a writer stuck on a full stdin pipe
             proc.wait(timeout=10)
         except Exception:  # noqa: BLE001
             pass
-        for stream in (proc.stdin, proc.stdout):
+        self._release_streams(proc, writer)
+
+    @staticmethod
+    def _release_streams(proc: subprocess.Popen, writer: _StdinWriter | None) -> None:
+        stdin_free = True
+        if writer is not None:
+            writer.stop()
+            writer.thread.join(timeout=2)
+            stdin_free = not writer.thread.is_alive()
+        # Closing stdin while the writer still holds it could block; leaking the handle is the safe choice.
+        for stream in ((proc.stdin, proc.stdout) if stdin_free else (proc.stdout,)):
             try:
                 if stream:
                     stream.close()
-            except OSError:
+            except (OSError, ValueError):
                 pass
 
     def close(self) -> None:
+        """Graceful stop: drain pending writes and let the server exit on EOF, killing it if it does not."""
         self._ready = False
-        if self._proc:
-            try:
-                if self._proc.stdin:
-                    self._proc.stdin.close()
-                self._proc.wait(timeout=10)
-            except Exception:  # noqa: BLE001
-                self._proc.kill()
-                self._proc.wait(timeout=10)
-            if self._proc.stdout:
-                self._proc.stdout.close()
-            self._proc = None
+        proc, self._proc = self._proc, None
+        writer, self._writer = self._writer, None
+        if proc is None:
+            return
+        if writer is not None:
+            writer.stop()
+            writer.thread.join(timeout=2)
+            if writer.thread.is_alive():   # stdin stalled: do not wait on it
+                proc.kill()
+        try:
+            if not (writer and writer.thread.is_alive()) and proc.stdin:
+                proc.stdin.close()
+            proc.wait(timeout=10)
+        except Exception:  # noqa: BLE001
+            proc.kill()
+            proc.wait(timeout=10)
+        self._release_streams(proc, None if writer is None else writer)
 
 
 def _expand(value: str) -> str:

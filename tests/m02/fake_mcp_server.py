@@ -12,6 +12,10 @@ Options:
   --log FILE         append "start" per process, "call <tool>" per tools/call received and
                      "cancelled <id>" per notifications/cancelled
   --times FILE       append "<unix time> <same event>" for the events above (timing checks)
+  --stall-after-list S  after answering tools/list, stop reading stdin for S seconds
+  --stall-once FILE  stall only while FILE does not exist (it is created on the first stall)
+  --small-stdin-pipe shrink the stdin pipe to one page where the OS allows it (Linux F_SETPIPE_SZ),
+                     so a few KB of unread input fill it, as with the small default pipes on Windows
 """
 from __future__ import annotations
 
@@ -36,6 +40,9 @@ def main() -> int:
     ap.add_argument("--extra-tool", action="store_true")
     ap.add_argument("--log")
     ap.add_argument("--times")
+    ap.add_argument("--stall-after-list", type=float, default=0.0)
+    ap.add_argument("--stall-once")
+    ap.add_argument("--small-stdin-pipe", action="store_true")
     args = ap.parse_args()
 
     def log(line: str) -> None:
@@ -51,6 +58,12 @@ def main() -> int:
         marker = Path(args.delay_once)
         delays = not marker.exists()
         marker.touch()
+    if args.small_stdin_pipe:
+        try:
+            import fcntl
+            fcntl.fcntl(sys.stdin.fileno(), fcntl.F_SETPIPE_SZ, 4096)
+        except (ImportError, AttributeError, OSError):
+            pass   # Windows: anonymous pipes are already small
     log("start")
     tools = READ_TOOLS + (["notebook_delete"] if args.extra_tool else [])
 
@@ -89,6 +102,15 @@ def main() -> int:
                   flush=True)
             continue
         print(json.dumps({"jsonrpc": "2.0", "id": rid, "result": result}), flush=True)
+        if method == "tools/list" and args.stall_after_list:
+            stall = True
+            if args.stall_once:
+                stall = not Path(args.stall_once).exists()
+                Path(args.stall_once).touch()
+            if stall:
+                log("stall")
+                time.sleep(args.stall_after_list)
+                log("resume")
     return 0
 
 

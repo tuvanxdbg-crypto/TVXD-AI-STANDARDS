@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regressions for GPT_REVIEW_V1 on PR #5: F1-F7 (at d35b574) and F8-F9 (at eeb76bc). Fixtures and fakes only."""
+"""Regressions for GPT_REVIEW_V1 on PR #5: F1-F7 (d35b574), F8-F9 (eeb76bc), F10 (cb26095). Fixtures/fakes only."""
 from __future__ import annotations
 
 import copy
@@ -7,6 +7,7 @@ import hashlib
 import json
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -523,6 +524,77 @@ class F9AbsoluteResponseDeadline(McpStandIn):
         t0 = time.monotonic()
         self.assertCode(lambda: adapter(c2, timeout_s=0.15, max_attempts=1, total_budget_s=1).probe(), "TIMEOUT")
         self.assertLess(time.monotonic() - t0, 0.45)
+
+
+class F10StalledStdin(McpStandIn):
+    """F10: a server that stops reading stdin cannot hold the caller, the client lock, a worker or the process."""
+
+    BIG_QUERY = "đ" * 2000   # schema maximum (lookup.request.v1.json); ~12 KB on the wire after JSON escaping
+
+    def stalled(self, seconds: str = "1000", *extra: str) -> McpStdioNotebookLMClient:
+        return self.started(self.client("--stall-after-list", seconds, "--small-stdin-pipe", *extra))
+
+    def assertReleased(self, c: McpStdioNotebookLMClient, old_proc) -> None:
+        self.assertTrue(c._lock.acquire(timeout=0.5), "client lock still held")
+        c._lock.release()
+        self.assertIsNone(c._proc)
+        self.assertFalse(c._ready)
+        self.assertIsNotNone(old_proc.poll(), "stalled backend process still alive")
+        workers = [t for t in threading.enumerate()
+                   if t.name in ("gateway-backend-call", "gateway-mcp-stdin") and t.is_alive()]
+        self.assertEqual(workers, [], "a backend worker or stdin writer is still running")
+
+    def test_reviewer_repro_bounded_retirement_and_release(self):
+        c = self.stalled()
+        old = c._proc
+        a = adapter(c, timeout_s=0.05, max_attempts=1, total_budget_s=0.05)
+        t0 = time.monotonic()
+        self.assertCode(lambda: a.query("nb-fixture-001", self.BIG_QUERY, ["src-qcvn01-2024"]), "TIMEOUT")
+        self.assertLess(time.monotonic() - t0, 0.5)
+        time.sleep(0.5)
+        self.assertReleased(c, old)
+        self.assertEqual(self.calls(), [])                  # the stalled server never read the request
+
+    def test_direct_call_without_retry_deadline(self):
+        c = self.stalled()
+        old = c._proc
+        t0 = time.monotonic()
+        self.assertCode(lambda: c._tool("notebook_query", {"query": self.BIG_QUERY}, timeout=0.2), "TIMEOUT")
+        self.assertLess(time.monotonic() - t0, 0.8)         # includes the bounded cancel notice and the kill
+        time.sleep(0.3)
+        self.assertReleased(c, old)
+
+    def test_recovery_through_a_fresh_validated_process(self):
+        c = self.stalled("1000", "--stall-once", str(self.dir / "once"))
+        self.assertCode(lambda: adapter(c, timeout_s=0.05, max_attempts=1, total_budget_s=0.05).query(
+            "nb-fixture-001", self.BIG_QUERY, ["src-qcvn01-2024"]), "TIMEOUT")
+        res = adapter(c, timeout_s=10, max_attempts=1, total_budget_s=10).query(
+            "nb-fixture-001", self.BIG_QUERY, ["src-qcvn01-2024"])
+        self.assertEqual(res.citations, [])
+        self.assertTrue(c._ready)
+        self.assertEqual([x for x in self.log_lines() if x != "stall"],
+                         ["start", "start", "call notebook_query"])   # restarted, revalidated, then served
+
+    def test_close_with_stalled_stdin_is_bounded(self):
+        c = self.stalled()
+        old = c._proc
+        blocked = threading.Thread(target=lambda: self.assertRaises(
+            GatewayError, c._tool, "notebook_query", {"query": self.BIG_QUERY}, timeout=30), daemon=True)
+        blocked.start()
+        time.sleep(0.3)                                     # the writer is now stuck on the full pipe
+        t0 = time.monotonic()
+        c.close()
+        self.assertLess(time.monotonic() - t0, 5.0)
+        blocked.join(timeout=5)
+        self.assertFalse(blocked.is_alive())                # the waiting caller was released too
+        self.assertIsNotNone(old.poll())
+
+    def test_large_request_still_works_when_the_server_reads(self):
+        c = self.started(self.client("--small-stdin-pipe"))
+        res = adapter(c, timeout_s=10, max_attempts=1, total_budget_s=10).query(
+            "nb-fixture-001", self.BIG_QUERY, ["src-qcvn01-2024"])
+        self.assertEqual(res.citations, [])
+        self.assertEqual(self.calls(), ["call notebook_query"])
 
 
 if __name__ == "__main__":

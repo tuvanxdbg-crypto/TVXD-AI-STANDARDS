@@ -24,7 +24,7 @@ execution request, kept verbatim in the appendix) and the roadmap
 | Retry/timeout | `gateway/retry.py` | bounded attempts and total budget; only transient errors retried |
 | Logs | `gateway/logs.py` | whitelisted keys only; no query, context or source text |
 | Fixtures | `tests/m02/fixtures/` | fake library, `INDEX.yaml`, `INDEX.md`, config, fixture MCP config |
-| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 100 offline unit/contract tests (29 of them regressions for the review findings F1–F9, `test_gateway_regressions.py`) + real Claude Code checks on the fixture Gateway |
+| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 105 offline unit/contract tests (34 of them regressions for the review findings F1–F10, `test_gateway_regressions.py`) + real Claude Code checks on the fixture Gateway |
 | Windows runner | `scripts/m02/m02-tests.ps1` | fail-fast; `-WithClaude` adds the real Claude Code checks |
 
 ## 2. Implementation decisions
@@ -112,7 +112,11 @@ absolute deadline (never past the total budget) and a cancel flag that is set wh
 NotebookLM client honours it: an attempt that is expired or cancelled while queued for the client never sends, every
 response wait uses one absolute deadline (notifications do not extend it), and an in-flight request that times out is
 cancelled (`notifications/cancelled`) and its server process killed, so no backend work of a timed-out attempt
-continues after the caller has received `TIMEOUT`.
+continues after the caller has received `TIMEOUT`. Writes to the server's stdin are made by a per-process writer
+thread; the caller only waits for a write until its deadline, so a server that stops reading cannot hold the caller,
+the client lock or the worker. Teardown kills the process first (which also unblocks a stuck write), sends the
+cancellation notice only best-effort within 50 ms, and never closes or flushes a stdin that a blocked write still
+holds.
 `APPLICABILITY_UNKNOWN` normally appears as an evidence uncertainty (not a request error), with the missing inputs.
 
 ## 5. Security boundary
@@ -124,7 +128,8 @@ continues after the caller has received `TIMEOUT`.
   (`mode: mcp_stdio`) launches the pinned M01 gated server from the project `.mcp.json`, refuses to proceed unless
   `tools/list` is exactly the four M01 read tools, and refuses to call any other tool name. A process is used only
   after `initialize` and that surface check both succeeded; any startup error or timeout kills it, and the next call
-  starts and validates a fresh process. Startup steps and calls are bounded by absolute deadlines (section 4).
+  starts and validates a fresh process. Startup steps, calls and stdin writes are bounded by absolute deadlines
+  (section 4).
   Enabling it is part of
   the live pilot and needs a new review. M01 pin, `.mcp.json`, `.claude/settings.json` and
   `config/m01-tool-policy.yaml` are unchanged.
@@ -250,6 +255,14 @@ Also changed: `verify.response.v1.json` lists the new check names (the schema is
 | F9 [P2] notifications restarted the response wait | `_request` computes one monotonic deadline and only waits for its remainder (polling the cancel flag); expiry is checked even while messages keep arriving | `F9AbsoluteResponseDeadline`: notification streams during `initialize`, `tools/list` (with F7 cleanup preserved) and `tools/call`, plus an endless stream |
 
 The offline stand-in `tests/m02/fake_mcp_server.py` gained `--call-delay`, `--notify` and a timestamped `--times` log.
+
+## 13. Review round 4 — GPT_REVIEW_V1 at `cb26095` (PATCH_REQUIRED, F1–F9 covered)
+
+| Finding | Fix | Regression tests (`tests/m02/test_gateway_regressions.py`) |
+|---|---|---|
+| F10 [P2] a synchronous stdin write could block before the deadline loop; cleanup also wrote to the blocked pipe | `_StdinWriter` thread per process; `_send` waits for the write only until the request/attempt deadline (and the cancel flag), then raises `TIMEOUT` so the call is retired; `_retire` sends `notifications/cancelled` best-effort (≤ 50 ms) and kills; `_terminate`/`close` kill first and never close a stdin still held by a blocked write | `F10StalledStdin` with `fake_mcp_server.py --stall-after-list --small-stdin-pipe` (one-page pipe on Linux; Windows pipes are small by default) and the schema-maximum query of 2,000 `đ` (~12 KB after JSON escaping): the reviewer's repro returns `TIMEOUT` and within 0.5 s the lock is free, no worker or writer thread is alive and the old process is dead; a direct call without a retry deadline; recovery through a fresh validated process; `close()` while a write is stuck; the same large request still succeeds when the server reads |
+
+Against the previous client (`e361f42`) the four stalled-stdin tests hang (caught); the positive control passes on both.
 
 ## Appendix — Issue #4 specification (verbatim)
 
