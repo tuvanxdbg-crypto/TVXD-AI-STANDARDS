@@ -72,11 +72,21 @@ Metadata only: no file name printed, no file opened, no write.
 Only formats the Gateway supports: `md`, `txt`, `docx`. A PDF stays `UNSUPPORTED_FORMAT`; it is not replaced by a
 summary or conversion.
 
-| # | Document ID | Title | Version | Format | Path under `source_root` | SHA-256 | Status / effective from–to |
-|---|---|---|---|---|---|---|---|
-| 1 | `<OWNER_INPUT>` | `<OWNER_INPUT>` | `<OWNER_INPUT>` | `<md/txt/docx>` | `<OWNER_INPUT>` | `<computed>` | `<OWNER_INPUT>` |
-| 2 | (optional) | | | | | | |
-| 3 | (optional) | | | | | | |
+| # | File (path under `source_root`) | Bytes | SHA-256 | Last write (UTC) | Document ID / version / status / effectivity |
+|---|---|---|---|---|---|
+| 1 | `2025-LUAT-135-QH15-Xay-dung.docx` | 47,416 | `c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af` | 2026-06-05T01:30:05Z | `<OWNER_INPUT: e.g. LUAT-135-2025-QH15, version, status, effective_from>` |
+| 2 | `2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx` | 14,444,867 | `87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124` | 2026-08-05T07:05:39Z | `<OWNER_INPUT: e.g. TCVN-5575-2024, version, status, effective_from>` |
+| 3 | `2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx` | 35,242 | `827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f` | 2019-06-09T08:57:34Z | `<OWNER_INPUT: e.g. TCVN-8794-2011, version, status, effective_from>` |
+
+These are the owner-named files (2026-10-06). Inventory was metadata and SHA-256 only, on the owner's machine: no
+content opened or parsed, no other file name printed. All three are plain files (`Archive`): no reparse point, NFC
+names, ACEs inherited from the folder (the Claude account gets `RX` when non-elevated). Each copy's SHA-256 must
+match the Nextcloud original (`Thu-vien-chung/Vanban_XDCB`). The owner's confirmation of that match is still
+`<OWNER_INPUT>`.
+
+Note for stage A: file 2 is 14.4 MB, under `max_source_bytes` (20 MB). Its uncompressed size has not been checked.
+The Gateway refuses a docx above `max_docx_uncompressed_bytes` (50 MB) with `EXTRACTION_FAILED`. That would be a
+stage-A finding, not something to work around.
 
 Inventory, run only on the files named above (no directory listing or bulk read of the library):
 
@@ -159,7 +169,7 @@ Any FAIL stops the pilot. The result is reported as FAIL with the case ID; nothi
 | # | Input | Status |
 |---|---|---|
 | 1 | Source path, Claude account, sync state, `icacls` output | RECEIVED: `source_root` `C:\Vanban_XDCB` (outside the Nextcloud sync root); READ_ONLY_PROOF PASS when non-elevated (§1); optional deny-write hardening |
-| 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | MISSING |
+| 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | PARTIAL: 3 files named, inventoried (size, SHA-256, §2); IDs/versions/status/effectivity and the Nextcloud-copy hash match still MISSING |
 | 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | MISSING |
 | 4 | Applicability reviewer and reviewed metadata | MISSING |
 | 5 | NotebookLM notebook/source mapping and sync proof per file | MISSING |
