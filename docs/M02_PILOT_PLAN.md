@@ -19,7 +19,7 @@ so every lookup returns `INDEX_INVALID` and `standards_status` reports `ERROR`. 
 
 | Item | Value |
 |---|---|
-| Nextcloud local sync/mount path (Gateway `source_root`) | `<OWNER_INPUT: absolute path, e.g. D:\Nextcloud\STANDARDS>` |
+| Gateway `source_root` (dedicated read-only pilot folder; copies of Nextcloud `Thu-vien-chung/Vanban_XDCB` files) | `C:\Vanban_XDCB` (owner input, 2026-10-06) |
 | Windows account that runs Claude Code / the Gateway | `<OWNER_INPUT: DOMAIN\user>` |
 | Nextcloud client sync state for that folder | `<OWNER_INPUT: "up to date" + time>` |
 
@@ -52,6 +52,20 @@ owner copies the 1–3 pilot files into it; these are real files, not placeholde
 read-only access, for example a deny-write ACE for that account, while the folder is managed from a different
 account. Each copy's SHA-256 must equal the Nextcloud original. Supporting Cloud Files placeholders in the adapter
 would be a code change and needs its own review.
+
+**Second check, 2026-10-06: owner-chosen pilot folder `C:\Vanban_XDCB`, outside the sync root (option A).**
+Metadata only: no file name printed, no file opened, no write.
+- Owner is `BUILTIN\Administrators`; all ACEs are inherited.
+- The Claude account, running non-elevated (Medium integrity, Administrators deny-only), gets only `RX` via
+  `BUILTIN\Users`. It has no W/M/F/D/WD/AD/DC right, so it cannot create files or hard links there.
+- No reparse point: neither the folder nor any entry inside it.
+- Contents: 25 `.docx` files, about 30 MB, no subfolders. All files are under `max_source_bytes`.
+- **READ_ONLY_PROOF: PASS, provided Claude/the Gateway runs non-elevated.** An elevated token would get Full
+  Control through Administrators. Recommended hardening: an explicit deny-write ACE for the Claude account, which
+  also applies when elevated.
+- `ALL APPLICATION PACKAGES` has an inherited `RX,W`. It applies only to AppContainer apps, not to Claude or the
+  Gateway.
+- `source_root` for the pilot: `C:\Vanban_XDCB`. The 1–3 pilot documents are still to be named by the owner.
 
 ## 2. Bounded document set (1–3 files)
 
@@ -144,7 +158,7 @@ Any FAIL stops the pilot. The result is reported as FAIL with the case ID; nothi
 
 | # | Input | Status |
 |---|---|---|
-| 1 | Source path, Claude account, sync state, `icacls` output | PARTIAL: Nextcloud folder named; READ_ONLY_PROOF FAIL and virtual files (see §1); owner decision on option A pending |
+| 1 | Source path, Claude account, sync state, `icacls` output | RECEIVED: `source_root` `C:\Vanban_XDCB` (outside the Nextcloud sync root); READ_ONLY_PROOF PASS when non-elevated (§1); optional deny-write hardening |
 | 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | MISSING |
 | 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | MISSING |
 | 4 | Applicability reviewer and reviewed metadata | MISSING |
