@@ -1,0 +1,13 @@
+uv run --no-project --python 3.11 --with pyyaml==6.0.2 --exclude-newer 2026-10-03T00:00:00Z python -m unittest -v test_gateway_windows
+(working directory tests\m02; exit=0)
+
+test_directory_junction_inside_root_to_outside_is_refused (test_gateway_windows.WindowsReparseConfinement.test_directory_junction_inside_root_to_outside_is_refused) ... ok
+test_file_symlink_inside_root_to_outside_is_refused (test_gateway_windows.WindowsReparseConfinement.test_file_symlink_inside_root_to_outside_is_refused) ... skipped 'file symlinks need Developer Mode or SeCreateSymbolicLinkPrivilege'
+test_junction_as_top_level_folder_is_refused (test_gateway_windows.WindowsReparseConfinement.test_junction_as_top_level_folder_is_refused) ... ok
+test_normal_path_control_is_readable (test_gateway_windows.WindowsReparseConfinement.test_normal_path_control_is_readable) ... ok
+----------------------------------------------------------------------
+Ran 4 tests in 0.396s
+OK (skipped=1)
+
+Two "System.Management.Automation.RemoteException" lines around the "----" and "Ran" lines are how Windows
+PowerShell 5.1 renders native stderr; they are not test failures.

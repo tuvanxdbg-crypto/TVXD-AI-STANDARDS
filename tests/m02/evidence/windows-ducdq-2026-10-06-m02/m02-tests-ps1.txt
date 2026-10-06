@@ -1,0 +1,27 @@
+powershell -ExecutionPolicy Bypass -File scripts\m02\m02-tests.ps1 -WithClaude
+Detached worktree <home>\TVXD-m02-accept at ef68fa74d871d0da23f3bab4bf9aebba665a539a; git status --porcelain empty before and after.
+exit=0
+
+==== M02 unit/contract tests (fixture, fake NotebookLM)
+Ran 109 tests in 22.443s
+OK (skipped=2)
+==== M01 regression: M01-10 checker controls
+Ran 12 tests in 0.732s
+OK
+==== M01 regression: console encoding
+ok
+Ran 2 tests in 0.687s
+OK
+==== M01-09 secret scan
+M01-09 scanned 134 tracked files at ef68fa74d871d0da23f3bab4bf9aebba665a539a
+M01-09: PASS (no credential-like names, no secret patterns, auth paths ignored)
+==== M02 model-visible surface (real Claude Code, fixture Gateway)
+  "status": "PASS",
+    "mcp__tvxd-standards-gateway__standards_status",
+      "status": "connected"
+==== M02 LLM data boundary (real Claude Code, fixture Gateway)
+  "status": "PASS",
+All executed M02 steps passed (OFFLINE fixture validation only; not M02 overall PASS).
+
+The 2 skips: test_gateway_core.LocalAdapter.test_symlink_file_and_dir_inside_root_rejected (skipped on Windows
+by design) and test_gateway_windows...test_file_symlink_inside_root_to_outside_is_refused (see windows-controls.txt).
