@@ -114,9 +114,9 @@ response wait uses one absolute deadline (notifications do not extend it), and a
 cancelled (`notifications/cancelled`) and its server process killed, so no backend work of a timed-out attempt
 continues after the caller has received `TIMEOUT`. Writes to the server's stdin are made by a per-process writer
 thread; the caller only waits for a write until its deadline, so a server that stops reading cannot hold the caller,
-the client lock or the worker. Teardown kills the process first (which also unblocks a stuck write), sends the
-cancellation notice only best-effort within 50 ms, and never closes or flushes a stdin that a blocked write still
-holds.
+the client lock or the worker. Retiring a timed-out request first hands `notifications/cancelled` to the writer
+best-effort, waiting at most 50 ms, and then kills the process; `_terminate`/`close` kill the process before closing
+any stream (the kill also unblocks a stuck write) and never close or flush a stdin that a blocked write still holds.
 `APPLICABILITY_UNKNOWN` normally appears as an evidence uncertainty (not a request error), with the missing inputs.
 
 ## 5. Security boundary
@@ -161,7 +161,7 @@ No real NotebookLM call and no real library in this round.
 | Timeout, retry exhaustion, unavailable backend, missing input → structured | `test_gateway_resilience.*`, `ExactLocal.test_structured_errors` | mock |
 | Windows Unicode and published formats work or fail structurally | `LocalAdapter.test_unicode_windows_filename`, `*docx*`, `*pdf*`, `*utf8*`, `Paths` (NFD rejected); `.gitattributes` keeps fixture bytes on Windows | mock |
 | Model-visible isolation with evidence, mock vs real distinguished | `m02_surface.py` evidence records `kind` | real Claude Code |
-| Review findings F1–F7 (GPT_REVIEW_V1 at `d35b574`) | `test_gateway_regressions.F1…F7*` (see section 11) | mock |
+| Review findings F1–F10 (GPT_REVIEW_V1 at `d35b574`, `eeb76bc`, `cb26095`) | `test_gateway_regressions.F1…F10*` (see sections 11–13) | mock |
 | Related M01 regression and secret scan PASS | `tests/m01/test_m01_10_llm_check.py`, `test_m01_console.py`, `check_no_secrets.py`; M01 surface acceptance | regression |
 
 Test-suite strength: 9 hand-made mutations of the Gateway (whitelist, sync identity, cache drift check,
