@@ -24,7 +24,7 @@ execution request, kept verbatim in the appendix) and the roadmap
 | Retry/timeout | `gateway/retry.py` | bounded attempts and total budget; only transient errors retried |
 | Logs | `gateway/logs.py` | whitelisted keys only; no query, context or source text |
 | Fixtures | `tests/m02/fixtures/` | fake library, `INDEX.yaml`, `INDEX.md`, config, fixture MCP config |
-| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 105 offline unit/contract tests (34 of them regressions for the review findings F1–F10, `test_gateway_regressions.py`) + real Claude Code checks on the fixture Gateway |
+| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 109 offline unit/contract tests (34 regressions for the review findings F1–F10 in `test_gateway_regressions.py`; 4 Windows-only junction/reparse controls in `test_gateway_windows.py`, skipped elsewhere) + real Claude Code checks on the fixture Gateway |
 | Windows runner | `scripts/m02/m02-tests.ps1` | fail-fast; `-WithClaude` adds the real Claude Code checks |
 
 ## 2. Implementation decisions
@@ -231,8 +231,11 @@ The Gateway is **not** added to the project `.mcp.json`, so ordinary sessions do
 * `standards_status` `deep` re-hashes every INDEX file (fine for a pilot set, slow for a large library).
 * The semantic route hashes each cited authoritative file on every lookup, including cache hits (source identity
   check, F6); fine for a pilot set, to be revisited with a persistent identity cache for a large library.
-* Windows junction refusal is implemented via `st_file_attributes` but only symlinks are exercised in the Linux
-  sandbox; the Windows run of `scripts\m02\m02-tests.ps1` covers the rest of the suite on the owner machine.
+* Windows junction/reparse refusal is exercised by `tests/m02/test_gateway_windows.py` (Windows only; skipped
+  elsewhere): a junction or file symlink inside a throwaway fixture root that points outside must be refused and the
+  outside canary never read or returned; a normal path stays readable. File symlinks need Developer Mode, so that
+  sub-check may report SKIP. Hard links are not reparse points and are not detected; the source root must stay
+  read-only for the Claude user (MISSING_OWNER_INPUTS 1).
 
 ## 11. Review round 2 — GPT_REVIEW_V1 at `d35b574` (PATCH_REQUIRED)
 
