@@ -1,7 +1,7 @@
 {
   "schema": "tvxd.gateway.config/v1",
   "index_path": "<OWNER_INPUT: path to the filled pilot INDEX copy>",
-  "source_root": "<OWNER_INPUT: Nextcloud sync folder, read-only for the Claude account>",
+  "source_root": "<OWNER_INPUT: dedicated folder OUTSIDE the Nextcloud sync root holding real-file copies of the pilot files (no Cloud Files placeholders), read-only for the Claude account>",
   "notebooklm": {"mode": "disabled"},
   "cache": {"max_entries": 256},
   "limits": {"max_source_bytes": 20971520, "max_excerpt_chars": 4000},

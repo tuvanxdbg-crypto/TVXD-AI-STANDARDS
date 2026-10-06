@@ -1,10 +1,14 @@
 # M02 — Bounded live pilot plan (preparation only)
 
-Status: **PREPARATION ONLY** (`M02_BOUNDED_PILOT_SOURCE_PREPARATION_ONLY`, GPT_REVIEW_V1 at `24beaac`).
-Nothing in this document has been executed. No live pilot, no `notebooklm.mode: mcp_stdio`, no NotebookLM login,
-upload or source change, no real-library read beyond the owner-named files listed in section 2, no merge, no M03,
-no AutoCAD, no change to the M01 pin or permissions. The live run needs a GPT_REVIEW_V1 of the completed plan **and**
-the owner's explicit approval of the concrete live scope.
+Status: **STAGE A PREFLIGHT AND OWNER APPROVAL** (`M02_STAGE_A_PREFLIGHT_AND_OWNER_APPROVAL`). GPT_REVIEW_V1 at
+`a4b630b` passed this plan for stage A (local) with the preflight conditions in section 6a; stage B is not open.
+
+What has been executed so far, on the owner's machine, metadata only: ACL/token checks on the Nextcloud folder and
+on `C:\Vanban_XDCB` (section 1), and `Get-Item`/`Get-FileHash` on the three owner-named files (section 2). The
+offline checks of the draft INDEX (`load_index`, `version_check`, `applicability()`) read no source.
+Not executed: any content read of the pilot files (stage A), any NotebookLM call (stage B), `notebooklm.mode:
+mcp_stdio`, NotebookLM login, upload or source change. No merge, no M03, no AutoCAD, no change to the M01 pin or
+permissions. Stage A runs only after the owner approves it directly **and** the section-6a preflight passes.
 
 Every `<OWNER_INPUT: ...>` below is a placeholder that only the owner can fill. Claude does not choose documents,
 work codes, reviewers or mappings.
@@ -13,7 +17,8 @@ Templates: [`m02-pilot/INDEX.pilot.template.yaml`](m02-pilot/INDEX.pilot.templat
 [`m02-pilot/gateway.pilot.template.json`](m02-pilot/gateway.pilot.template.json). Both fail closed until filled:
 the INDEX template fails schema validation (`INDEX_INVALID`), and the config template points at placeholder paths,
 so every lookup returns `INDEX_INVALID` and `standards_status` reports `ERROR`. The config keeps
-`notebooklm.mode: disabled`.
+`notebooklm.mode: disabled`. Filled stage-A files: [`m02-pilot/INDEX.pilot.draft.yaml`](m02-pilot/INDEX.pilot.draft.yaml)
+and [`m02-pilot/gateway.pilot.stage-a.json`](m02-pilot/gateway.pilot.stage-a.json) (section 6a).
 
 ## 1. Source location and read-only proof
 
@@ -81,18 +86,26 @@ summary or conversion.
 These are the owner-named files (2026-10-06). Inventory was metadata and SHA-256 only, on the owner's machine: no
 content opened or parsed, no other file name printed. All three are plain files (`Archive`): no reparse point, NFC
 names, ACEs inherited from the folder (the Claude account gets `RX` when non-elevated). Each copy's SHA-256 must
-match the Nextcloud original (`Thu-vien-chung/Vanban_XDCB`). The owner confirmed that match on 2026-10-06 (owner
-statement; Claude did not hash the Nextcloud originals).
+match the Nextcloud original (`Thu-vien-chung/Vanban_XDCB`). The owner confirmed that match on 2026-10-06. This is
+owner provenance only: Claude did not hash the Nextcloud originals, and the copies are not a synchronized mirror.
 
-Effective dates (owner asked Claude to look them up, 2026-10-06). They come from web search summaries only: the
-official publication sites (`vanban.chinhphu.vn`, `tieuchuan.vsqi.gov.vn`) were not reachable from the sandbox, so
-none of them is checked against the official text. The owner confirmed all three dates on 2026-10-06.
+Effective dates (owner asked Claude to look them up, 2026-10-06; owner-confirmed the same day). Claude found them
+by web search; the official sites were not reachable from the Claude sandbox. The GPT reviewer then checked the
+official listings (GPT_REVIEW_V1 at `a4b630b`):
 
-| Document | effective_from | Basis found | Secondary sources |
-|---|---|---|---|
-| Luật Xây dựng 135/2025/QH15 | 2026-07-01 | Passed 2025-12-10; in force 2026-07-01, some provisions from 2026-01-01 (INDEX keeps one version; per-provision dates are not modelled) | xaydungchinhsach.chinhphu.vn, baomoi.com, vanban.chinhphu.vn search listing |
-| TCVN 5575:2024 | 2024-12-24 | Announced by QĐ 3366/QĐ-BKHCN dated 2024-12-24; replaces TCVN 5575:2012 | caselaw.vn, luatvietnam.vn, icci.vn |
-| TCVN 8794:2011 | 2011-08-23 | Issue date per secondary sites; the announcing decision number was not confirmed | thuvienphapluat.vn, caselaw.vn, hethongphapluat.com |
+| Document | effective_from | Basis (official listing, per the reviewer) |
+|---|---|---|
+| Luật Xây dựng 135/2025/QH15 | 2026-07-01 | Government legal-document portal: in force 2026-07-01 ([vanban.chinhphu.vn](https://vanban.chinhphu.vn/?classid=1&docid=216514&orggroupid=1&pageid=27160)). Some provisions apply earlier ([xaydungchinhsach.chinhphu.vn](https://xaydungchinhsach.chinhphu.vn/noi-dung-co-ban-cua-luat-xay-dung-135-2025-qh15-119260121111210485.htm)) |
+| TCVN 5575:2024 | 2024-12-24 | VSQI: Active, replaces TCVN 5575:2012, announced by QĐ 3366/QĐ-BKHCN of 2024-12-24 ([tieuchuan.vsqi.gov.vn](https://tieuchuan.vsqi.gov.vn/tieuchuan/view?sohieu=TCVN+5575%3A2024)) |
+| TCVN 8794:2011 | 2011-08-23 | VSQI: Active, announced by QĐ 2585/QĐ-BKHCN of 2011-08-23 ([tieuchuan.vsqi.gov.vn](https://tieuchuan.vsqi.gov.vn/tieuchuan/view?sohieu=TCVN+8794%3A2011)) |
+
+Limits of this metadata:
+- It is a catalogue/metadata check. It does not authenticate the content of the three DOCX copies and is no legal
+  or design certification.
+- A TCVN announcement date does not by itself make the standard mandatory for every project. Applicability comes
+  only from the owner-reviewed INDEX metadata plus the request context.
+- The INDEX holds one effective date per version, so the law's earlier-effective provisions are not modelled. The
+  pilot evaluates 2026-10-06 only; the INDEX is not used to answer questions dated before 2026-07-01.
 
 With these dates the draft INDEX passes schema validation, and `version_check` returns `PASS` for each version on
 2026-10-06. With the owner-reviewed metadata (§4), `applicability()` on 2026-10-06 with `THIET-KE-DAN-DUNG` gives
@@ -121,7 +134,7 @@ Get-FileHash -Algorithm SHA256 "<source_root>\<path>"
 |---|---|
 | WORK_CODE(s) | `THIET-KE-DAN-DUNG` (owner input, 2026-10-06) |
 | assessment_date | `2026-10-06` (owner-confirmed, 2026-10-06) |
-| project_context.conditions | Condition definitions owner-confirmed: `COND-KET-CAU-THEP` (TCVN 5575), `COND-TRUONG-TRUNG-HOC` (TCVN 8794). Values are set per pilot case: Q-S1 uses `COND-TRUONG-TRUNG-HOC: true` (the question is about a secondary school) and leaves `COND-KET-CAU-THEP` unset, so TCVN 5575 stays `UNKNOWN` for it (P3) |
+| project_context.conditions | Condition definitions owner-confirmed: `COND-KET-CAU-THEP` (TCVN 5575), `COND-TRUONG-TRUNG-HOC` (TCVN 8794). For Q-S1 only `COND-TRUONG-TRUNG-HOC: true` is confirmed. `COND-KET-CAU-THEP` is unknown, so it stays unset and TCVN 5575 stays `UNKNOWN`; Claude never fills it in as true. No stage-A case sets `COND-KET-CAU-THEP: true`: TCVN 5575 applicability is not widened just because a project has a steel structure, and building types or conditions outside this scope stay `UNKNOWN` or excluded |
 | Exact/local questions (document + clause known) | None from the owner. Users usually do not remember clauses or wording, so **semantic lookup is the primary pilot case**. Exact/local cases (P1) will be drawn from clauses that stage A shows exist in the files, and the owner confirms them. |
 | Semantic questions (discovery needed) | Q-S1 (owner, 2026-10-06): "Tiêu chuẩn thiết kế chiếu sáng lớp học trường trung học" (lighting design requirements for secondary-school classrooms). Stage A: with `document_id` of the TCVN 8794:2011 copy, the expected result is `CANDIDATES` (heuristic keyword match, never exact); without `document_id` it is `BACKEND_UNAVAILABLE` while NotebookLM is disabled. Stage B: semantic lookup over the whitelisted, mapped pilot sources. Whether the document has a lighting clause is unverified (contents not opened). Further questions: `<OWNER_INPUT: optional>` |
 
@@ -155,17 +168,87 @@ M01 locked context, with `mcp_stdio` against the M01 gated server (the four read
 
 | ID | Stage | Case | PASS when |
 |---|---|---|---|
-| P1 | A | Exact/local lookup for each section-3 exact question | expected clause returned, `VERIFIED` only with reviewed applicability, `notebooklm_calls: 0` |
-| P2 | A | `standards_verify` on P1 evidence; then on a tampered copy (temporary JSON edit, not the source) | genuine → `VERIFIED`; tampered → `FAILED` |
-| P3 | A | Missing work_code / unreviewed metadata | `UNKNOWN` with `missing` list |
+| P1 | A | Exact/local lookup of one owner-confirmed clause per document. The clauses are picked from the IDs that `discover` finds locally; keyword `CANDIDATES` never count as an exact clause | `FOUND`, that clause, route `LOCAL`, `notebooklm_calls: 0`; `VERIFIED` for the law and TCVN 8794 (with `COND-TRUONG-TRUNG-HOC: true`), `UNKNOWN` for TCVN 5575 (`COND-KET-CAU-THEP` unknown) |
+| P2 | A | `standards_verify` on P1 evidence (object and `evidence_id`); then on in-memory JSON copies with a tampered clause, source hash, excerpt or version (the source is never edited) | genuine → same status as P1 with every identity check `PASS`; tampered → `FAILED` |
+| P3 | A | TCVN 8794 clause without work_code / without `COND-TRUONG-TRUNG-HOC`; TCVN 5575 with `COND-KET-CAU-THEP` unknown | `UNKNOWN`, with the missing input listed |
 | P4 | A | Drift simulated by changing the hash in a **temporary copy of the pilot INDEX** (the real file is never edited) | `SOURCE_DRIFT`, no `VERIFIED` |
 | P5 | B | Semantic question: capture the real `notebook_query` citation shape (key names, counts, source ids only) | citations map to whitelisted source ids; unmatched shape → documented, never `VERIFIED` |
 | P6 | B | Cold vs cache hit for the same semantic question | second call `cache_hit: true`, identity re-checked, no extra backend call |
 | P7 | B | Revoke the notebook in the temporary pilot INDEX copy | lookup excludes it; old evidence verifies `FAILED` (MAPPING) |
 | P8 | B | Timeout recovery: pilot config with a small `timeout_s` | structured `TIMEOUT`, process retired, next call starts and validates a fresh server |
-| P9 | A+B | Model isolation: Claude Code locked to the pilot Gateway (`--tools= --strict-mcp-config`) | exactly the 3 Gateway tools visible; no raw NotebookLM tools |
+| P9 | A+B | Model isolation: Claude Code locked to the pilot Gateway (`--tools= --strict-mcp-config`, `m02-pilot/gateway.pilot.stage-a.mcp.json`) | exactly the 3 Gateway tools visible; no raw NotebookLM tools; pilot files unchanged |
 
 Any FAIL stops the pilot. The result is reported as FAIL with the case ID; nothing is patched during the live run.
+
+Stage A also records `discover` (not a PASS/FAIL gate for the clauses themselves): extraction status, line and
+section counts and section IDs per document, Q-S1 with `document_id` TCVN-8794-2011 (`CANDIDATES`, keyword heuristic)
+and Q-S1 without `document_id` (`UNKNOWN`, every document excluded as `MAPPING_MISSING`, 0 NotebookLM calls).
+
+## 6a. Stage A preflight and run (GPT_REVIEW_V1 at `a4b630b`)
+
+Stage A starts only when every item below holds. If one does not, stop before any content read and report what is
+missing. No other source is chosen.
+
+1. **Owner approval.** The owner approves stage A directly, naming the three files and SHA-256 values in §2. A
+   generic "continue" is not approval of a real-source run.
+2. **Token and effective access.** The run is non-elevated, as the account that runs Claude Code and the Gateway.
+   `tests/m02/pilot_preflight.py` evaluates effective rights with the Windows `AccessCheck` API on the real process
+   token (user and group SIDs, deny-only groups, integrity label), not by reading single ACE lines. It examines the
+   parent (`C:\`), the root and the three files. PASS needs all of:
+   - no write, create, modify, delete, delete-child, permission-change or ownership right on the root or the files;
+   - no delete-child, `WRITE_DAC` or `WRITE_OWNER` on the parent;
+   - a token that is not elevated, at most Medium integrity, and holds no ACL-bypass privilege.
+   ACLs are never edited and privileges are never raised to get past a FAIL. Filtered evidence goes to
+   `tests/m02/evidence/local/`.
+3. **Only the three files.** For each file the preflight checks it is a regular file, has no reparse point or Cloud
+   Files placeholder/offline attribute, has hard-link count 1, and has SHA-256 equal to the pilot INDEX. It runs
+   right before and right after the run (`--phase before|after`). A file with several links, a reparse point or
+   placeholder, a hash mismatch, or rights that cannot be determined stops the pilot. The adapter is not changed
+   to get past it.
+4. **Provenance.** The copies count as Nextcloud copies on the owner's statement only, not as hash-compared
+   originals or a synchronized mirror. No Nextcloud placeholder is opened or hydrated. A local `SOURCE_HASH`
+   proves the local copy only, never a NotebookLM sync identity.
+5. **Separate pilot config.**
+   - Files: [`m02-pilot/gateway.pilot.stage-a.json`](m02-pilot/gateway.pilot.stage-a.json) (`notebooklm.mode:
+     disabled`, `source_root` `C:\Vanban_XDCB`) and the pilot INDEX `m02-pilot/INDEX.pilot.draft.yaml`
+     (whitelist: exactly the three documents).
+   - Not added to the project `.mcp.json`. P9 uses its own `m02-pilot/gateway.pilot.stage-a.mcp.json`.
+   - Context: assessment_date 2026-10-06, WORK_CODE `THIET-KE-DAN-DUNG`.
+   - Conditions: only `COND-TRUONG-TRUNG-HOC: true` (TCVN 8794 / Q-S1). `COND-KET-CAU-THEP` stays unset.
+6. **Meaning of results.**
+   - Keyword `CANDIDATES` are never reported as a verified exact clause. P1 uses only clauses that exist locally and
+     that the owner confirms.
+   - `VERIFIED` covers evidence identity and INDEX applicability only, never design compliance or legal validity.
+   - TCVN 5575 applicability is not widened because a project has a steel structure. Building types or conditions
+     outside this scope stay `UNKNOWN` or excluded.
+7. **Limits and temporary data.**
+   - DOCX limits stay as configured (`max_source_bytes` 20 MB, `max_docx_uncompressed_bytes` 50 MB). A file that
+     exceeds them is a finding; limits are not raised.
+   - P2–P4 use in-memory JSON and a temporary INDEX copy; no real file is edited.
+   - P9 sees exactly the three tools and the sources do not change.
+   - Raw outputs stay in the git-ignored `tests/m02/evidence/local/`.
+
+Run order on the owner's machine (non-elevated), with `$G` = `uv run --no-project --python 3.11 --with
+pyyaml==6.0.2 --exclude-newer 2026-10-03T00:00:00Z`:
+
+```powershell
+$G python tests/m02/pilot_preflight.py --phase before                       # must be PASS
+$G python tests/m02/pilot_stage_a.py discover                                # clause IDs, Q-S1 candidates
+#   owner confirms one clause per document for P1
+$G python tests/m02/pilot_stage_a.py run --p1 "LUAT-135-2025-QH15=<clause>" --p1 "TCVN-5575-2024=<clause>" --p1 "TCVN-8794-2011=<clause>"
+$G python tests/m02/m02_surface.py surface --mcp-config docs/m02-pilot/gateway.pilot.stage-a.mcp.json   # P9
+$G python tests/m02/pilot_preflight.py --phase after                        # must be PASS, same hashes
+```
+
+Each script refuses to start unless `notebooklm.mode` is `disabled`, the INDEX whitelists exactly the three
+documents and every file hash equals the INDEX. Each script writes a `.summary.json` file and, where it reads
+content, a `.raw.json` file:
+- `.summary.json` holds IDs, statuses, codes, check results, counts, hashes and timings only. Only these files are
+  copied into a committed evidence folder.
+- `.raw.json` holds the full responses, including excerpts, plus SIDs and SDDL. These stay local.
+
+The report is `M02_STAGE_A_LOCAL_REPORT` with HEAD/CODE_COMMIT, OWNER_AUTHORIZATION_REFERENCE, READ_ONLY_PROOF,
+HASH_CHECKS_BEFORE_AFTER, CASE_RESULTS, SOURCE_UNCHANGED, OPEN_ISSUES and NEXT_REQUEST: REQUEST_GPT_REVIEW.
 
 ## 7. Logs, evidence and rollback
 
@@ -192,9 +275,9 @@ Any FAIL stops the pilot. The result is reported as FAIL with the case ID; nothi
 
 | # | Input | Status |
 |---|---|---|
-| 1 | Source path, Claude account, sync state, `icacls` output | RECEIVED: `source_root` `C:\Vanban_XDCB` (outside the Nextcloud sync root); READ_ONLY_PROOF PASS when non-elevated (§1); optional deny-write hardening |
+| 1 | Source path, Claude account, sync state, `icacls` output | RECEIVED: `source_root` `C:\Vanban_XDCB` (outside the Nextcloud sync root); ACL reading PASS when non-elevated (§1); effective access is proven again with `AccessCheck` on the real token by the §6a preflight before and after stage A; optional deny-write hardening |
 | 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | RECEIVED: 3 files inventoried (§2); IDs, types, status and effective dates owner-confirmed (dates web-sourced, not checked on official sites); Nextcloud-copy match owner-confirmed. Metadata in `m02-pilot/INDEX.pilot.draft.yaml` |
 | 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | RECEIVED: WORK_CODE `THIET-KE-DAN-DUNG`, assessment_date 2026-10-06, conditions COND-KET-CAU-THEP / COND-TRUONG-TRUNG-HOC, Q-S1; semantic-first (exact cases drawn in stage A and confirmed by the owner) |
 | 4 | Applicability reviewer and reviewed metadata | RECEIVED: reviewer is the owner; metadata owner-reviewed 2026-10-06 (`reviewed: true`) |
 | 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: owner states the sources exist in NotebookLM and were uploaded from these same files. MISSING: notebook name/URL and source titles; IDs are read in stage B with the M01 read tool `notebook_get` |
-| 6 | Approval of the live scope (stages A and B) after review of this plan | MISSING |
+| 6 | Approval of the live scope (stages A and B) after review of this plan | Plan reviewed (GPT PASS at `a4b630b`, stage A only). MISSING: the owner's direct approval of stage A on the three files and hashes in §2 (section 6a, item 1). Stage B needs its own review and approval |

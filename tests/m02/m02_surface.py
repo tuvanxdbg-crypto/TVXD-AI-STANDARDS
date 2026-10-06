@@ -119,13 +119,22 @@ def llm() -> dict:
 
 
 def main() -> int:
+    global MCP_CONFIG
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("mode", choices=("surface", "llm"))
     p.add_argument("--out", type=Path, default=HERE / "evidence" / "local")
+    p.add_argument("--mcp-config", type=Path, default=MCP_CONFIG,
+                   help="surface only: another locked Gateway MCP config, e.g. the stage-A pilot one (P9)")
     args = p.parse_args()
+    if args.mcp_config.resolve() != MCP_CONFIG.resolve():
+        if args.mode != "surface":
+            p.error("--mcp-config is only for the surface check; the llm check needs the fixture Gateway")
+        MCP_CONFIG = args.mcp_config.resolve()
     exe = shutil.which("claude")
     version = subprocess.run([exe, "--version"], capture_output=True, text=True).stdout.strip() if exe else None
-    ev = {"check": f"m02-gateway-{args.mode}", "kind": "real Claude Code, fixture Gateway (NotebookLM disabled)",
+    kind = ("real Claude Code, fixture Gateway (NotebookLM disabled)" if MCP_CONFIG == FIXTURES / "gateway.mcp.json"
+            else f"real Claude Code, Gateway from {MCP_CONFIG.name} (NotebookLM disabled)")
+    ev = {"check": f"m02-gateway-{args.mode}", "kind": kind, "mcp_config": MCP_CONFIG.name,
           "claude_code": version, "utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
           **(surface() if args.mode == "surface" else llm())}
     args.out.mkdir(parents=True, exist_ok=True)

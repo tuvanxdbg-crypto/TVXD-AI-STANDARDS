@@ -1,0 +1,9 @@
+{
+  "schema": "tvxd.gateway.config/v1",
+  "index_path": "INDEX.pilot.draft.yaml",
+  "source_root": "C:\\Vanban_XDCB",
+  "notebooklm": {"mode": "disabled"},
+  "cache": {"max_entries": 256},
+  "limits": {"max_source_bytes": 20971520, "max_excerpt_chars": 4000, "max_docx_uncompressed_bytes": 52428800},
+  "logging": {"level": "info"}
+}
