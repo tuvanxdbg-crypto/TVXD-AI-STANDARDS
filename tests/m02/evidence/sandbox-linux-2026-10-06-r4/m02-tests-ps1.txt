@@ -1,0 +1,16 @@
+scripts/m02/m02-tests.ps1 (without -WithClaude) under pwsh 7.6.2 on a fresh worktree of 746fac2d823ea4d044d69748f7438401f73c5cd3
+
+==== M02 unit/contract tests (fixture, fake NotebookLM)
+Ran 105 tests in 12.923s
+OK
+==== M01 regression: M01-10 checker controls
+Ran 12 tests in 0.181s
+OK
+==== M01 regression: console encoding
+Ran 2 tests in 0.165s
+OK
+==== M01-09 secret scan
+M01-09 scanned 126 tracked files at 746fac2d823ea4d044d69748f7438401f73c5cd3
+M01-09: PASS (no credential-like names, no secret patterns, auth paths ignored)
+All executed M02 steps passed (OFFLINE fixture validation only; not M02 overall PASS).
+exit=0
