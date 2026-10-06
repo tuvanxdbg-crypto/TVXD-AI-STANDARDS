@@ -309,6 +309,17 @@ def p_run(run: Run, p1: dict[str, str]) -> None:
         ev = evidence["TCVN-5575-2024"]
         run.case("P3-cond-ket-cau-thep-unknown", "TCVN 5575 with COND-KET-CAU-THEP unknown (from P1)",
                  ev["STATUS"] == "UNKNOWN", "STATUS UNKNOWN, never VERIFIED", {"result": ev_summary(ev)})
+    else:
+        # No owner-confirmed TCVN 5575 clause: check applicability on keyword candidates instead (never exact).
+        r = svc.call("standards_lookup", lookup_args("TCVN-5575-2024", query="phạm vi áp dụng", max_results=3))
+        run.keep("P3 TCVN-5575 candidates", r)
+        res = r.get("results") or []
+        ok = bool(res) and r["notebooklm_calls"] == 0 and all(
+            e["STATUS"] == "UNKNOWN" and any("COND-KET-CAU-THEP" in m for m in e["APPLICABILITY"].get("missing", []))
+            for e in res)
+        run.case("P3-cond-ket-cau-thep-unknown", "TCVN 5575 with COND-KET-CAU-THEP unknown (keyword candidates; "
+                 "no owner-confirmed clause)", ok, "every candidate STATUS UNKNOWN, missing COND-KET-CAU-THEP",
+                 resp_summary(r))
 
     # P4: drift simulated in a temporary copy of the pilot INDEX (real INDEX and files untouched)
     if evidence:
