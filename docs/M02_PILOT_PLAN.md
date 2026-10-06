@@ -155,13 +155,15 @@ At the M01 run (2026-10-05) `notebook_get` listed 2 sources in it:
 - `1b0abe72-e94a-4f0a-8f91-827ab7668321` "2025-LUAT-135-QH15-Xay-dung.docx";
 - `b710e565-91f6-49f1-bea6-a6783cbca9f4` "M01-10_injection_source.md", the M01-10 prompt-injection test source.
 
-The two TCVN sources were not in that listing, so they were added later or live elsewhere (owner to confirm).
+The two TCVN sources were not in that listing. Owner input 2026-10-06: both TCVN files have now been uploaded to
+this same notebook. Their source IDs and titles are read in B0; a title must match the §2 file name or the source
+stays unmapped.
 
 | Document | notebook_id | source_id | SHA-256 of the file uploaded/synced | synced_at |
 |---|---|---|---|---|
 | LUAT-135-2025-QH15 | `8ca84143-…cca02d` | `1b0abe72-…668321` (M01 listing; re-read in B0) | `<OWNER_INPUT: uploaded from the §2 file? then c72b9ba9…3339af>` | `<OWNER_INPUT: upload date>` |
-| TCVN-5575-2024 | `8ca84143-…cca02d` (owner to confirm) | read in B0 | `<OWNER_INPUT: then 87b3fd22…893124>` | `<OWNER_INPUT>` |
-| TCVN-8794-2011 | `8ca84143-…cca02d` (owner to confirm) | read in B0 | `<OWNER_INPUT: then 827c9676…dd688f>` | `<OWNER_INPUT>` |
+| TCVN-5575-2024 | `8ca84143-…cca02d` (owner: uploaded 2026-10-06) | read in B0 | `<OWNER_INPUT: uploaded from the §2 file? then 87b3fd22…893124>` | 2026-10-06 (owner; exact time from B0 if shown) |
+| TCVN-8794-2011 | `8ca84143-…cca02d` (owner: uploaded 2026-10-06) | read in B0 | `<OWNER_INPUT: uploaded from the §2 file? then 827c9676…dd688f>` | 2026-10-06 (owner; exact time from B0 if shown) |
 
 Sync identity rules:
 - A mapping gets `sync.sha256` = the §2 hash only when the owner states that the source was uploaded from that
@@ -352,5 +354,5 @@ Rollback: delete the temporary config/INDEX copies; the committed configs are al
 | 2 | 1–3 documents: ID, title, version, format, path, status/effectivity | RECEIVED: 3 files inventoried (§2); IDs, types, status and effective dates owner-confirmed (dates web-sourced, not checked on official sites); Nextcloud-copy match owner-confirmed. Metadata in `m02-pilot/INDEX.pilot.draft.yaml` |
 | 3 | WORK_CODE, assessment_date, conditions, exact + semantic questions | RECEIVED: WORK_CODE `THIET-KE-DAN-DUNG`, assessment_date 2026-10-06, conditions COND-KET-CAU-THEP / COND-TRUONG-TRUNG-HOC, Q-S1; semantic-first (exact cases drawn in stage A and confirmed by the owner) |
 | 4 | Applicability reviewer and reviewed metadata | RECEIVED: reviewer is the owner; metadata owner-reviewed 2026-10-06 (`reviewed: true`) |
-| 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: notebook `8ca84143-c240-4fcb-98fe-e1f8c6cca02d` (TVXD-M01-TEST; holds the M01 injection source too). MISSING: the TCVN source titles (not in the 2026-10-05 M01 listing), and per source whether it was uploaded from the exact §2 file and when (§5). Source IDs are read in B0 with `notebook_get` |
+| 5 | NotebookLM notebook/source mapping and sync proof per file | PARTIAL: notebook `8ca84143-c240-4fcb-98fe-e1f8c6cca02d` (TVXD-M01-TEST; holds the M01 injection source too). Owner: both TCVN files uploaded to this notebook on 2026-10-06 (titles checked in B0). MISSING: per source, whether it was uploaded from the exact §2 file in `C:\Vanban_XDCB` (§5), and the LUAT upload date. Source IDs are read in B0 with `notebook_get` |
 | 6 | Approval of the live scope (stages A and B) after review of this plan | Stage A: approved by the owner (OWNER_AUTHORIZATION_V1 on PR #5, and directly in the Claude chat and the executing session) and run 2026-10-06 (§6a). Stage B: needs its own review and approval |
