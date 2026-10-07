@@ -315,6 +315,12 @@ three Gateway tools (P9).
 Approval: B0 is a real NotebookLM call. It runs only under the owner's direct approval of this exact plan
 (GPT_REVIEW_V1 at `a9877ec`: one approval may cover B0 and B2 when it says so). Owner inputs are not that approval.
 
+Owner approval received (Claude chat, 2026-10-07): "Tôi chấp thuận B0 theo kế hoạch tại commit 31bd239: một lần
+notebook_get trên notebook 8ca84143-c240-4fcb-98fe-e1f8c6cca02d, chỉ đọc ID/tên/số lượng source. Chưa chấp thuận
+B2." (B0 approved; B1/B2 not approved.)
+- B0 runs in the M01 locked session, which the owner starts (`scripts\m01\m01-session.ps1`) and drives.
+- Claude records only the returned source IDs, titles and count.
+
 Steps after approval:
 - **B0, mapping, read-only.** In the M01 locked session (`scripts/m01/m01-session.ps1`), one `notebook_get` on
   `8ca84143-…`. Record source IDs, titles and the source count; no content is read. Map only sources whose titles
