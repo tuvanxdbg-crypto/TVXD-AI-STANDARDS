@@ -1,0 +1,313 @@
+{
+  "check": "m02-stage-b",
+  "kind": "live NotebookLM (M01 gated server)",
+  "head": "67874a372672c99224c834957284bd643a22c651",
+  "utc_start": "2026-10-07T09:27:28+00:00",
+  "python": "3.11.16",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "query": "Q-S1",
+  "assessment_date": "2026-10-06",
+  "work_code": "THIET-KE-DAN-DUNG",
+  "index_sha256": "4f933fbdbf6939e999a740b789d2c64d1bf79afb3ade88e5a4b03a9f21bdd96e",
+  "mapped_source_ids": {
+    "LUAT-135-2025-QH15": "8b75af2d-4477-40fb-a67f-3ee10173c221",
+    "TCVN-5575-2024": "d54bb084-5c50-4cef-8979-6e909f791c1e",
+    "TCVN-8794-2011": "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+  },
+  "notebook": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+  "timeouts": {
+    "timeout_s": 60.0,
+    "max_attempts": 2,
+    "total_budget_s": 120.0
+  },
+  "cases": [
+    {
+      "id": "P5",
+      "case": "citation shape of a live semantic lookup (Q-S1)",
+      "result": "PASS",
+      "expected": "exactly one notebook_query sending exactly the 3 mapped source ids; status FOUND/UNKNOWN or CITED_SOURCE_NOT_WHITELISTED",
+      "observed": {
+        "status": "ERROR",
+        "notebooklm_calls": 1,
+        "timing_ms": 38359,
+        "error": "CITED_SOURCE_NOT_WHITELISTED",
+        "missing_inputs_count": 0,
+        "results": [],
+        "attempts": [
+          1
+        ]
+      }
+    },
+    {
+      "id": "P10",
+      "case": "out-of-scope boundary (P10-B OUT_OF_SCOPE_OBSERVED)",
+      "result": "PASS",
+      "expected": "CITED_SOURCE_NOT_WHITELISTED, no answer/evidence, not cached (repeat queries again), 0 VERIFIED",
+      "observed": {
+        "outcome": "OUT_OF_SCOPE_OBSERVED",
+        "first": {
+          "status": "ERROR",
+          "notebooklm_calls": 1,
+          "timing_ms": 38359,
+          "error": "CITED_SOURCE_NOT_WHITELISTED",
+          "missing_inputs_count": 0,
+          "results": []
+        },
+        "repeat": {
+          "status": "ERROR",
+          "notebooklm_calls": 1,
+          "timing_ms": 33250,
+          "error": "CITED_SOURCE_NOT_WHITELISTED",
+          "missing_inputs_count": 0,
+          "results": []
+        },
+        "attempts": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "P6",
+      "case": "cache hit",
+      "result": "NOT_OBSERVED",
+      "expected": "needs a FOUND result in P5",
+      "observed": {
+        "p5_status": "ERROR"
+      }
+    },
+    {
+      "id": "P7",
+      "case": "revoked notebook whitelist: excluded, no backend call; old evidence FAILED (MAPPING)",
+      "result": "NOT_OBSERVED",
+      "expected": "UNKNOWN, all NOTEBOOK_NOT_WHITELISTED, 0 calls; old NotebookLM evidence verify FAILED (MAPPING)",
+      "observed": {
+        "lookup": {
+          "status": "UNKNOWN",
+          "notebooklm_calls": 0,
+          "timing_ms": 30,
+          "error": null,
+          "missing_inputs_count": 1,
+          "excluded": [
+            {
+              "document_id": "LUAT-135-2025-QH15",
+              "reason": "NOTEBOOK_NOT_WHITELISTED"
+            },
+            {
+              "document_id": "TCVN-5575-2024",
+              "reason": "NOTEBOOK_NOT_WHITELISTED"
+            },
+            {
+              "document_id": "TCVN-8794-2011",
+              "reason": "NOTEBOOK_NOT_WHITELISTED"
+            }
+          ],
+          "results": []
+        },
+        "verify": "no NotebookLM evidence from P5"
+      }
+    },
+    {
+      "id": "P11",
+      "case": "source without sync identity",
+      "result": "NOT_OBSERVED",
+      "expected": "needs a TCVN 8794 citation; none in this response",
+      "observed": {
+        "status": "ERROR",
+        "notebooklm_calls": 1,
+        "timing_ms": 41109,
+        "error": "CITED_SOURCE_NOT_WHITELISTED",
+        "missing_inputs_count": 0,
+        "results": []
+      }
+    },
+    {
+      "id": "P8",
+      "case": "1 s budget: structured TIMEOUT, process retired; next call on a fresh validated server",
+      "result": "FAIL",
+      "expected": "TIMEOUT, server process gone, next lookup completes",
+      "observed": {
+        "tight": {
+          "status": "ERROR",
+          "notebooklm_calls": 1,
+          "timing_ms": 1031,
+          "error": "TIMEOUT",
+          "missing_inputs_count": 0,
+          "results": []
+        },
+        "process_retired": false,
+        "recover": {
+          "status": "ERROR",
+          "notebooklm_calls": 1,
+          "timing_ms": 38609,
+          "error": "CITED_SOURCE_NOT_WHITELISTED",
+          "missing_inputs_count": 0,
+          "results": []
+        }
+      }
+    }
+  ],
+  "stopped_after": "P8",
+  "source_gate": null,
+  "notebook_query_attempts": [
+    {
+      "attempt": 1,
+      "client": "main",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 38327,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "conversation_id",
+        "question",
+        "references",
+        "sources_used",
+        "status"
+      ],
+      "citations_container": "dict",
+      "citation_item_keys": [],
+      "citation_count": 7,
+      "cited_source_ids": [],
+      "sources_used": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "unattributed_citation": true,
+      "out_of_scope_source_ids": [],
+      "answer_chars": 3030,
+      "caller_outcome": "ERROR:CITED_SOURCE_NOT_WHITELISTED"
+    },
+    {
+      "attempt": 2,
+      "client": "main",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 33250,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "conversation_id",
+        "question",
+        "references",
+        "sources_used",
+        "status"
+      ],
+      "citations_container": "dict",
+      "citation_item_keys": [],
+      "citation_count": 7,
+      "cited_source_ids": [],
+      "sources_used": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "unattributed_citation": true,
+      "out_of_scope_source_ids": [],
+      "answer_chars": 3152,
+      "caller_outcome": "ERROR:CITED_SOURCE_NOT_WHITELISTED"
+    },
+    {
+      "attempt": 3,
+      "client": "main",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 41077,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "conversation_id",
+        "question",
+        "references",
+        "sources_used",
+        "status"
+      ],
+      "citations_container": "dict",
+      "citation_item_keys": [],
+      "citation_count": 6,
+      "cited_source_ids": [],
+      "sources_used": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "unattributed_citation": true,
+      "out_of_scope_source_ids": [],
+      "answer_chars": 2790,
+      "caller_outcome": "ERROR:CITED_SOURCE_NOT_WHITELISTED"
+    },
+    {
+      "attempt": 4,
+      "client": "p8",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "exception_after_caller_timeout",
+      "sent_to_backend": true,
+      "caller_outcome": "ERROR:TIMEOUT",
+      "elapsed_ms": 3077,
+      "exception": "TIMEOUT"
+    },
+    {
+      "attempt": 5,
+      "client": "p8",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 38594,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "conversation_id",
+        "question",
+        "references",
+        "sources_used",
+        "status"
+      ],
+      "citations_container": "dict",
+      "citation_item_keys": [],
+      "citation_count": 7,
+      "cited_source_ids": [],
+      "sources_used": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "unattributed_citation": true,
+      "out_of_scope_source_ids": [],
+      "answer_chars": 2770,
+      "caller_outcome": "ERROR:CITED_SOURCE_NOT_WHITELISTED"
+    }
+  ],
+  "attempt_count": 5,
+  "sent_to_backend_count": 5,
+  "injection_source_requested": false,
+  "attempts_with_wrong_source_set": [],
+  "unfinished_attempts": [],
+  "status": "FAIL",
+  "utc_end": "2026-10-07T09:30:01+00:00",
+  "summary_file": "C:\\Users\\ducdq.tvxdbg\\TVXD-AI-STANDARDS\\tests\\m02\\evidence\\local\\stage-b-20261007-092728.summary.json"
+}

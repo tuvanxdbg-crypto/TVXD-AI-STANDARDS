@@ -1,0 +1,147 @@
+{
+  "check": "m02-stage-a-preflight-before",
+  "utc": "2026-10-07T09:27:20+00:00",
+  "head": "67874a372672c99224c834957284bd643a22c651",
+  "tree_clean": true,
+  "python": "3.11.16",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "status": "PASS",
+  "token": {
+    "elevated": false,
+    "elevation_type": "Limited",
+    "integrity_rid": 8192,
+    "integrity": "Medium",
+    "privileges": [
+      {
+        "name": "SeShutdownPrivilege",
+        "enabled": false
+      },
+      {
+        "name": "SeChangeNotifyPrivilege",
+        "enabled": true
+      },
+      {
+        "name": "SeUndockPrivilege",
+        "enabled": false
+      },
+      {
+        "name": "SeIncreaseWorkingSetPrivilege",
+        "enabled": false
+      },
+      {
+        "name": "SeTimeZonePrivilege",
+        "enabled": false
+      }
+    ],
+    "dangerous_privileges_held": []
+  },
+  "objects": [
+    {
+      "kind": "parent",
+      "name": "C:\\",
+      "granted_mask": "0x1200a9",
+      "write_like_rights": [],
+      "forbidden_rights": [],
+      "can_read": true,
+      "attributes": "0x16",
+      "bad_attributes": []
+    },
+    {
+      "kind": "root",
+      "name": "Vanban_XDCB",
+      "granted_mask": "0x1200a9",
+      "write_like_rights": [],
+      "forbidden_rights": [],
+      "can_read": true,
+      "attributes": "0x10",
+      "bad_attributes": []
+    },
+    {
+      "kind": "file",
+      "name": "2025-LUAT-135-QH15-Xay-dung.docx",
+      "granted_mask": "0x1200a9",
+      "write_like_rights": [],
+      "forbidden_rights": [],
+      "can_read": true,
+      "attributes": "0x20",
+      "bad_attributes": [],
+      "hard_links": 1,
+      "bytes": 47416,
+      "is_directory": false,
+      "sha256": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+      "sha256_matches_index": true
+    },
+    {
+      "kind": "file",
+      "name": "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx",
+      "granted_mask": "0x1200a9",
+      "write_like_rights": [],
+      "forbidden_rights": [],
+      "can_read": true,
+      "attributes": "0x20",
+      "bad_attributes": [],
+      "hard_links": 1,
+      "bytes": 14444867,
+      "is_directory": false,
+      "sha256": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+      "sha256_matches_index": true
+    },
+    {
+      "kind": "file",
+      "name": "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx",
+      "granted_mask": "0x1200a9",
+      "write_like_rights": [],
+      "forbidden_rights": [],
+      "can_read": true,
+      "attributes": "0x20",
+      "bad_attributes": [],
+      "hard_links": 1,
+      "bytes": 35242,
+      "is_directory": false,
+      "sha256": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+      "sha256_matches_index": true
+    }
+  ],
+  "checks": [
+    {
+      "name": "TOKEN_NOT_ELEVATED",
+      "result": "PASS",
+      "detail": "elevated=False type=Limited"
+    },
+    {
+      "name": "TOKEN_INTEGRITY_AT_MOST_MEDIUM",
+      "result": "PASS",
+      "detail": "Medium"
+    },
+    {
+      "name": "NO_ACL_BYPASS_PRIVILEGES",
+      "result": "PASS",
+      "detail": "none held"
+    },
+    {
+      "name": "OBJECT_PARENT",
+      "result": "PASS",
+      "detail": "C:\\: ok"
+    },
+    {
+      "name": "OBJECT_ROOT",
+      "result": "PASS",
+      "detail": "Vanban_XDCB: ok"
+    },
+    {
+      "name": "OBJECT_FILE",
+      "result": "PASS",
+      "detail": "2025-LUAT-135-QH15-Xay-dung.docx: ok"
+    },
+    {
+      "name": "OBJECT_FILE",
+      "result": "PASS",
+      "detail": "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx: ok"
+    },
+    {
+      "name": "OBJECT_FILE",
+      "result": "PASS",
+      "detail": "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx: ok"
+    }
+  ]
+}

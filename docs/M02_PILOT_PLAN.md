@@ -1,12 +1,14 @@
-# M02 — Bounded live pilot plan (preparation only)
+# M02 — Bounded live pilot plan
 
-Status: **STAGE A DONE AND REVIEWED; STAGE B PLAN UNDER REVIEW, NOT AUTHORIZED.**
+Status: **STAGE A DONE AND REVIEWED; B0 DONE; B2 RAN ONCE (2026-10-07) AND FAILED AT P8; FINDINGS F13/F14 AWAIT
+REVIEW.**
 - Stage A ran on the owner's machine (§6a).
 - Its open finding (non-unique clause IDs) was fixed as F11, re-run on the real files, and passed GPT_REVIEW_V1 at
   `5f6f254`.
 - The out-of-scope citation fix F12 passed code review at `8ac4e6b`.
-- The stage B plan (§6b) awaits review of the P10 criteria. Stage B, including B0, runs only after that review
-  **and** the owner's direct approval of the exact plan.
+- The stage B plan and runner (§6b) passed GPT_REVIEW_V1 at `67874a3`. The owner approved B0 and then B2 directly.
+- B2 FAILed at P8 with the source gate intact. Findings F13 (citation shape) and F14 (P8 sampling) are in §6b. No
+  fix and no re-run happen before review; a re-run needs a new owner approval.
 
 Executed so far, all on the owner's machine, non-elevated:
 - Preparation, metadata only: ACL/token checks on the Nextcloud folder and on `C:\Vanban_XDCB` (§1), and
@@ -20,9 +22,12 @@ Executed so far, all on the owner's machine, non-elevated:
     §6a and the review at `fb14c65`.
   - Its finding (non-unique clause IDs) was fixed as F11 and re-run on the same three files. That review PASSed at
     `5f6f254`.
+- **B0, 2026-10-07:** one `notebook_get` in the M01 locked session (§6b).
+- **B2, 2026-10-07:** one run of `pilot_stage_b.py --live` at `67874a3` between two preflight PASS runs. It made 5
+  `notebook_query` calls, each with exactly the three mapped source ids (§6b).
 
-Not executed: any stage B step, including B0. No NotebookLM call, no `notebooklm.mode: mcp_stdio`, no NotebookLM
-login, upload, source or notebook change. No merge, no M03, no AutoCAD, no change to the M01 pin or permissions.
+Not executed: P9 with the live Gateway, any B2 re-run, any NotebookLM login, upload, source or notebook change. No
+merge, no M03, no AutoCAD, no change to the M01 pin or permissions.
 
 Every `<OWNER_INPUT: ...>` below is a placeholder that only the owner can fill. Claude does not choose documents,
 work codes, reviewers or mappings.
@@ -293,13 +298,14 @@ HASH_CHECKS_BEFORE_AFTER, CASE_RESULTS, SOURCE_UNCHANGED, OPEN_ISSUES and NEXT_R
   Not patched during the pilot; a fix needs a code change and review.
 - Evidence: [`tests/m02/evidence/windows-ducdq-2026-10-06-stage-a/`](../tests/m02/evidence/windows-ducdq-2026-10-06-stage-a/README.md).
 
-## 6b. Stage B plan (prepared; not authorized)
+## 6b. Stage B plan (B0 done; B2 ran once and FAILed at P8)
 
-NEXT_ALLOWED_STEP `OWNER_STAGE_B_INPUTS_AND_SEPARATE_PLAN_REVIEW_ONLY` (GPT_REVIEW_V1 at `5f6f254`). Nothing in this
-section has been run.
+History: the plan was prepared under NEXT_ALLOWED_STEP `OWNER_STAGE_B_INPUTS_AND_SEPARATE_PLAN_REVIEW_ONLY`
+(GPT_REVIEW_V1 at `5f6f254`) and passed review at `67874a3`. B0 and B2 then ran under the owner's direct approvals
+quoted below.
 - `notebooklm.mode` stays `disabled` in every committed config.
 - Claude does not log in to or call NotebookLM, and does not add or change sources.
-- Stage B runs only after a GPT review of this plan **and** the owner's separate, direct approval.
+- Every stage B run needs a GPT review **and** the owner's separate, direct approval.
 
 Config: [`m02-pilot/gateway.pilot.stage-b.json`](m02-pilot/gateway.pilot.stage-b.json). It is the stage-A config
 plus the NotebookLM client settings:
@@ -317,7 +323,7 @@ Approval: B0 is a real NotebookLM call. It runs only under the owner's direct ap
 
 Owner approval received (Claude chat, 2026-10-07): "Tôi chấp thuận B0 theo kế hoạch tại commit 31bd239: một lần
 notebook_get trên notebook 8ca84143-c240-4fcb-98fe-e1f8c6cca02d, chỉ đọc ID/tên/số lượng source. Chưa chấp thuận
-B2." (B0 approved; B1/B2 not approved.)
+B2." (B0 approved; B2 was approved separately later, see the B2 result below.)
 - B0 runs in the M01 locked session, which the owner starts (`scripts\m01\m01-session.ps1`) and drives.
 - Claude records only the returned source IDs, titles and count.
 
@@ -330,7 +336,7 @@ B2." (B0 approved; B1/B2 not approved.)
   `2026-10-06` (day precision), and the notebook whitelist.
 - `gateway.pilot.stage-b.json` points at it and stays `mode: disabled`.
 
-**B2 runner prepared, NOT approved:** `tests/m02/pilot_stage_b.py`.
+**B2 runner:** `tests/m02/pilot_stage_b.py` (GPT_REVIEW_V1 PASS at `67874a3`).
 - `--live` writes a temporary `mcp_stdio` copy of the config.
 - It runs P5, P6, P7, P8, P10 and P11 with Q-S1. Cases whose precondition did not occur are `NOT_OBSERVED`, never
   PASS.
@@ -364,7 +370,32 @@ B2." (B0 approved; B1/B2 not approved.)
 - `synced_at` in the stage-B INDEX is the owner's upload date at day precision (`2026-10-06`). The INDEX schema
   accepts a date when the instant is unknown, so no time is invented.
 
-B2 run order after approval (owner machine, non-elevated; `$G` as in §6a):
+**B2 ran once, 2026-10-07, at `67874a3`. Result: FAIL (stopped after P8).** Evidence:
+`tests/m02/evidence/windows-ducdq-2026-10-07-b2/`.
+- Owner approval (Claude chat, 2026-10-07): "Tôi chấp thuận chạy B2 theo kế hoạch và code tại commit 67874a3:
+  Gateway gọi notebook_query tới notebook 8ca84143-c240-4fcb-98fe-e1f8c6cca02d, chỉ với 3 source đã ánh xạ, các ca
+  P5–P11, cùng preflight trước và sau."
+- Preflight before and after: PASS, hashes unchanged.
+- Gates held:
+  - 5 `notebook_query` attempts, each with exactly the three mapped ids;
+  - injection source never sent; no wrong source set, no unfinished attempt;
+  - no answer text recorded.
+- P5 PASS. P10 PASS, reported as P10-B. P6, P7 and P11 NOT_OBSERVED. P8 FAIL. P9 not run.
+- **F13:** `notebooklm-mcp-cli==0.15.1` returns `citations` as `{number: source_id}`, plus `references` with
+  `source_id`.
+  - The adapter reads only dict items with `source_id`, so every live answer was treated as unattributed and
+    discarded. This was fail closed: no answer, no evidence, nothing VERIFIED or cached.
+  - The semantic route therefore cannot produce FOUND against the real server, so P6, P7 (verify half) and P11 could
+    not be observed.
+  - P10's "out of scope" trigger was this shape. `sources_used`, which 0.15.1 builds from the citation values, held
+    only the mapped TCVN 8794 source in all five responses.
+- **F14:** P8 read the client's process right after the caller's `TIMEOUT` (1031 ms), while the abandoned worker ran
+  on until 3077 ms. The recovery lookup completed.
+  - Open points: check after the attempt is terminal; on Windows, whether killing `uvx.exe` also ends its child; and
+    whether attempt 4's `sent_to_backend: true` refers to `initialize` rather than `notebook_query`.
+- Offline reproduction: `tests/m02/evidence/sandbox-linux-2026-10-07-b2-analysis/`.
+
+B2 run order (owner machine, non-elevated; `$G` as in §6a):
 ```powershell
 $G python tests/m02/pilot_preflight.py --phase before --config docs/m02-pilot/gateway.pilot.stage-b.json
 $G python tests/m02/pilot_stage_b.py --live
