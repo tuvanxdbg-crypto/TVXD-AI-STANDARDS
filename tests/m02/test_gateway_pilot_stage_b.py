@@ -34,13 +34,14 @@ class StageBRunner(unittest.TestCase):
 
     def tearDown(self):
         sb.P11_EXTRA_INDEX_EDIT = None
+        sb.Audit.FINALIZE_WAIT_S = 10.0
 
-    def run_fake(self, scenario, config=None, prepare=None):
+    def run_fake(self, scenario, config=None, prepare=None, slow_delay=1.5):
         made = []
 
         def make_client(slow=False):
             fake = sb.fake_client(scenario)
-            fake.delay_s = 1.5 if slow else 0
+            fake.delay_s = slow_delay if slow else 0
             if prepare:
                 prepare(fake)
             made.append(fake)
@@ -109,6 +110,23 @@ class StageBRunner(unittest.TestCase):
                          ("p8", "ERROR:TIMEOUT", "returned_after_caller_timeout"))
         self.assertGreaterEqual(tight["elapsed_ms"], 1000)
         self.assertTrue(all("elapsed_ms" in a for a in s["notebook_query_attempts"]))
+
+    def test_worker_outliving_finalize_fails_closed_and_snapshot_is_immutable(self):
+        import time as _time
+        sb.Audit.FINALIZE_WAIT_S = 0.3        # the P8 tight worker (4 s) outlives the finalize window
+        code, s, made = self.run_fake("clean", slow_delay=4.0)
+        self.assertEqual((code, s["status"]), (1, "FAIL"))
+        tight = s["notebook_query_attempts"][2]
+        self.assertEqual((tight["client"], tight["outcome"], tight["sent_to_backend"], tight["caller_outcome"]),
+                         ("p8", "abandoned_unfinished", "not_confirmed", "ERROR:TIMEOUT"))
+        self.assertEqual(s["unfinished_attempts"], [3])
+        before_file = Path(s["summary_file"]).read_text(encoding="utf-8")
+        frozen = json.dumps(s, sort_keys=True, ensure_ascii=False)
+        calls = sum(len(f.calls) for f in made)
+        _time.sleep(4.5)                      # let the abandoned worker finish
+        self.assertEqual(Path(s["summary_file"]).read_text(encoding="utf-8"), before_file)
+        self.assertEqual(json.dumps(s, sort_keys=True, ensure_ascii=False), frozen)
+        self.assertEqual(sum(len(f.calls) for f in made), calls)   # no call after the snapshot
 
     def test_exception_attempt_has_a_terminal_outcome_and_stops(self):
         from gateway.errors import GatewayError

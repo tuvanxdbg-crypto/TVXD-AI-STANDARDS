@@ -83,6 +83,9 @@ class Audit:
         self.tripped: str | None = None
         self._done: dict[int, threading.Event] = {}
         self._t0: dict[int, float] = {}
+        self._lock = threading.Lock()
+        self.sealed = False
+        self.late_after_seal = 0     # worker completions that arrived after the snapshot (never written into it)
 
     def open(self, client: str, notebook_id: str, requested: list[str]) -> dict:
         entry = {"attempt": len(self.entries) + 1, "client": client, "notebook_id": notebook_id,
@@ -93,20 +96,31 @@ class Audit:
         return entry
 
     def close(self, entry: dict, **fields) -> None:
-        entry.update(elapsed_ms=int((time.monotonic() - self._t0[entry["attempt"]]) * 1000), **fields)
-        self._done[entry["attempt"]].set()
+        with self._lock:
+            if self.sealed:              # a worker finished after the snapshot: count it, never rewrite the audit
+                self.late_after_seal += 1
+                return
+            entry.update(elapsed_ms=int((time.monotonic() - self._t0[entry["attempt"]]) * 1000), **fields)
+            self._done[entry["attempt"]].set()
 
-    def finalize(self) -> None:
-        """Bring every attempt to a terminal outcome before the summary is written: wait (bounded) for workers
-        that outlived a caller TIMEOUT; mark late completions; never leave 'in_flight'."""
+    def finalize(self) -> list[dict]:
+        """Wait (bounded by FINALIZE_WAIT_S) for workers that outlived a caller TIMEOUT, then seal the audit and
+        return an immutable terminal snapshot. An attempt whose worker has not confirmed completion becomes
+        'abandoned_unfinished' with sent_to_backend 'not_confirmed'; it makes the run FAIL (see execute)."""
         deadline = time.monotonic() + self.FINALIZE_WAIT_S
-        for e in self.entries:
+        for e in list(self.entries):
             self._done[e["attempt"]].wait(max(0.0, deadline - time.monotonic()))
+        with self._lock:
+            self.sealed = True
+            snapshot = copy.deepcopy(self.entries)
+        now = time.monotonic()
+        for e in snapshot:
             if e["outcome"] == "in_flight":
-                self.close(e, outcome="abandoned_unfinished")
-            timed_out = "TIMEOUT" in (e.get("caller_outcome") or "")
-            if timed_out and e["outcome"] in ("returned", "exception"):
+                e.update(outcome="abandoned_unfinished", sent_to_backend="not_confirmed",
+                         elapsed_ms=int((now - self._t0[e["attempt"]]) * 1000))
+            elif "TIMEOUT" in (e.get("caller_outcome") or "") and e["outcome"] in ("returned", "exception"):
                 e["outcome"] = e["outcome"] + "_after_caller_timeout"
+        return snapshot
 
 
 class Recorder:
@@ -427,8 +441,7 @@ def execute(config: Path, make_client, *, kind: str, out: Path) -> tuple[int, di
             run_cases(run, config, Path(tmp), make_client, "mcp_stdio", audit_obj)
         except StopPilot as e:
             stopped = str(e)
-    audit_obj.finalize()
-    audit = audit_obj.entries
+    audit = audit_obj.finalize()          # sealed, immutable snapshot; late workers cannot change it
     done = {c["id"] for c in run.cases}
     for cid in PLANNED:
         if cid not in done:
@@ -436,13 +449,14 @@ def execute(config: Path, make_client, *, kind: str, out: Path) -> tuple[int, di
                               "expected": "-", "observed": {"stopped_after": stopped}})
     injection = any(INJECTION_SOURCE in e["requested_source_ids"] for e in audit)
     wrong_set = [e["attempt"] for e in audit if e["requested_source_ids"] != expected_sent]
-    in_flight = [e["attempt"] for e in audit if e["outcome"] == "in_flight"]
-    failed = (stopped is not None or injection or bool(wrong_set) or bool(in_flight)
+    unfinished = [e["attempt"] for e in audit if e["outcome"] in ("in_flight", "abandoned_unfinished")]
+    failed = (stopped is not None or injection or bool(wrong_set) or bool(unfinished)
               or any(c["result"] == "FAIL" for c in run.cases))
     summary.update(cases=run.cases, stopped_after=stopped, source_gate=audit_obj.tripped,
                    notebook_query_attempts=audit, attempt_count=len(audit),
                    sent_to_backend_count=sum(1 for e in audit if e["sent_to_backend"] is True),
                    injection_source_requested=injection, attempts_with_wrong_source_set=wrong_set,
+                   unfinished_attempts=unfinished,
                    status="FAIL" if failed else "PASS",
                    utc_end=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
     summary = strip_text(summary)

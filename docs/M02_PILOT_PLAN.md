@@ -349,8 +349,11 @@ B2." (B0 approved; B1/B2 not approved.)
     later attempt would be `blocked_after_stop`;
   - before the summary is written every attempt reaches a terminal outcome. The outcomes are `returned`,
     `exception` (with code and timing), the `…_after_caller_timeout` variants for a worker that finished after the
-    caller got `TIMEOUT`, `blocked_*`, or `abandoned_unfinished` after a bounded wait. A final `in_flight` FAILs the
-    run. `sent_to_backend` is true, false or `not_confirmed`, e.g. for a failure before `tools/call`;
+    caller got `TIMEOUT`, `blocked_*`, or `abandoned_unfinished` after a bounded wait.
+    `sent_to_backend` is true, false or `not_confirmed`, e.g. for a failure before `tools/call`;
+  - GPT_REVIEW_V1 at `3ebef42`: the audit is sealed into an immutable snapshot before the summary is written, and
+    a worker that finishes later cannot change it. Any attempt whose worker did not confirm completion within the
+    wait (`abandoned_unfinished`, `sent_to_backend: not_confirmed`) FAILs the run (`unfinished_attempts`);
   - P5 requires exactly that set;
   - P7 is `NOT_OBSERVED`, not PASS, when P5 produced no NotebookLM evidence to verify.
 - Offline regressions: `tests/m02/test_gateway_pilot_stage_b.py`.

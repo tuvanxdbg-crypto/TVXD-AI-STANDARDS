@@ -24,7 +24,7 @@ execution request, kept verbatim in the appendix) and the roadmap
 | Retry/timeout | `gateway/retry.py` | bounded attempts and total budget; only transient errors retried |
 | Logs | `gateway/logs.py` | whitelisted keys only; no query, context or source text |
 | Fixtures | `tests/m02/fixtures/` | fake library, `INDEX.yaml`, `INDEX.md`, config, fixture MCP config |
-| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 130 offline unit/contract tests (45 in `test_gateway_regressions.py`: F1–F12 plus `SyncedAtPrecision`; 8 stage-B runner regressions in `test_gateway_pilot_stage_b.py`; 4 Windows-only junction/reparse controls in `test_gateway_windows.py`, skipped elsewhere) + real Claude Code checks on the fixture Gateway |
+| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 131 offline unit/contract tests (45 in `test_gateway_regressions.py`: F1–F12 plus `SyncedAtPrecision`; 9 stage-B runner regressions in `test_gateway_pilot_stage_b.py`; 4 Windows-only junction/reparse controls in `test_gateway_windows.py`, skipped elsewhere) + real Claude Code checks on the fixture Gateway |
 | Windows runner | `scripts/m02/m02-tests.ps1` | fail-fast; `-WithClaude` adds the real Claude Code checks |
 
 ## 2. Implementation decisions
@@ -319,6 +319,15 @@ Follow-up, GPT_REVIEW_V1 at `221f300`:
   timeouts that finish late are `…_after_caller_timeout`, and a final `in_flight` fails the run.
 - **Regressions:** a wrong source set at P11 is blocked with only P5 sent; a timeout entry is terminal with
   `ERROR:TIMEOUT` and an elapsed time of at least 1 s; an exception entry is terminal and stops the run.
+
+Follow-up, GPT_REVIEW_V1 at `3ebef42`:
+- `Audit.finalize()` waits up to `FINALIZE_WAIT_S`, seals the audit and returns a deep-copied snapshot. A late worker
+  only increments `late_after_seal` and never rewrites an entry.
+- An attempt still unconfirmed at the seal becomes `abandoned_unfinished` with `sent_to_backend: not_confirmed`, and
+  makes the run FAIL.
+- Regression: with a 0.3 s window and a 4 s worker the run FAILs, and the summary file and returned summary are
+  unchanged after the worker finishes. There is no further backend call. The previous runner reported `PASS` in this
+  case.
 
 ## Appendix — Issue #4 specification (verbatim)
 
