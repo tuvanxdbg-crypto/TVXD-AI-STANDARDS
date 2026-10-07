@@ -1,0 +1,76 @@
+# INDEX.pilot.stage-b.yaml — stage B (B1) INDEX for the M02 bounded pilot (docs/M02_PILOT_PLAN.md §5, §6b).
+# Identical to INDEX.pilot.draft.yaml (stage A, owner-reviewed metadata) plus the NotebookLM mapping read in B0
+# (owner-run notebook_get on 8ca84143-c240-4fcb-98fe-e1f8c6cca02d, 2026-10-07; titles equal the §2 file names).
+# sync.sha256 = the §2 file hash on the owner's statement that each source was uploaded from that exact file on
+# 2026-10-06; NotebookLM exposes no file hash. synced_at: the date is the owner's; 00:00:00Z is a placeholder
+# time (the schema needs a date-time), not an observed time. The M01 injection source (b710e565-...) is NOT mapped.
+# Used only by gateway.pilot.stage-b.json, which stays notebooklm.mode: disabled until B2 is reviewed and approved.
+schema: tvxd.gateway.index/v1
+index_version: "2026-10-pilot.1"
+rules_version: "pilot-rules.1"
+fixture: false
+
+work_codes:
+  - code: THIET-KE-DAN-DUNG            # owner input 2026-10-06
+    title: "Thiết kế công trình dân dụng"
+
+documents:
+  - id: LUAT-135-2025-QH15             # owner-confirmed id; type LUAT, in force
+    title: "Luật Xây dựng số 135/2025/QH15"
+    doc_type: LAW
+    codes: ["Luật 135/2025/QH15", "135/2025/QH15", "Luật Xây dựng 2025"]
+    topics: [phap-luat, xay-dung]
+    applicability:
+      reviewed: true                   # owner-confirmed 2026-10-06
+      reviewed_by: "owner (tuvanxdbg-crypto)"   # owner input 2026-10-06: the owner is the applicability reviewer
+      work_codes: [THIET-KE-DAN-DUNG]  # owner-confirmed
+      conditions: []
+    versions:
+      - version: "2025"
+        status: active                 # owner: còn hiệu lực
+        effective_from: "2026-07-01"   # vanban.chinhphu.vn: in force 2026-07-01 (some provisions earlier; not modelled, pilot date 2026-10-06 only)
+        effective_to: null
+        source: {path: "2025-LUAT-135-QH15-Xay-dung.docx", format: docx, sha256: "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af", clause_scheme: article}
+        notebooklm: {notebook_id: "8ca84143-c240-4fcb-98fe-e1f8c6cca02d", source_id: "8b75af2d-4477-40fb-a67f-3ee10173c221", sync: {sha256: "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af", synced_at: "2026-10-06T00:00:00Z"}}
+
+  - id: TCVN-5575-2024                 # owner-confirmed id; type TCVN, in force
+    title: "TCVN 5575:2024 Thiết kế kết cấu thép"
+    doc_type: TCVN
+    codes: ["TCVN 5575:2024", "TCVN 5575"]
+    topics: [ket-cau-thep, thiet-ke]
+    applicability:
+      reviewed: true
+      reviewed_by: "owner (tuvanxdbg-crypto)"
+      work_codes: [THIET-KE-DAN-DUNG]  # owner-confirmed
+      conditions:                      # owner-confirmed
+        - {id: COND-KET-CAU-THEP, text: "Công trình có kết cấu thép"}
+    versions:
+      - version: "2024"
+        status: active
+        effective_from: "2024-12-24"   # VSQI: Active, QD 3366/QD-BKHCN of 2024-12-24, replaces TCVN 5575:2012
+        effective_to: null
+        source: {path: "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx", format: docx, sha256: "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124", clause_scheme: numeric}
+        notebooklm: {notebook_id: "8ca84143-c240-4fcb-98fe-e1f8c6cca02d", source_id: "d54bb084-5c50-4cef-8979-6e909f791c1e", sync: {sha256: "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124", synced_at: "2026-10-06T00:00:00Z"}}
+
+  - id: TCVN-8794-2011                 # owner-confirmed id; type TCVN, in force
+    title: "TCVN 8794:2011 Trường trung học - Yêu cầu thiết kế"
+    doc_type: TCVN
+    codes: ["TCVN 8794:2011", "TCVN 8794"]
+    topics: [truong-hoc, trung-hoc, thiet-ke]
+    applicability:
+      reviewed: true
+      reviewed_by: "owner (tuvanxdbg-crypto)"
+      work_codes: [THIET-KE-DAN-DUNG]  # owner-confirmed
+      conditions:                      # owner-confirmed
+        - {id: COND-TRUONG-TRUNG-HOC, text: "Công trình là trường trung học"}
+    versions:
+      - version: "2011"
+        status: active
+        effective_from: "2011-08-23"   # VSQI: Active, QD 2585/QD-BKHCN of 2011-08-23
+        effective_to: null
+        source: {path: "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx", format: docx, sha256: "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f", clause_scheme: numeric}
+        notebooklm: {notebook_id: "8ca84143-c240-4fcb-98fe-e1f8c6cca02d", source_id: "8ccb8115-f552-4ecb-b42a-f0ee093f1d08", sync: {sha256: "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f", synced_at: "2026-10-06T00:00:00Z"}}
+
+whitelist:
+  documents: [LUAT-135-2025-QH15, TCVN-5575-2024, TCVN-8794-2011]
+  notebooklm_notebooks: ["8ca84143-c240-4fcb-98fe-e1f8c6cca02d"]   # TVXD-M01-TEST; only the 3 mapped sources are ever queried

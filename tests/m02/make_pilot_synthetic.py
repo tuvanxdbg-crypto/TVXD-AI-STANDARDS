@@ -40,3 +40,13 @@ cfg = json.loads((repo / "docs/m02-pilot/gateway.pilot.stage-a.json").read_text(
 cfg["source_root"] = "library"
 (out / "gateway.pilot.stage-a.json").write_text(json.dumps(cfg), encoding="utf-8")
 print(out / "gateway.pilot.stage-a.json")
+# Stage B stand-in: the same mapping as INDEX.pilot.stage-b.yaml, re-pointed at the synthetic hashes.
+sb = (repo / "docs/m02-pilot/INDEX.pilot.stage-b.yaml").read_text(encoding="utf-8")
+for name in docs:
+    real = next(ln.split('sha256: "')[1].split('"')[0] for ln in sb.splitlines() if name in ln)
+    sb = sb.replace(real, hashlib.sha256((lib / name).read_bytes()).hexdigest())
+(out / "INDEX.pilot.stage-b.yaml").write_text(sb, encoding="utf-8")
+cfg_b = json.loads((repo / "docs/m02-pilot/gateway.pilot.stage-b.json").read_text())
+cfg_b["source_root"] = "library"
+cfg_b["notebooklm"]["mcp_config"] = str(repo / ".mcp.json")
+(out / "gateway.pilot.stage-b.json").write_text(json.dumps(cfg_b), encoding="utf-8")

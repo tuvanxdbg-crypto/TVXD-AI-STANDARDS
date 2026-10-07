@@ -175,9 +175,9 @@ stays unmapped.
 
 | Document | notebook_id | source_id | SHA-256 of the file uploaded/synced | synced_at |
 |---|---|---|---|---|
-| LUAT-135-2025-QH15 | `8ca84143-…cca02d` | read in B0 (re-uploaded 2026-10-06; the M01 ID `1b0abe72-…` may be obsolete) | `c72b9ba9…3339af` (owner: uploaded from the §2 file) | 2026-10-06 (owner) |
-| TCVN-5575-2024 | `8ca84143-…cca02d` (owner: uploaded 2026-10-06) | read in B0 | `87b3fd22…893124` (owner: uploaded from the §2 file) | 2026-10-06 (owner) |
-| TCVN-8794-2011 | `8ca84143-…cca02d` (owner: uploaded 2026-10-06) | read in B0 | `827c9676…dd688f` (owner: uploaded from the §2 file) | 2026-10-06 (owner) |
+| LUAT-135-2025-QH15 | `8ca84143-…cca02d` | `8b75af2d-4477-40fb-a67f-3ee10173c221` (B0; the M01 ID `1b0abe72-…` is no longer listed) | `c72b9ba9…3339af` (owner: uploaded from the §2 file) | 2026-10-06 (owner) |
+| TCVN-5575-2024 | `8ca84143-…cca02d` | `d54bb084-5c50-4cef-8979-6e909f791c1e` (B0) | `87b3fd22…893124` (owner: uploaded from the §2 file) | 2026-10-06 (owner) |
+| TCVN-8794-2011 | `8ca84143-…cca02d` | `8ccb8115-f552-4ecb-b42a-f0ee093f1d08` (B0) | `827c9676…dd688f` (owner: uploaded from the §2 file) | 2026-10-06 (owner) |
 
 Sync identity rules:
 - A mapping gets `sync.sha256` = the §2 hash only when the owner states that the source was uploaded from that
@@ -320,6 +320,33 @@ notebook_get trên notebook 8ca84143-c240-4fcb-98fe-e1f8c6cca02d, chỉ đọc I
 B2." (B0 approved; B1/B2 not approved.)
 - B0 runs in the M01 locked session, which the owner starts (`scripts\m01\m01-session.ps1`) and drives.
 - Claude records only the returned source IDs, titles and count.
+
+**B0 done (2026-10-07).** Evidence: `tests/m02/evidence/windows-ducdq-2026-10-07-b0/`.
+- Locked preflight PASS, `notebook_get` only, no content read.
+- 4 sources: the three §2 titles, each exactly once, plus the M01 injection source, which is never mapped.
+
+**B1 prepared** (not run against NotebookLM): `m02-pilot/INDEX.pilot.stage-b.yaml`.
+- It is the stage A INDEX plus the B0 mapping, `sync.sha256` = §2 hashes (owner provenance), and the notebook whitelist.
+- `gateway.pilot.stage-b.json` points at it and stays `mode: disabled`.
+
+**B2 runner prepared, NOT approved:** `tests/m02/pilot_stage_b.py`.
+- `--live` writes a temporary `mcp_stdio` copy of the config.
+- It runs P5, P6, P7, P8, P10 and P11 with Q-S1. Cases whose precondition did not occur are `NOT_OBSERVED`, never
+  PASS.
+- It records only ids, key names, counts and timings for each `notebook_query`.
+- It refuses to start unless the committed config is disabled, exactly the three documents and one notebook are
+  whitelisted, every mapping has sync identity = INDEX hash, the injection source is unmapped, and the local hashes
+  match.
+- `--fake clean|mixed` dry-runs it offline on `make_pilot_synthetic.py` output.
+
+B2 run order after approval (owner machine, non-elevated; `$G` as in §6a):
+```powershell
+$G python tests/m02/pilot_preflight.py --phase before --config docs/m02-pilot/gateway.pilot.stage-b.json
+$G python tests/m02/pilot_stage_b.py --live
+$G python tests/m02/pilot_preflight.py --phase after --config docs/m02-pilot/gateway.pilot.stage-b.json
+```
+P9 (model surface with the live Gateway) needs a temporary MCP config. It is run, and its file named, in the B2
+report.
 
 Steps after approval:
 - **B0, mapping, read-only.** In the M01 locked session (`scripts/m01/m01-session.ps1`), one `notebook_get` on

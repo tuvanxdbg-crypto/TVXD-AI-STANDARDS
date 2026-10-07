@@ -1,6 +1,6 @@
 {
   "schema": "tvxd.gateway.config/v1",
-  "index_path": "INDEX.pilot.draft.yaml",
+  "index_path": "INDEX.pilot.stage-b.yaml",
   "source_root": "C:\\Vanban_XDCB",
   "notebooklm": {
     "mode": "disabled",
