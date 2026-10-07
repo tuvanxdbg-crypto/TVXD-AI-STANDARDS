@@ -428,6 +428,22 @@ Regressions: `tests/m02/test_gateway_f13_f14.py`, 22 tests.
 Windows: the job-object code runs only on Windows, so these tests need an offline run on the owner's machine. Until
 that run passes, F14 on Windows stays unproven.
 
+Follow-up, GPT_REVIEW_V1 at `8762641` (PATCH_REQUIRED, recovery teardown gate):
+- **P8 closes the recovery client before deciding the case**, and judges that teardown as well:
+  - every process spawned for the recovery must have a teardown with the wrapper exited, containment available
+    (not `none`), `tree_empty: true` and `verified: true`;
+  - nothing may still be alive.
+  - Containment unavailable or unverifiable gives `BLOCKED`; a surviving process or a failed teardown gives FAIL.
+- The P8 summary carries both teardowns:
+  - `teardowns`: the timed-out attempt;
+  - `recover_spawned` / `recover_teardowns` / `process_alive_after_close`: the recovery.
+- New regressions in `F14RunnerEndToEnd`:
+  - the timed-out teardown is verified but recovery containment is unavailable: `BLOCKED`, exit 3;
+  - the recovery wrapper exits but a descendant survives (`fake_mcp_server.py --spawn-sleeper` with a wrapper-only
+    kill): FAIL, with the timed-out server's descendant killed and the recovery's still alive;
+  - the PASS case requires both teardowns verified in the summary.
+- Revert check: against the runner at `8762641` both new negative tests report `(0, 'PASS')`.
+
 ## Appendix — Issue #4 specification (verbatim)
 
 CLAUDE_EXECUTION_V1

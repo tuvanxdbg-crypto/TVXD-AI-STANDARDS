@@ -233,12 +233,16 @@ class StandIn(unittest.TestCase):
         self.answer.write_text(json.dumps(sb.fake_answer("clean"), ensure_ascii=False), encoding="utf-8")
 
     def tearDown(self):
-        for pid in self.pids():
+        for pid in self.pids() + self.sleepers():
             kill_pid(pid)
         self.tmp.cleanup()
 
     def pids(self) -> list[int]:
         return [int(x) for x in self.child_pids.read_text().split()] if self.child_pids.exists() else []
+
+    def sleepers(self) -> list[int]:
+        f = self.dir / "sleeper.pids"
+        return [int(x) for x in f.read_text().split()] if f.exists() else []
 
     def config(self, *server_options: str, wrapper_options=(), name="mcp.json") -> Path:
         cfg = self.dir / name
@@ -385,6 +389,21 @@ class F14RunnerEndToEnd(StandIn):
     def tearDownClass(cls):
         cls._syn.cleanup()
 
+    def patch_nth_tree(self, n: int, change) -> list[int]:
+        """Apply `change(tree)` to the n-th _ProcessTree built from now on (1-based); returns the pids it hit.
+        Run order: main client (1), P8 timed-out attempt (2), P8 recovery (3)."""
+        orig, count, hit = nlm._ProcessTree.__init__, [0], []
+
+        def patched(tree, proc):
+            orig(tree, proc)
+            count[0] += 1
+            if count[0] == n:
+                change(tree)
+                hit.append(proc.pid)
+        nlm._ProcessTree.__init__ = patched
+        self.addCleanup(setattr, nlm._ProcessTree, "__init__", orig)
+        return hit
+
     def run_runner(self, slow_options):
         main_cfg = self.config(name="main.json")
         slow_cfg = self.config(*slow_options, name="slow.json")
@@ -411,11 +430,42 @@ class F14RunnerEndToEnd(StandIn):
         self.assertEqual((teardown["pid"], teardown["verified"]), (spawned["pid"], True))
         (fresh,) = p8["recover_validated_starts"]
         self.assertNotEqual(fresh["pid"], spawned["pid"])
+        # both teardowns are in the P8 summary, and both verified (GPT_REVIEW_V1 at 8762641)
+        (rec_spawned,), (rec_teardown,) = p8["recover_spawned"], p8["recover_teardowns"]
+        self.assertEqual((rec_spawned["pid"], rec_teardown["pid"], rec_teardown["reason"]),
+                         (fresh["pid"], fresh["pid"], "close"))
+        self.assertEqual((rec_teardown["wrapper_exited"], rec_teardown["containment"] != "none",
+                          rec_teardown["tree_empty"], rec_teardown["verified"]), (True, True, True, True))
+        self.assertFalse(p8["process_alive_after_close"])
         self.assertEqual(s["sent_to_backend_count"], s["attempt_count"] - 1)   # the startup timeout sent nothing
         self.assertFalse(any(pid_alive(p) for p in self.pids()))
         text = Path(s["summary_file"]).read_text(encoding="utf-8")
         for leak in ("câu trả lời giả lập", sb.FAKE_PASSAGE):
             self.assertNotIn(leak, text)
+
+    def test_recovery_containment_unavailable_is_blocked(self):
+        hit = self.patch_nth_tree(3, lambda tree: (tree.close(), setattr(tree, "kind", "none")))
+        code, s, _ = self.run_runner(("--init-delay", "2.5", "--delay-once", str(self.dir / "once")))
+        self.assertEqual((code, s["status"], s["stopped_after"]), (3, "BLOCKED", "P8"))
+        p8 = next(c for c in s["cases"] if c["id"] == "P8")
+        self.assertEqual(p8["result"], "BLOCKED")
+        (tight,), (rec,) = p8["observed"]["teardowns"], p8["observed"]["recover_teardowns"]
+        self.assertEqual((tight["verified"], rec["pid"], rec["containment"], rec["tree_empty"]),
+                         (True, hit[0], "none", None))           # the timed-out teardown was fine; recovery is not
+
+    def test_recovery_wrapper_exits_but_descendant_survives_is_fail(self):
+        nlm._ProcessTree.VERIFY_S = 1.0
+        self.addCleanup(setattr, nlm._ProcessTree, "VERIFY_S", 5.0)
+        hit = self.patch_nth_tree(3, lambda tree: setattr(tree, "kill", lambda: None))   # wrapper-only teardown
+        code, s, _ = self.run_runner(("--init-delay", "2.5", "--delay-once", str(self.dir / "once"),
+                                      "--spawn-sleeper", str(self.dir / "sleeper.pids")))
+        self.assertEqual((code, s["status"], s["stopped_after"]), (1, "FAIL", "P8"))
+        p8 = next(c for c in s["cases"] if c["id"] == "P8")
+        (tight,), (rec,) = p8["observed"]["teardowns"], p8["observed"]["recover_teardowns"]
+        self.assertEqual((tight["verified"], rec["pid"], rec["wrapper_exited"], rec["tree_empty"], rec["verified"]),
+                         (True, hit[0], True, False, False))
+        self.assertTrue(pid_alive(self.sleepers()[-1]))          # the recovery server's descendant is still alive
+        self.assertFalse(pid_alive(self.sleepers()[0]))          # the timed-out server's one was killed with its tree
 
     def test_call_timeout_variant_counts_the_query_as_sent(self):
         code, s, _ = self.run_runner(("--call-delay", "3", "--call-delay-once", str(self.dir / "once")))

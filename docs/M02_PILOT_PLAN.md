@@ -414,7 +414,10 @@ M01 pin/config/policy are unchanged.
   - recovery must run on a new pid that passed initialize + the exact `tools/list` check.
   - `sent_to_backend` is true only for a completely written `tools/call`.
   - Unverifiable containment gives `BLOCKED`, never PASS.
-- Validation: `tests/m02/evidence/sandbox-linux-2026-10-07-f13f14/`. The Windows job-object path needs an offline
+  - GPT_REVIEW_V1 at `8762641`: the recovery server is closed and its tree verified before the P8 result is
+    decided, and both teardowns are in the P8 summary. Unverifiable recovery containment gives `BLOCKED`; a
+    surviving descendant gives FAIL.
+- Validation: `tests/m02/evidence/sandbox-linux-2026-10-07-f13f14/` and `…-f14recovery/`. The Windows job-object path needs an offline
   run on ducdq; until then F14 on Windows is unproven.
 
 B2 run order (owner machine, non-elevated; `$G` as in §6a):

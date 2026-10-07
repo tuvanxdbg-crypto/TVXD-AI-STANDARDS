@@ -480,15 +480,21 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
         run.keep("P8 recover", r8b)
         obs["recover"] = resp_summary(r8b)
         ok = lookup_ok(r8b)
-        if state:
-            after = state()
-            old_pids = {x["pid"] for x in mid["spawned"]}
-            fresh = [x for x in after["validated_starts"][len(mid["validated_starts"]):] if x["pid"] not in old_pids]
-            obs["recover_validated_starts"] = fresh
-            ok = ok and bool(fresh) and all(x["tools"] == 4 and x["escaped_processes"] in (0, None) for x in fresh)
-        else:
+        if not state:
             obs["process_model"] = "fake backend: no server process (teardown not applicable)"
-        run.case("P8", P8_CASE, "PASS" if ok else "FAIL", P8_EXPECTED, obs)
+            run.case("P8", P8_CASE, "PASS" if ok else "FAIL", P8_EXPECTED, obs)
+            return
+        after = state()
+        old_pids = {x["pid"] for x in mid["spawned"]}
+        fresh = [x for x in after["validated_starts"][len(mid["validated_starts"]):] if x["pid"] not in old_pids]
+        obs["recover_validated_starts"] = fresh
+        ok = ok and bool(fresh) and all(x["tools"] == 4 and x["escaped_processes"] in (0, None) for x in fresh)
+        # the recovery server is closed and its tree verified BEFORE the case result is decided (GPT_REVIEW_V1 at
+        # 8762641): the result covers the teardown of every process this P8 started, not only the timed-out one
+        client8.close()
+        result, rec_obs = p8_judge_recovery_teardown(state, mid)
+        obs.update(rec_obs)
+        run.case("P8", P8_CASE, result if ok else "FAIL", P8_EXPECTED, obs)
     finally:
         close = getattr(client8, "close", None)
         if close:
@@ -498,12 +504,37 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
 P8_CASE = "1 s budget: structured TIMEOUT; process tree retired and verified; next call on a fresh validated server"
 P8_EXPECTED = ("TIMEOUT; the timed-out attempt terminal; every server process started for it torn down with the "
                "wrapper exited and the whole tree verified empty; recovery on a new process that passed initialize + "
-               "the exact tools/list check; recovery lookup completes")
+               "the exact tools/list check; recovery lookup completes; the recovery server then closed with the "
+               "wrapper exited, containment available and the whole tree verified empty")
 
 
 def p5_parsed(attempts: list[dict]) -> bool:
     """P10-A also needs the P5 response to have been readable: returned, and not discarded."""
     return bool(attempts) and all(e["outcome"] == "returned" and not e.get("discarded") for e in attempts)
+
+
+def teardown_verdict(spawned: list[dict], teardowns: dict[int, dict]) -> str:
+    """PASS only if every spawned process has a teardown with the wrapper exited, containment available and the
+    whole tree verified empty; BLOCKED if containment was unavailable or the tree could not be checked; else FAIL."""
+    if any(s["pid"] not in teardowns for s in spawned):
+        return "FAIL"
+    if any(teardowns[s["pid"]]["containment"] == "none" or teardowns[s["pid"]]["tree_empty"] is None
+           for s in spawned):
+        return "BLOCKED" if all(teardowns[s["pid"]]["tree_empty"] is not False for s in spawned) else "FAIL"
+    return "PASS" if all(teardowns[s["pid"]]["verified"] for s in spawned) else "FAIL"
+
+
+def p8_judge_recovery_teardown(state, mid: dict) -> tuple[str, dict]:
+    """After client8.close(): the processes spawned since `mid` (the recovery server) must all be torn down and
+    verified, and nothing may still be alive."""
+    now = state()
+    spawned = now["spawned"][len(mid["spawned"]):]
+    teardowns = {x["pid"]: x for x in now["teardowns"][len(mid["teardowns"]):]}
+    obs = {"recover_spawned": spawned, "recover_teardowns": list(teardowns.values()),
+           "process_alive_after_close": now["alive"]}
+    if now["alive"] or not spawned:
+        return "FAIL", obs
+    return teardown_verdict(spawned, teardowns), obs
 
 
 def p8_judge_teardown(audit_obj: Audit, tight_attempts: list[dict], state, before: dict | None) -> tuple[str, dict]:
@@ -522,13 +553,9 @@ def p8_judge_teardown(audit_obj: Audit, tight_attempts: list[dict], state, befor
     spawned = now["spawned"][len(before["spawned"]):]
     teardowns = {x["pid"]: x for x in now["teardowns"][len(before["teardowns"]):]}
     obs.update(process_alive=now["alive"], spawned=spawned, teardowns=list(teardowns.values()))
-    if now["alive"] or any(s["pid"] not in teardowns for s in spawned):
+    if now["alive"]:
         return "FAIL", obs
-    if any(teardowns[s["pid"]]["tree_empty"] is None for s in spawned):
-        return "BLOCKED", obs        # containment unavailable: the tree's teardown cannot be proven
-    if not all(teardowns[s["pid"]]["verified"] for s in spawned):
-        return "FAIL", obs
-    return "PASS", obs
+    return teardown_verdict(spawned, teardowns), obs   # BLOCKED: containment unavailable, teardown unprovable
 
 
 def execute(config: Path, make_client, *, kind: str, out: Path) -> tuple[int, dict]:

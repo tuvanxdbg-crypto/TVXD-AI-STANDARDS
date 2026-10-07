@@ -1,0 +1,4 @@
+Revert check: the two new P8 recovery-teardown tests against the runner at 8762641 (tests/m02/pilot_stage_b.py from HEAD~0 before this patch):
+test_recovery_containment_unavailable_is_blocked: AssertionError: Tuples differ: (0, 'PASS', None) != (3, 'BLOCKED', 'P8')
+test_recovery_wrapper_exits_but_descendant_survives_is_fail: AssertionError: Tuples differ: (0, 'PASS', None) != (1, 'FAIL', 'P8')
+Ran 2 tests: FAILED (failures=2). With this patch both pass.

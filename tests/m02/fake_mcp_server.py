@@ -9,6 +9,8 @@ Options:
   --call-delay-once FILE  apply --call-delay only while FILE does not exist (created on the first tools/call)
   --answer-file FILE answer notebook_query with {"status": "success", **<JSON in FILE>}
   --pid-file FILE    append this process's pid on start
+  --spawn-sleeper FILE  on start, spawn a detached-stdio sleeper descendant (60 s) and append its pid to FILE: a
+                     descendant that outlives this server's own exit unless the whole tree is killed
   --notify METHOD    before answering METHOD (initialize, tools/list or tools/call), stream
                      notifications/progress every --notify-every S for --notify-for S
   --extra-tool       also list notebook_delete (a surface the client must refuse)
@@ -39,6 +41,7 @@ def main() -> int:
     ap.add_argument("--call-delay-once")
     ap.add_argument("--answer-file")
     ap.add_argument("--pid-file")
+    ap.add_argument("--spawn-sleeper")
     ap.add_argument("--notify", choices=["initialize", "tools/list", "tools/call"])
     ap.add_argument("--notify-every", type=float, default=0.02)
     ap.add_argument("--notify-for", type=float, default=0.0)
@@ -71,6 +74,12 @@ def main() -> int:
         except (ImportError, AttributeError, OSError):
             pass   # Windows: anonymous pipes are already small
     log("start")
+    if args.spawn_sleeper:
+        import subprocess
+        sleeper = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"],
+                                   stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        with open(args.spawn_sleeper, "a", encoding="utf-8") as fh:
+            fh.write(f"{sleeper.pid}\n")
     if args.pid_file:
         with open(args.pid_file, "a", encoding="utf-8") as fh:
             fh.write(f"{__import__('os').getpid()}\n")
