@@ -1,0 +1,134 @@
+{
+  "check": "m02-stage-b",
+  "kind": "fake:auth",
+  "head": "17090da9478e24cc0c1a6208db0b49ec039ae6cc",
+  "utc_start": "2026-10-07T10:01:43+00:00",
+  "python": "3.11.15",
+  "platform": "Linux-6.18.44-fc-v77-x86_64-with-glibc2.39",
+  "query": "Q-S1",
+  "assessment_date": "2026-10-06",
+  "work_code": "THIET-KE-DAN-DUNG",
+  "index_sha256": "b106947eabb4af07e537c1793e38fe0e532e2d8d920f249a5389f798fa70559b",
+  "mapped_source_ids": {
+    "LUAT-135-2025-QH15": "8b75af2d-4477-40fb-a67f-3ee10173c221",
+    "TCVN-5575-2024": "d54bb084-5c50-4cef-8979-6e909f791c1e",
+    "TCVN-8794-2011": "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+  },
+  "notebook": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+  "timeouts": {
+    "timeout_s": 60.0,
+    "max_attempts": 2,
+    "total_budget_s": 120.0
+  },
+  "cases": [
+    {
+      "id": "P5",
+      "case": "citation shape of a live semantic lookup (Q-S1)",
+      "result": "FAIL",
+      "expected": "exactly one notebook_query sending exactly the 3 mapped source ids; status FOUND/UNKNOWN or CITED_SOURCE_NOT_WHITELISTED",
+      "observed": {
+        "status": "ERROR",
+        "notebooklm_calls": 1,
+        "timing_ms": 12,
+        "error": "AUTH_REQUIRED",
+        "missing_inputs_count": 0,
+        "results": [],
+        "attempts": [
+          1
+        ]
+      }
+    },
+    {
+      "id": "P10",
+      "case": "not run",
+      "result": "NOT_RUN",
+      "expected": "-",
+      "observed": {
+        "stopped_after": "P5"
+      }
+    },
+    {
+      "id": "P6",
+      "case": "not run",
+      "result": "NOT_RUN",
+      "expected": "-",
+      "observed": {
+        "stopped_after": "P5"
+      }
+    },
+    {
+      "id": "P7",
+      "case": "not run",
+      "result": "NOT_RUN",
+      "expected": "-",
+      "observed": {
+        "stopped_after": "P5"
+      }
+    },
+    {
+      "id": "P11",
+      "case": "not run",
+      "result": "NOT_RUN",
+      "expected": "-",
+      "observed": {
+        "stopped_after": "P5"
+      }
+    },
+    {
+      "id": "P8",
+      "case": "not run",
+      "result": "NOT_RUN",
+      "expected": "-",
+      "observed": {
+        "stopped_after": "P5"
+      }
+    }
+  ],
+  "stopped_after": "P5",
+  "source_gate": null,
+  "notebook_query_attempts": [
+    {
+      "attempt": 1,
+      "client": "main",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 0,
+      "status": "error",
+      "result_keys": [
+        "error",
+        "status"
+      ],
+      "citations_container": "NoneType",
+      "citation_value_kinds": [],
+      "citation_item_keys": [],
+      "citation_count": 0,
+      "references_container": "NoneType",
+      "reference_item_keys": [],
+      "reference_count": 0,
+      "sources_used_count": 0,
+      "cited_source_ids": [],
+      "reference_source_ids": [],
+      "sources_used": [],
+      "out_of_scope_source_ids": [],
+      "citation_problems": [],
+      "unattributed_citation": false,
+      "discarded": false,
+      "answer_chars": 0,
+      "caller_outcome": "ERROR:AUTH_REQUIRED"
+    }
+  ],
+  "attempt_count": 1,
+  "sent_to_backend_count": 1,
+  "injection_source_requested": false,
+  "attempts_with_wrong_source_set": [],
+  "unfinished_attempts": [],
+  "status": "FAIL",
+  "utc_end": "2026-10-07T10:01:43+00:00",
+  "summary_file": "<synthetic>/out/stage-b-20261007-100143.summary.json"
+}

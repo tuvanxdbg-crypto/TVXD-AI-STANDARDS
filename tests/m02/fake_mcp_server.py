@@ -6,6 +6,9 @@ Options:
   --list-delay S     sleep S seconds before answering tools/list
   --delay-once FILE  apply the delays only while FILE does not exist (it is created on the first start)
   --call-delay S     sleep S seconds before answering tools/call (logged on receipt)
+  --call-delay-once FILE  apply --call-delay only while FILE does not exist (created on the first tools/call)
+  --answer-file FILE answer notebook_query with {"status": "success", **<JSON in FILE>}
+  --pid-file FILE    append this process's pid on start
   --notify METHOD    before answering METHOD (initialize, tools/list or tools/call), stream
                      notifications/progress every --notify-every S for --notify-for S
   --extra-tool       also list notebook_delete (a surface the client must refuse)
@@ -33,6 +36,9 @@ def main() -> int:
     ap.add_argument("--init-delay", type=float, default=0.0)
     ap.add_argument("--list-delay", type=float, default=0.0)
     ap.add_argument("--call-delay", type=float, default=0.0)
+    ap.add_argument("--call-delay-once")
+    ap.add_argument("--answer-file")
+    ap.add_argument("--pid-file")
     ap.add_argument("--notify", choices=["initialize", "tools/list", "tools/call"])
     ap.add_argument("--notify-every", type=float, default=0.02)
     ap.add_argument("--notify-for", type=float, default=0.0)
@@ -65,6 +71,9 @@ def main() -> int:
         except (ImportError, AttributeError, OSError):
             pass   # Windows: anonymous pipes are already small
     log("start")
+    if args.pid_file:
+        with open(args.pid_file, "a", encoding="utf-8") as fh:
+            fh.write(f"{__import__('os').getpid()}\n")
     tools = READ_TOOLS + (["notebook_delete"] if args.extra_tool else [])
 
     def stream_notifications() -> None:
@@ -95,8 +104,15 @@ def main() -> int:
                 time.sleep(args.list_delay)
             result = {"tools": [{"name": t, "description": "fake", "inputSchema": {"type": "object"}} for t in tools]}
         elif method == "tools/call":
-            time.sleep(args.call_delay)
-            result = {"content": [{"type": "text", "text": json.dumps({"status": "success", "notebooks": []})}]}
+            call_delay = args.call_delay
+            if args.call_delay_once:
+                call_delay = 0.0 if Path(args.call_delay_once).exists() else call_delay
+                Path(args.call_delay_once).touch()
+            time.sleep(call_delay)
+            payload = {"status": "success", "notebooks": []}
+            if msg["params"]["name"] == "notebook_query" and args.answer_file:
+                payload = {"status": "success", **json.loads(Path(args.answer_file).read_text(encoding="utf-8"))}
+            result = {"content": [{"type": "text", "text": json.dumps(payload, ensure_ascii=False)}]}
         else:
             print(json.dumps({"jsonrpc": "2.0", "id": rid, "error": {"code": -32601, "message": "unknown"}}),
                   flush=True)

@@ -35,6 +35,7 @@ class StageBRunner(unittest.TestCase):
     def tearDown(self):
         sb.P11_EXTRA_INDEX_EDIT = None
         sb.Audit.FINALIZE_WAIT_S = 10.0
+        sb.P8_TERMINAL_WAIT_S = 15.0
 
     def run_fake(self, scenario, config=None, prepare=None, slow_delay=1.5):
         made = []
@@ -114,8 +115,12 @@ class StageBRunner(unittest.TestCase):
     def test_worker_outliving_finalize_fails_closed_and_snapshot_is_immutable(self):
         import time as _time
         sb.Audit.FINALIZE_WAIT_S = 0.3        # the P8 tight worker (4 s) outlives the finalize window
+        sb.P8_TERMINAL_WAIT_S = 0.3           # ... and P8's own wait for a terminal outcome (F14)
         code, s, made = self.run_fake("clean", slow_delay=4.0)
-        self.assertEqual((code, s["status"]), (1, "FAIL"))
+        self.assertEqual((code, s["status"], s["stopped_after"]), (1, "FAIL", "P8"))
+        p8 = next(c for c in s["cases"] if c["id"] == "P8")
+        self.assertEqual((p8["result"], p8["observed"]["tight_terminal"]), ("FAIL", False))   # never judged early
+        self.assertNotIn("recover", p8["observed"])                                            # no recovery call
         tight = s["notebook_query_attempts"][2]
         self.assertEqual((tight["client"], tight["outcome"], tight["sent_to_backend"], tight["caller_outcome"]),
                          ("p8", "abandoned_unfinished", "not_confirmed", "ERROR:TIMEOUT"))
@@ -175,8 +180,10 @@ class StageBRunner(unittest.TestCase):
         self.assertIn(ph[0]["attempt"], s["unfinished_attempts"])
         self.assertEqual(holder.get("error"), "SOURCE_NOT_ALLOWED")      # the late open was refused
         backend = [c for f in made for c in f.calls if c[0] == "notebook_query"]
-        self.assertEqual(len(backend), 3)                                  # P5, P11, P8 recovery only
-        self.assertEqual(sum(1 for a in s["notebook_query_attempts"] if a["sent_to_backend"] is True), 3)
+        self.assertEqual(len(backend), 2)                                  # P5 and P11 only
+        self.assertEqual(sum(1 for a in s["notebook_query_attempts"] if a["sent_to_backend"] is True), 2)
+        p8 = next(c for c in s["cases"] if c["id"] == "P8")                # F14: a timeout with no attempt seen
+        self.assertEqual((p8["result"], s["stopped_after"]), ("FAIL", "P8"))   # cannot be judged: FAIL, no recovery
         self.assertEqual(Path(s["summary_file"]).read_text(encoding="utf-8"), before)
 
     def test_exception_attempt_has_a_terminal_outcome_and_stops(self):

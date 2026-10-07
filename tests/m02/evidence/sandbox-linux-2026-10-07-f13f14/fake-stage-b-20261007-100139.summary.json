@@ -1,0 +1,488 @@
+{
+  "check": "m02-stage-b",
+  "kind": "fake:clean",
+  "head": "17090da9478e24cc0c1a6208db0b49ec039ae6cc",
+  "utc_start": "2026-10-07T10:01:39+00:00",
+  "python": "3.11.15",
+  "platform": "Linux-6.18.44-fc-v77-x86_64-with-glibc2.39",
+  "query": "Q-S1",
+  "assessment_date": "2026-10-06",
+  "work_code": "THIET-KE-DAN-DUNG",
+  "index_sha256": "b106947eabb4af07e537c1793e38fe0e532e2d8d920f249a5389f798fa70559b",
+  "mapped_source_ids": {
+    "LUAT-135-2025-QH15": "8b75af2d-4477-40fb-a67f-3ee10173c221",
+    "TCVN-5575-2024": "d54bb084-5c50-4cef-8979-6e909f791c1e",
+    "TCVN-8794-2011": "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+  },
+  "notebook": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+  "timeouts": {
+    "timeout_s": 60.0,
+    "max_attempts": 2,
+    "total_budget_s": 120.0
+  },
+  "cases": [
+    {
+      "id": "P5",
+      "case": "citation shape of a live semantic lookup (Q-S1)",
+      "result": "PASS",
+      "expected": "exactly one notebook_query sending exactly the 3 mapped source ids; status FOUND/UNKNOWN or CITED_SOURCE_NOT_WHITELISTED",
+      "observed": {
+        "status": "FOUND",
+        "notebooklm_calls": 1,
+        "timing_ms": 13,
+        "error": null,
+        "missing_inputs_count": 0,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_0fef173b6f16c6bd7c4cb8eb",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": null,
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "ae9d97482c27acea8e5c98824d00ccfc5dee492d7955d80db8bdf06a77ac1813",
+              "observed": "ae9d97482c27acea8e5c98824d00ccfc5dee492d7955d80db8bdf06a77ac1813",
+              "observed_from": "notebooklm_sync_identity",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "NOTEBOOKLM",
+            "cache_hit": false,
+            "uncertainty": [
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ],
+        "attempts": [
+          1
+        ]
+      }
+    },
+    {
+      "id": "P10",
+      "case": "out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED)",
+      "result": "PASS",
+      "expected": "every cited, referenced and sources_used id in the sent source_ids and every entry well formed; live F12 branch not triggered (offline regressions apply)",
+      "observed": {
+        "outcome": "OUT_OF_SCOPE_NOT_OBSERVED",
+        "trigger": {
+          "out_of_scope_source_ids": [],
+          "citation_problems": []
+        },
+        "attempts": [
+          1
+        ]
+      }
+    },
+    {
+      "id": "P6",
+      "case": "same lookup again: cache hit, identity re-checked, no backend call",
+      "result": "PASS",
+      "expected": "FOUND, cache_hit true, same EVIDENCE_IDs, no extra notebook_query",
+      "observed": {
+        "status": "FOUND",
+        "notebooklm_calls": 0,
+        "timing_ms": 0,
+        "error": null,
+        "missing_inputs_count": 0,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_0fef173b6f16c6bd7c4cb8eb",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": null,
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "ae9d97482c27acea8e5c98824d00ccfc5dee492d7955d80db8bdf06a77ac1813",
+              "observed": "ae9d97482c27acea8e5c98824d00ccfc5dee492d7955d80db8bdf06a77ac1813",
+              "observed_from": "notebooklm_sync_identity",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "NOTEBOOKLM",
+            "cache_hit": true,
+            "uncertainty": [
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "P7",
+      "case": "revoked notebook whitelist: excluded, no backend call; old evidence FAILED (MAPPING)",
+      "result": "PASS",
+      "expected": "UNKNOWN, all NOTEBOOK_NOT_WHITELISTED, 0 calls; old NotebookLM evidence verify FAILED (MAPPING)",
+      "observed": {
+        "lookup": {
+          "status": "UNKNOWN",
+          "notebooklm_calls": 0,
+          "timing_ms": 9,
+          "error": null,
+          "missing_inputs_count": 1,
+          "excluded": [
+            {
+              "document_id": "LUAT-135-2025-QH15",
+              "reason": "NOTEBOOK_NOT_WHITELISTED"
+            },
+            {
+              "document_id": "TCVN-5575-2024",
+              "reason": "NOTEBOOK_NOT_WHITELISTED"
+            },
+            {
+              "document_id": "TCVN-8794-2011",
+              "reason": "NOTEBOOK_NOT_WHITELISTED"
+            }
+          ],
+          "results": []
+        },
+        "verify": {
+          "status": "FAILED",
+          "notebooklm_calls": null,
+          "timing_ms": 1,
+          "error": null,
+          "missing_inputs_count": 0,
+          "checks": {
+            "INDEX_VALID": "PASS",
+            "EVIDENCE_ID": "PASS",
+            "DOCUMENT_WHITELISTED": "PASS",
+            "SOURCE_ID": "PASS",
+            "VERSION_RESOLVED": "PASS",
+            "SOURCE_LOCATION": "PASS",
+            "SOURCE_HASH": "PASS",
+            "EXCERPT_MATCH": "PASS",
+            "CLAUSE": "PASS",
+            "MAPPING": "FAIL",
+            "APPLICABILITY": "PASS"
+          }
+        }
+      }
+    },
+    {
+      "id": "P11",
+      "case": "source without sync identity is never VERIFIED",
+      "result": "PASS",
+      "expected": "TCVN 8794 results UNKNOWN with SYNC_IDENTITY_MISSING",
+      "observed": {
+        "status": "FOUND",
+        "notebooklm_calls": 1,
+        "timing_ms": 11,
+        "error": null,
+        "missing_inputs_count": 0,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_83f750a94e61975edb9770e2",
+            "STATUS": "UNKNOWN",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": null,
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "ae9d97482c27acea8e5c98824d00ccfc5dee492d7955d80db8bdf06a77ac1813",
+              "observed": null,
+              "observed_from": "none",
+              "match": false
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "NOTEBOOKLM",
+            "cache_hit": false,
+            "uncertainty": [
+              "SYNC_IDENTITY_MISSING",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "P8",
+      "case": "1 s budget: structured TIMEOUT; process tree retired and verified; next call on a fresh validated server",
+      "result": "PASS",
+      "expected": "TIMEOUT; the timed-out attempt terminal; every server process started for it torn down with the wrapper exited and the whole tree verified empty; recovery on a new process that passed initialize + the exact tools/list check; recovery lookup completes",
+      "observed": {
+        "tight": {
+          "status": "ERROR",
+          "notebooklm_calls": 1,
+          "timing_ms": 1011,
+          "error": "TIMEOUT",
+          "missing_inputs_count": 0,
+          "results": []
+        },
+        "tight_attempts": [
+          3
+        ],
+        "tight_terminal": true,
+        "tight_failed_method": [
+          null
+        ],
+        "tight_sent_to_backend": [
+          true
+        ],
+        "recover": {
+          "status": "FOUND",
+          "notebooklm_calls": 1,
+          "timing_ms": 13,
+          "error": null,
+          "missing_inputs_count": 0,
+          "results": [
+            {
+              "EVIDENCE_ID": "ev_0fef173b6f16c6bd7c4cb8eb",
+              "STATUS": "VERIFIED",
+              "DOCUMENT": "TCVN-8794-2011",
+              "VERSION": "2011",
+              "CLAUSE": null,
+              "SOURCE_HASH": {
+                "algorithm": "sha256",
+                "expected": "ae9d97482c27acea8e5c98824d00ccfc5dee492d7955d80db8bdf06a77ac1813",
+                "observed": "ae9d97482c27acea8e5c98824d00ccfc5dee492d7955d80db8bdf06a77ac1813",
+                "observed_from": "notebooklm_sync_identity",
+                "match": true
+              },
+              "APPLICABILITY": "APPLICABLE",
+              "missing": [],
+              "route": "NOTEBOOKLM",
+              "cache_hit": false,
+              "uncertainty": [
+                "UNTRUSTED_CONTENT"
+              ],
+              "truncated": false,
+              "layout_dependent": false
+            }
+          ]
+        },
+        "process_model": "fake backend: no server process (teardown not applicable)"
+      }
+    }
+  ],
+  "stopped_after": null,
+  "source_gate": null,
+  "notebook_query_attempts": [
+    {
+      "attempt": 1,
+      "client": "main",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 0,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "conversation_id",
+        "question",
+        "references",
+        "sources_used",
+        "status"
+      ],
+      "citations_container": "dict",
+      "citation_value_kinds": [
+        "string"
+      ],
+      "citation_item_keys": [],
+      "citation_count": 1,
+      "references_container": "list",
+      "reference_item_keys": [
+        "citation_number",
+        "cited_text",
+        "source_id"
+      ],
+      "reference_count": 1,
+      "sources_used_count": 1,
+      "cited_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "reference_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "sources_used": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "out_of_scope_source_ids": [],
+      "citation_problems": [],
+      "unattributed_citation": false,
+      "discarded": false,
+      "answer_chars": 26,
+      "caller_outcome": "FOUND"
+    },
+    {
+      "attempt": 2,
+      "client": "main",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 0,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "conversation_id",
+        "question",
+        "references",
+        "sources_used",
+        "status"
+      ],
+      "citations_container": "dict",
+      "citation_value_kinds": [
+        "string"
+      ],
+      "citation_item_keys": [],
+      "citation_count": 1,
+      "references_container": "list",
+      "reference_item_keys": [
+        "citation_number",
+        "cited_text",
+        "source_id"
+      ],
+      "reference_count": 1,
+      "sources_used_count": 1,
+      "cited_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "reference_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "sources_used": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "out_of_scope_source_ids": [],
+      "citation_problems": [],
+      "unattributed_citation": false,
+      "discarded": false,
+      "answer_chars": 26,
+      "caller_outcome": "FOUND"
+    },
+    {
+      "attempt": 3,
+      "client": "p8",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned_after_caller_timeout",
+      "sent_to_backend": true,
+      "caller_outcome": "ERROR:TIMEOUT",
+      "elapsed_ms": 1500,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "conversation_id",
+        "question",
+        "references",
+        "sources_used",
+        "status"
+      ],
+      "citations_container": "dict",
+      "citation_value_kinds": [
+        "string"
+      ],
+      "citation_item_keys": [],
+      "citation_count": 1,
+      "references_container": "list",
+      "reference_item_keys": [
+        "citation_number",
+        "cited_text",
+        "source_id"
+      ],
+      "reference_count": 1,
+      "sources_used_count": 1,
+      "cited_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "reference_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "sources_used": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "out_of_scope_source_ids": [],
+      "citation_problems": [],
+      "unattributed_citation": false,
+      "discarded": false,
+      "answer_chars": 26
+    },
+    {
+      "attempt": 4,
+      "client": "p8",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 0,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "conversation_id",
+        "question",
+        "references",
+        "sources_used",
+        "status"
+      ],
+      "citations_container": "dict",
+      "citation_value_kinds": [
+        "string"
+      ],
+      "citation_item_keys": [],
+      "citation_count": 1,
+      "references_container": "list",
+      "reference_item_keys": [
+        "citation_number",
+        "cited_text",
+        "source_id"
+      ],
+      "reference_count": 1,
+      "sources_used_count": 1,
+      "cited_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "reference_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "sources_used": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+      ],
+      "out_of_scope_source_ids": [],
+      "citation_problems": [],
+      "unattributed_citation": false,
+      "discarded": false,
+      "answer_chars": 26,
+      "caller_outcome": "FOUND"
+    }
+  ],
+  "attempt_count": 4,
+  "sent_to_backend_count": 4,
+  "injection_source_requested": false,
+  "attempts_with_wrong_source_set": [],
+  "unfinished_attempts": [],
+  "status": "PASS",
+  "utc_end": "2026-10-07T10:01:41+00:00",
+  "summary_file": "<synthetic>/out/stage-b-20261007-100139.summary.json"
+}

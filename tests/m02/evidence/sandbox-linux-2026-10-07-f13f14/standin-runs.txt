@@ -1,0 +1,2 @@
+startup 0 PASS {'P5': 'PASS', 'P10': 'PASS', 'P6': 'PASS', 'P7': 'PASS', 'P11': 'PASS', 'P8': 'PASS'}
+call 0 PASS {'P5': 'PASS', 'P10': 'PASS', 'P6': 'PASS', 'P7': 'PASS', 'P11': 'PASS', 'P8': 'PASS'}

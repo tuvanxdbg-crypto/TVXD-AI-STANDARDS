@@ -1,14 +1,16 @@
 # M02 — Bounded live pilot plan
 
-Status: **STAGE A DONE AND REVIEWED; B0 DONE; B2 RAN ONCE (2026-10-07) AND FAILED AT P8; FINDINGS F13/F14 AWAIT
-REVIEW.**
+Status: **STAGE A DONE AND REVIEWED; B0 DONE; B2 RAN ONCE (2026-10-07) AND FAILED AT P8; F13/F14 PATCHED OFFLINE,
+AWAITING REVIEW; B2 RE-RUN NOT AUTHORIZED.**
 - Stage A ran on the owner's machine (§6a).
 - Its open finding (non-unique clause IDs) was fixed as F11, re-run on the real files, and passed GPT_REVIEW_V1 at
   `5f6f254`.
 - The out-of-scope citation fix F12 passed code review at `8ac4e6b`.
 - The stage B plan and runner (§6b) passed GPT_REVIEW_V1 at `67874a3`. The owner approved B0 and then B2 directly.
-- B2 FAILed at P8 with the source gate intact. Findings F13 (citation shape) and F14 (P8 sampling) are in §6b. No
-  fix and no re-run happen before review; a re-run needs a new owner approval.
+- B2 FAILed at P8 with the source gate intact. Findings F13 (citation shape) and F14 (P8 sampling) are in §6b.
+  GPT_REVIEW_V1 at `17090da` returned PATCH_REQUIRED for both. They are patched offline (§6b, and
+  `M02_STANDARDS_GATEWAY.md` §17).
+- A B2 re-run, P9 included, needs a GPT review of the patch and the owner's new direct approval of the exact SHA.
 
 Executed so far, all on the owner's machine, non-elevated:
 - Preparation, metadata only: ACL/token checks on the Nextcloud folder and on `C:\Vanban_XDCB` (§1), and
@@ -394,6 +396,26 @@ B2." (B0 approved; B2 was approved separately later, see the B2 result below.)
   - Open points: check after the attempt is terminal; on Windows, whether killing `uvx.exe` also ends its child; and
     whether attempt 4's `sent_to_backend: true` refers to `initialize` rather than `notebook_query`.
 - Offline reproduction: `tests/m02/evidence/sandbox-linux-2026-10-07-b2-analysis/`.
+
+**F13/F14 patch** (NEXT_ALLOWED_STEP `M02_PATCH_F13_CITATION_NORMALIZATION_AND_F14_TIMEOUT_PROCESS_AUDIT_ONLY`,
+GPT_REVIEW_V1 at `17090da`). Offline only; mappings, source gate, sealed audit, committed `mode: disabled` and the
+M01 pin/config/policy are unchanged.
+- **F13:** `check_citations()` normalizes `citations`, `references` and `sources_used` strictly, for both the
+  Gateway and `Recorder`.
+  - It accepts the 0.15.1 shape and the earlier object shape.
+  - Any missing, malformed, contradictory or out-of-scope entry still discards the whole response (F12).
+- **P10 criteria:**
+  - P10-B needs a real trigger: an out-of-scope id, or a citation problem code. It records `trigger` (ids and
+    codes).
+  - P10-A also requires the P5 response to be readable: returned and not discarded.
+- **F14:** P8 is judged only after the timed-out attempt is terminal (`P8_TERMINAL_WAIT_S`). Then:
+  - every server process started for it must be torn down with the wrapper exited and the whole tree verified
+    empty;
+  - recovery must run on a new pid that passed initialize + the exact `tools/list` check.
+  - `sent_to_backend` is true only for a completely written `tools/call`.
+  - Unverifiable containment gives `BLOCKED`, never PASS.
+- Validation: `tests/m02/evidence/sandbox-linux-2026-10-07-f13f14/`. The Windows job-object path needs an offline
+  run on ducdq; until then F14 on Windows is unproven.
 
 B2 run order (owner machine, non-elevated; `$G` as in §6a):
 ```powershell

@@ -20,11 +20,15 @@ P10 out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED or P10-B OUT_OF_SCOPE
 P9 (model surface) and the preflights are separate commands (see the plan). A case whose precondition did not occur
 (e.g. no FOUND result to re-use for P6) is reported NOT_OBSERVED, never PASS.
 
-Recorded per notebook_query (summary): sent source ids, result key names, citation item key names, citation and
-sources_used counts, cited / used source ids, whether a citation lacked a source id, answer length. Never the answer
-text, passages or excerpts. Outputs under tests/m02/evidence/local/ (git-ignored): stage-b-<ts>.summary.json (ids,
-statuses, codes, counts, key names, timings) and stage-b-<ts>.raw.json (full Gateway responses; local only).
-Exit code: 0 no FAIL, 1 any FAIL, 2 refused to start.
+Recorded per notebook_query (summary), using the Gateway's own strict citation check (check_citations, F13):
+sent source ids, result key names, container types, citation value kinds, citation / reference item key names,
+counts, cited / referenced / sources_used ids, out-of-scope ids, citation problem codes, answer length. For an
+exception: the code, the MCP method and phase it failed in, and whether notebook_query's tools/call was written
+(F14). Never the answer text, passages or excerpts. P8 with the real client also records the server processes it
+started, validated and tore down (pids, flags, timings). Outputs under tests/m02/evidence/local/ (git-ignored):
+stage-b-<ts>.summary.json (ids, statuses, codes, counts, key names, timings) and stage-b-<ts>.raw.json (full
+Gateway responses; local only).
+Exit code: 0 PASS, 1 any FAIL, 2 refused to start, 3 BLOCKED (no FAIL, but a teardown could not be verified).
 
   uv run --no-project --python 3.11 --with pyyaml==6.0.2 --exclude-newer 2026-10-03T00:00:00Z \\
       tests/m02/pilot_stage_b.py --fake clean --config <synthetic>/gateway.pilot.stage-b.json
@@ -48,7 +52,7 @@ REPO = HERE.parents[1]
 sys.path.insert(0, str(REPO))
 sys.path.insert(0, str(HERE))
 
-from gateway.adapters.notebooklm import McpStdioNotebookLMClient  # noqa: E402
+from gateway.adapters.notebooklm import McpStdioNotebookLMClient, check_citations  # noqa: E402
 from gateway.config import load_config  # noqa: E402
 from gateway.errors import GatewayError  # noqa: E402
 from gateway.index import load_index  # noqa: E402
@@ -65,11 +69,27 @@ CTX = {"work_code": WORK_CODE, "assessment_date": DAY,
 
 
 PLANNED = ("P5", "P10", "P6", "P7", "P11", "P8")
+P8_TERMINAL_WAIT_S = 15.0   # bounded wait for the timed-out P8 attempt to reach a terminal outcome before judging
+STARTUP_METHODS = ("initialize", "notifications/initialized", "tools/list")
 P11_EXTRA_INDEX_EDIT = None   # test seam only (tests/m02/test_gateway_pilot_stage_b.py); None in real runs
 
 
 class StopPilot(Exception):
-    """A case FAILed: the plan stops the pilot before any further NotebookLM call."""
+    """A case FAILed (or is BLOCKED): the plan stops the pilot before any further NotebookLM call."""
+
+
+def sent_state(details: dict):
+    """Whether a failed notebook_query reached the server, from the client's error details (F14).
+
+    True only when its tools/call request was completely written; False when it failed before that (queued,
+    during server startup: initialize / tools/list, or before sending); "not_confirmed" when unknown, e.g. a
+    partly written request or a client that does not report the method."""
+    method, sent = details.get("method"), details.get("sent")
+    if method == "tools/call":
+        return True if sent is True else (False if sent is False else "not_confirmed")
+    if details.get("phase") in ("startup", "queue") or method in STARTUP_METHODS:
+        return False
+    return "not_confirmed"
 
 
 class Audit:
@@ -125,6 +145,11 @@ class Audit:
             entry.update(elapsed_ms=int((time.monotonic() - self._t0[entry["attempt"]]) * 1000), **fields)
             self._done[entry["attempt"]].set()
 
+    def wait_terminal(self, attempts: list[int], timeout: float) -> bool:
+        """True once every listed attempt has a terminal outcome (bounded by timeout)."""
+        deadline = time.monotonic() + timeout
+        return all(self._done[n].wait(max(0.0, deadline - time.monotonic())) for n in attempts)
+
     def finalize(self) -> list[dict]:
         """Wait (bounded by FINALIZE_WAIT_S) for workers that outlived a caller TIMEOUT, then seal the audit and
         return an immutable terminal snapshot. An attempt whose worker has not confirmed completion becomes
@@ -172,33 +197,20 @@ class Recorder:
         except BaseException as e:
             details = getattr(e, "details", None) or {}
             audit.close(entry, outcome="exception", exception=getattr(e, "code", None) or type(e).__name__,
-                        sent_to_backend=True if details.get("request_id") is not None else "not_confirmed")
+                        sent_to_backend=sent_state(details), failed_method=details.get("method"),
+                        failed_phase=details.get("phase"))
             raise
-        raw = result.get("citations") if isinstance(result, dict) else None
-        items = list(raw.values()) if isinstance(raw, dict) else list(raw or [])
-        cited, unattributed, item_keys = set(), False, set()
-        for it in items:
-            if isinstance(it, dict):
-                item_keys.update(it.keys())
-                sid = it.get("source_id")
-                if isinstance(sid, str) and sid:
-                    cited.add(sid)
-                else:
-                    unattributed = True
-            else:
-                unattributed = True
-        used = result.get("sources_used") if isinstance(result, dict) else None
-        used_ids = sorted({u for u in (used or []) if isinstance(u, str) and u})
-        unattributed = unattributed or any(not (isinstance(u, str) and u) for u in (used or []))
+        result = result if isinstance(result, dict) else {}
+        chk = check_citations(result, requested)
         audit.close(
-            entry, outcome="returned", sent_to_backend=True,
-            status=result.get("status") if isinstance(result, dict) else None,
-            result_keys=sorted(result.keys()) if isinstance(result, dict) else [],
-            citations_container=type(raw).__name__, citation_item_keys=sorted(item_keys),
-            citation_count=len(items), cited_source_ids=sorted(cited), sources_used=used_ids,
-            unattributed_citation=unattributed,
-            out_of_scope_source_ids=sorted((cited | set(used_ids)) - set(requested)),
-            answer_chars=len(result.get("answer") or "") if isinstance(result, dict) else 0)
+            entry, outcome="returned", sent_to_backend=True, status=result.get("status"),
+            result_keys=sorted(result.keys()), **chk.shape,
+            cited_source_ids=sorted(set(chk.cited_ids)), reference_source_ids=sorted(set(chk.reference_ids)),
+            sources_used=sorted(set(chk.used_ids)), out_of_scope_source_ids=chk.out_of_scope,
+            citation_problems=chk.problems,
+            unattributed_citation=any(x.startswith("MISSING_") for x in chk.problems),
+            discarded=bool(chk.discard),
+            answer_chars=len(result.get("answer")) if isinstance(result.get("answer"), str) else 0)
         return result
 
     def notebook_list(self):                       # not used by the stage B cases
@@ -211,15 +223,28 @@ class Recorder:
         raise GatewayError("SOURCE_NOT_ALLOWED", "stage B runner never reads NotebookLM source content")
 
 
-def fake_client(scenario: str):
-    """Offline stand-in for the synthetic library: cites the mapped TCVN 8794 source (and, for 'mixed', the M01
-    injection source too)."""
-    from fake_notebooklm import FakeNotebookLM
-    cites = [{"source_id": "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
-              "passage": "Yêu cầu giả lập về chiếu sáng lớp học trường trung học."}]
+TCVN_8794_SOURCE = "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+FAKE_PASSAGE = "Yêu cầu giả lập về chiếu sáng lớp học trường trung học."
+
+
+def fake_answer(scenario: str) -> dict:
+    """A notebook_query result in the notebooklm-mcp-cli 0.15.1 shape (F13): citations {number: source_id},
+    references [{source_id, citation_number, cited_text}], sources_used = the unique citation values. It cites the
+    mapped TCVN 8794 source (and, for 'mixed', the M01 injection source too)."""
+    cites = [(TCVN_8794_SOURCE, FAKE_PASSAGE)]
     if scenario == "mixed":
-        cites.append({"source_id": INJECTION_SOURCE, "passage": "(fake) chỉ dẫn nhúng"})
-    fake = FakeNotebookLM({NOTEBOOK: {"answer": "(fake) câu trả lời giả lập", "citations": cites}})
+        cites.append((INJECTION_SOURCE, "(fake) chỉ dẫn nhúng"))
+    return {"answer": "(fake) câu trả lời giả lập", "question": Q_S1, "conversation_id": "fake-conversation",
+            "citations": {str(n): sid for n, (sid, _) in enumerate(cites, start=1)},
+            "references": [{"source_id": sid, "citation_number": n, "cited_text": text}
+                           for n, (sid, text) in enumerate(cites, start=1)],
+            "sources_used": list(dict.fromkeys(sid for sid, _ in cites))}
+
+
+def fake_client(scenario: str):
+    """Offline stand-in for the synthetic library (fake_answer)."""
+    from fake_notebooklm import FakeNotebookLM
+    fake = FakeNotebookLM({NOTEBOOK: fake_answer(scenario)})
     if scenario == "auth":       # every call reports an expired login -> AUTH_REQUIRED (P5 FAIL, pilot stops)
         fake.fail_with = [{"status": "error", "error": "authentication expired, please sign in"}] * 10
     return fake
@@ -232,7 +257,7 @@ class Run:
 
     def case(self, cid, desc, result, expected, observed):
         self.cases.append({"id": cid, "case": desc, "result": result, "expected": expected, "observed": observed})
-        if result == "FAIL":
+        if result in ("FAIL", "BLOCKED"):
             raise StopPilot(cid)
 
     def keep(self, label, payload):
@@ -341,11 +366,18 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
         p5 = r
 
         # P10: out-of-scope boundary, from the P5 attempt
-        observed = any(e.get("out_of_scope_source_ids") or e.get("unattributed_citation") for e in mine)
+        # P10-B needs a real trigger under the strict check: an out-of-scope id, or a missing / malformed /
+        # contradictory citation entry (citation_problems); a shape the Gateway parses is not a trigger (F13)
+        trigger = {"out_of_scope_source_ids": sorted({x for e in mine for x in e.get("out_of_scope_source_ids") or []}),
+                   "citation_problems": sorted({x for e in mine for x in e.get("citation_problems") or []})}
+        observed = bool(trigger["out_of_scope_source_ids"] or trigger["citation_problems"])
         if not observed:
-            run.case("P10", "out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED)", "PASS",
-                     "every cited/used id in the sent source_ids; live F12 branch not triggered (offline regressions apply)",
-                     {"outcome": "OUT_OF_SCOPE_NOT_OBSERVED", "attempts": [e["attempt"] for e in mine]})
+            run.case("P10", "out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED)",
+                     "PASS" if p5_parsed(mine) else "FAIL",
+                     "every cited, referenced and sources_used id in the sent source_ids and every entry well formed; "
+                     "live F12 branch not triggered (offline regressions apply)",
+                     {"outcome": "OUT_OF_SCOPE_NOT_OBSERVED", "trigger": trigger,
+                      "attempts": [e["attempt"] for e in mine]})
         else:
             before = len(audit)
             again = svc.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
@@ -355,8 +387,8 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
             run.case("P10", "out-of-scope boundary (P10-B OUT_OF_SCOPE_OBSERVED)",
                      "PASS" if discarded and len(audit) == before + 1 else "FAIL",
                      "CITED_SOURCE_NOT_WHITELISTED, no answer/evidence, not cached (repeat queries again), 0 VERIFIED",
-                     {"outcome": "OUT_OF_SCOPE_OBSERVED", "first": resp_summary(p5), "repeat": resp_summary(again),
-                      "attempts": [e["attempt"] for e in audit[n0:]]})
+                     {"outcome": "OUT_OF_SCOPE_OBSERVED", "trigger": trigger, "first": resp_summary(p5),
+                      "repeat": resp_summary(again), "attempts": [e["attempt"] for e in audit[n0:]]})
 
         # P6: cold vs cache hit (needs a FOUND result from P5)
         if p5["status"] == "FOUND":
@@ -422,31 +454,81 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
         if close:
             close()
 
-    # P8: timeout recovery with a 1 s budget on a fresh client, then the same client with the normal budget
+    # P8: timeout recovery with a 1 s budget on a fresh client, then the same client with the normal budget (F14)
     client8 = make_client(slow=True)
     rec8 = Recorder(client8, audit_obj, "p8")
+    state = getattr(client8, "process_state", None)   # the real MCP client; fake backends have no server process
     try:
         tight = write_temp(tmp, config, mode=mode, nb_overrides={"timeout_s": 1, "max_attempts": 1, "total_budget_s": 1})
+        n0 = len(audit)
+        before = state() if state else None
         r8 = service(tight, rec8).call("standards_lookup", {"query": Q_S1 + " (P8)", **copy.deepcopy(CTX)})
         run.keep("P8 tight", r8)
-        timed_out = (r8.get("error") or {}).get("code") == "TIMEOUT"
-        proc = getattr(client8, "_proc", None)
-        retired = proc is None or proc.poll() is not None
-        if not timed_out:
+        if (r8.get("error") or {}).get("code") != "TIMEOUT":
             run.case("P8", "1 s budget: structured TIMEOUT", "NOT_OBSERVED" if lookup_ok(r8) else "FAIL",
                      "TIMEOUT (the backend answered within 1 s, so the timeout path did not occur)", resp_summary(r8))
             return
+        result, obs = p8_judge_teardown(audit_obj, audit[n0:], state, before)
+        obs = {"tight": resp_summary(r8), **obs}
+        if result != "PASS":
+            run.case("P8", P8_CASE, result, P8_EXPECTED, obs)
+            return
         if hasattr(client8, "delay_s"):
             client8.delay_s = 0          # fake only: the recovery call answers in time
+        mid = state() if state else None
         r8b = service(main_cfg, rec8).call("standards_lookup", {"query": Q_S1 + " (P8)", **copy.deepcopy(CTX)})
         run.keep("P8 recover", r8b)
-        run.case("P8", "1 s budget: structured TIMEOUT, process retired; next call on a fresh validated server",
-                 "PASS" if retired and lookup_ok(r8b) else "FAIL", "TIMEOUT, server process gone, next lookup completes",
-                 {"tight": resp_summary(r8), "process_retired": retired, "recover": resp_summary(r8b)})
+        obs["recover"] = resp_summary(r8b)
+        ok = lookup_ok(r8b)
+        if state:
+            after = state()
+            old_pids = {x["pid"] for x in mid["spawned"]}
+            fresh = [x for x in after["validated_starts"][len(mid["validated_starts"]):] if x["pid"] not in old_pids]
+            obs["recover_validated_starts"] = fresh
+            ok = ok and bool(fresh) and all(x["tools"] == 4 and x["escaped_processes"] in (0, None) for x in fresh)
+        else:
+            obs["process_model"] = "fake backend: no server process (teardown not applicable)"
+        run.case("P8", P8_CASE, "PASS" if ok else "FAIL", P8_EXPECTED, obs)
     finally:
         close = getattr(client8, "close", None)
         if close:
             close()
+
+
+P8_CASE = "1 s budget: structured TIMEOUT; process tree retired and verified; next call on a fresh validated server"
+P8_EXPECTED = ("TIMEOUT; the timed-out attempt terminal; every server process started for it torn down with the "
+               "wrapper exited and the whole tree verified empty; recovery on a new process that passed initialize + "
+               "the exact tools/list check; recovery lookup completes")
+
+
+def p5_parsed(attempts: list[dict]) -> bool:
+    """P10-A also needs the P5 response to have been readable: returned, and not discarded."""
+    return bool(attempts) and all(e["outcome"] == "returned" and not e.get("discarded") for e in attempts)
+
+
+def p8_judge_teardown(audit_obj: Audit, tight_attempts: list[dict], state, before: dict | None) -> tuple[str, dict]:
+    """Judge the timed-out P8 attempt only after it is terminal (bounded wait), then its server processes."""
+    numbers = [e["attempt"] for e in tight_attempts]
+    terminal = audit_obj.wait_terminal(numbers, P8_TERMINAL_WAIT_S)
+    obs = {"tight_attempts": numbers, "tight_terminal": terminal,
+           "tight_failed_method": [e.get("failed_method") for e in tight_attempts],
+           "tight_sent_to_backend": [e.get("sent_to_backend") for e in tight_attempts]}
+    if not terminal or not numbers or any(e["outcome"] == "no_attempt_seen_before_caller_timeout"
+                                         for e in tight_attempts):
+        return "FAIL", obs
+    if not state:
+        return "PASS", obs
+    now = state()
+    spawned = now["spawned"][len(before["spawned"]):]
+    teardowns = {x["pid"]: x for x in now["teardowns"][len(before["teardowns"]):]}
+    obs.update(process_alive=now["alive"], spawned=spawned, teardowns=list(teardowns.values()))
+    if now["alive"] or any(s["pid"] not in teardowns for s in spawned):
+        return "FAIL", obs
+    if any(teardowns[s["pid"]]["tree_empty"] is None for s in spawned):
+        return "BLOCKED", obs        # containment unavailable: the tree's teardown cannot be proven
+    if not all(teardowns[s["pid"]]["verified"] for s in spawned):
+        return "FAIL", obs
+    return "PASS", obs
 
 
 def execute(config: Path, make_client, *, kind: str, out: Path) -> tuple[int, dict]:
@@ -480,14 +562,16 @@ def execute(config: Path, make_client, *, kind: str, out: Path) -> tuple[int, di
     unfinished = [e["attempt"] for e in audit if e["outcome"] in unfinished_outcomes]
     wrong_set = [e["attempt"] for e in audit if e["outcome"] != "no_attempt_seen_before_caller_timeout"
                  and e["requested_source_ids"] != expected_sent]
-    failed = (stopped is not None or injection or bool(wrong_set) or bool(unfinished)
-              or any(c["result"] == "FAIL" for c in run.cases))
+    failed = (injection or bool(wrong_set) or bool(unfinished) or audit_obj.tripped is not None
+              or any(c["result"] == "FAIL" for c in run.cases)
+              or (stopped is not None and not any(c["result"] == "BLOCKED" for c in run.cases)))
+    blocked = any(c["result"] == "BLOCKED" for c in run.cases)
     summary.update(cases=run.cases, stopped_after=stopped, source_gate=audit_obj.tripped,
                    notebook_query_attempts=audit, attempt_count=len(audit),
                    sent_to_backend_count=sum(1 for e in audit if e["sent_to_backend"] is True),
                    injection_source_requested=injection, attempts_with_wrong_source_set=wrong_set,
                    unfinished_attempts=unfinished,
-                   status="FAIL" if failed else "PASS",
+                   status="FAIL" if failed else ("BLOCKED" if blocked else "PASS"),
                    utc_end=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
     summary = strip_text(summary)
     out.mkdir(parents=True, exist_ok=True)
@@ -496,7 +580,7 @@ def execute(config: Path, make_client, *, kind: str, out: Path) -> tuple[int, di
                                                               indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     summary["summary_file"] = str(out / f"stage-b-{stamp}.summary.json")
     Path(summary["summary_file"]).write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    return (1 if failed else 0), summary
+    return (1 if failed else (3 if blocked else 0)), summary
 
 
 def main() -> int:

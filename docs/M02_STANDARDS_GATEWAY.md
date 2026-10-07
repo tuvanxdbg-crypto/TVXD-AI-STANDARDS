@@ -340,6 +340,94 @@ Follow-up, GPT_REVIEW_V1 at `c85671a`:
     only P5, P11 and the P8 recovery, the run FAILs, and the summary file is unchanged.
   - Both fail against the previous runner, which reported `PASS` and sent the late call.
 
+## 17. B2 live result review — GPT_REVIEW_V1 at `17090da` (PATCH_REQUIRED, F13 and F14)
+
+**F13 [BLOCKER], live citation shape.**
+- `notebooklm-mcp-cli==0.15.1` returns:
+  - `citations`: `{citation_number: source_id}`;
+  - `references`: `[{source_id, citation_number, cited_text}]`;
+  - `sources_used`: the unique citation values.
+- The old parser accepted only object items with `source_id`, so every live answer was discarded as unattributed.
+- Fix: `check_citations()` in `gateway/adapters/notebooklm.py` normalizes all three containers strictly. The adapter
+  and the B2 runner's `Recorder` both use it.
+- Accepted shapes:
+  - the 0.15.1 shape, with int or decimal-string numbers, `cited_text` optional;
+  - the earlier object shape (`citations` as a list, or a dict of `{source_id, passage}`).
+- Each entry is checked on its own, and `sources_used` never vouches for a malformed citation.
+- Usable responses: one `Citation` per citation number, with the passage taken from the matching reference.
+- The whole response is discarded (F12: `CITED_SOURCE_NOT_WHITELISTED`, no answer, evidence, cache or `VERIFIED`)
+  on any of:
+  - **An id outside the queried source ids**, in any container. It is reported by id.
+  - **A missing or malformed id** (`<unattributed>`): non-string, empty or padded string, an item without
+    `source_id`, or a non-object reference.
+  - **A contradiction or malformed structure** (`<inconsistent>`):
+    - a bad citation number (not a positive integer, a leading zero, a bool, a duplicate);
+    - a reference whose number names another source or no citation;
+    - one number used for two sources;
+    - a cited in-scope id missing from a non-empty `sources_used`, or an in-scope `sources_used` id that nothing
+      cites;
+    - non-string `cited_text`;
+    - a container of the wrong type.
+
+**F14 [BLOCKER], P8 timing and process tree.**
+- Client errors name the MCP `method` and `phase` (`startup`, `queue`, `call`) and whether the request was written:
+  `sent` is `true` only once the write completed, `"not_confirmed"` for a partial write, `false` before it.
+- `Recorder` counts `sent_to_backend: true` only for a completely written `tools/call`. A timeout in `initialize`
+  or `tools/list` is `false`; the B2 attempt 4 was counted `true` from a bare `request_id`.
+- The server and all its descendants are contained:
+  - Windows: a kill-on-close job object assigned right after start, with no breakaway. A descendant found outside
+    the job after validation refuses the start.
+  - POSIX: a new session/process group.
+- Every teardown (retire, startup failure, replace, close) kills the tree, then verifies the wrapper exited and the
+  tree is empty (bounded wait).
+- `process_state()` records spawned processes, validated starts (initialize + exact four-tool `tools/list`) and
+  teardowns. These are pids, flags and timings only.
+- P8 changes:
+  - P8 waits, bounded by `P8_TERMINAL_WAIT_S`, until the timed-out attempt is terminal; otherwise it FAILs without
+    recovery.
+  - It then requires every process started for that attempt to be torn down with `verified: true`.
+  - Recovery must start a new pid that passed validation.
+  - If containment is unavailable (`tree_empty: null`), P8 is `BLOCKED`, never PASS. The run status is then
+    `BLOCKED`, exit code 3.
+  - A caller `TIMEOUT` with no attempt seen now FAILs P8 before recovery. The `c85671a` regression therefore expects
+    2 backend calls (P5, P11) instead of 3.
+
+Regressions: `tests/m02/test_gateway_f13_f14.py`, 22 tests.
+- **`F13CheckCitations` (9 tests):**
+  - exact shape with passages by number;
+  - int keys;
+  - earlier shape;
+  - out-of-scope ids in each container;
+  - six malformed id values plus reference and `sources_used` cases;
+  - `sources_used` cannot rescue a malformed citation;
+  - six contradictions, and malformed numbers, text and containers;
+  - the B2 live shape is no longer a trigger.
+- **`F13ServiceDiscard`:**
+  - the exact shape gives `FOUND`, `VERIFIED`, a verify result and a cache hit;
+  - six bad variants are each discarded, with no answer or passage in the response or logs, no registry entry, and
+    no cache.
+- **`F14TimeoutDetails`:**
+  - a startup timeout records `initialize/startup` with `sent_to_backend: false` and the server never sees the
+    query;
+  - a call timeout records `tools/call` with `true`;
+  - the `sent_state` mapping.
+- **`F14ProcessTree`**, against `fake_uvx_wrapper.py` → `fake_mcp_server.py`, a two-process tree like
+  `uvx.exe` → `notebooklm-mcp`:
+  - retirement kills and verifies the wrapper and its child;
+  - recovery runs on a new validated pid;
+  - graceful close also verifies the tree;
+  - negative control: a wrapper-only kill gives `tree_empty: false`, and P8 FAILs;
+  - with containment off, P8 is `BLOCKED`;
+  - on Linux, a child in its own session refuses the start.
+- **`F14RunnerEndToEnd`:** the whole runner against the real MCP client and the stand-in.
+  - All six cases PASS with P10-A.
+  - The P8 startup-timeout variant has `sent_to_backend: false` and a verified teardown; the call-timeout variant
+    has `true`.
+- `test_gateway_pilot_stage_b.py` now uses the 0.15.1 shape in its fakes.
+
+Windows: the job-object code runs only on Windows, so these tests need an offline run on the owner's machine. Until
+that run passes, F14 on Windows stays unproven.
+
 ## Appendix — Issue #4 specification (verbatim)
 
 CLAUDE_EXECUTION_V1
