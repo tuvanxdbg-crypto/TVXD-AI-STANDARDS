@@ -39,6 +39,7 @@ import json
 import platform
 import sys
 import tempfile
+import threading
 import time
 from pathlib import Path
 
@@ -64,30 +65,76 @@ CTX = {"work_code": WORK_CODE, "assessment_date": DAY,
 
 
 PLANNED = ("P5", "P10", "P6", "P7", "P11", "P8")
+P11_EXTRA_INDEX_EDIT = None   # test seam only (tests/m02/test_gateway_pilot_stage_b.py); None in real runs
 
 
 class StopPilot(Exception):
     """A case FAILed: the plan stops the pilot before any further NotebookLM call."""
 
 
-class Recorder:
-    """Wraps a NotebookLM client. Every notebook_query attempt is appended to the shared audit BEFORE it is sent
-    (so a timeout or exception still leaves a record), then completed with the response shape: ids, key names,
-    counts. Never the answer text, passages or excerpts."""
+class Audit:
+    """Every notebook_query attempt of every client, and the per-attempt source gate."""
 
-    def __init__(self, inner, audit: list, label: str):
+    FINALIZE_WAIT_S = 10.0
+
+    def __init__(self, expected_sent: list[str]):
+        self.entries: list[dict] = []
+        self.expected = sorted(expected_sent)
+        self.tripped: str | None = None
+        self._done: dict[int, threading.Event] = {}
+        self._t0: dict[int, float] = {}
+
+    def open(self, client: str, notebook_id: str, requested: list[str]) -> dict:
+        entry = {"attempt": len(self.entries) + 1, "client": client, "notebook_id": notebook_id,
+                 "requested_source_ids": sorted(requested), "outcome": "in_flight", "sent_to_backend": None}
+        self.entries.append(entry)
+        self._done[entry["attempt"]] = threading.Event()
+        self._t0[entry["attempt"]] = time.monotonic()
+        return entry
+
+    def close(self, entry: dict, **fields) -> None:
+        entry.update(elapsed_ms=int((time.monotonic() - self._t0[entry["attempt"]]) * 1000), **fields)
+        self._done[entry["attempt"]].set()
+
+    def finalize(self) -> None:
+        """Bring every attempt to a terminal outcome before the summary is written: wait (bounded) for workers
+        that outlived a caller TIMEOUT; mark late completions; never leave 'in_flight'."""
+        deadline = time.monotonic() + self.FINALIZE_WAIT_S
+        for e in self.entries:
+            self._done[e["attempt"]].wait(max(0.0, deadline - time.monotonic()))
+            if e["outcome"] == "in_flight":
+                self.close(e, outcome="abandoned_unfinished")
+            timed_out = "TIMEOUT" in (e.get("caller_outcome") or "")
+            if timed_out and e["outcome"] in ("returned", "exception"):
+                e["outcome"] = e["outcome"] + "_after_caller_timeout"
+
+
+class Recorder:
+    """Wraps a NotebookLM client. Every notebook_query attempt is opened in the shared audit before anything is
+    sent; the per-attempt gate refuses (before transport) any attempt whose source set is not exactly the three
+    mapped ids or that contains the M01 injection source, and every attempt after the gate tripped. The record keeps
+    ids, key names, counts and timings only; never answer text, passages or excerpts."""
+
+    def __init__(self, inner, audit: Audit, label: str):
         self.inner, self.audit, self.label = inner, audit, label
 
     def notebook_query(self, notebook_id, query, source_ids):
-        entry = {"attempt": len(self.audit) + 1, "client": self.label, "notebook_id": notebook_id,
-                 "sent_source_ids": sorted(source_ids), "outcome": "in_flight"}
-        self.audit.append(entry)
-        t0 = time.monotonic()
+        audit = self.audit
+        entry = audit.open(self.label, notebook_id, list(source_ids))
+        requested = entry["requested_source_ids"]
+        if audit.tripped:
+            audit.close(entry, outcome="blocked_after_stop", sent_to_backend=False)
+            raise GatewayError("SOURCE_NOT_ALLOWED", "pilot stopped by the source gate")
+        if requested != audit.expected or INJECTION_SOURCE in requested:
+            audit.tripped = f"attempt {entry['attempt']} ({self.label}): source set is not exactly the mapped ids"
+            audit.close(entry, outcome="blocked_wrong_source_set", sent_to_backend=False)
+            raise GatewayError("SOURCE_NOT_ALLOWED", "source set is not exactly the three mapped ids")
         try:
             result = self.inner.notebook_query(notebook_id, query, source_ids)
         except BaseException as e:
-            entry.update(outcome="exception", exception=getattr(e, "code", None) or type(e).__name__,
-                         elapsed_ms=int((time.monotonic() - t0) * 1000))
+            details = getattr(e, "details", None) or {}
+            audit.close(entry, outcome="exception", exception=getattr(e, "code", None) or type(e).__name__,
+                        sent_to_backend=True if details.get("request_id") is not None else "not_confirmed")
             raise
         raw = result.get("citations") if isinstance(result, dict) else None
         items = list(raw.values()) if isinstance(raw, dict) else list(raw or [])
@@ -105,14 +152,14 @@ class Recorder:
         used = result.get("sources_used") if isinstance(result, dict) else None
         used_ids = sorted({u for u in (used or []) if isinstance(u, str) and u})
         unattributed = unattributed or any(not (isinstance(u, str) and u) for u in (used or []))
-        entry.update(
-            outcome="returned", elapsed_ms=int((time.monotonic() - t0) * 1000),
+        audit.close(
+            entry, outcome="returned", sent_to_backend=True,
             status=result.get("status") if isinstance(result, dict) else None,
             result_keys=sorted(result.keys()) if isinstance(result, dict) else [],
             citations_container=type(raw).__name__, citation_item_keys=sorted(item_keys),
             citation_count=len(items), cited_source_ids=sorted(cited), sources_used=used_ids,
             unattributed_citation=unattributed,
-            out_of_scope_source_ids=sorted((cited | set(used_ids)) - set(entry["sent_source_ids"])),
+            out_of_scope_source_ids=sorted((cited | set(used_ids)) - set(requested)),
             answer_chars=len(result.get("answer") or "") if isinstance(result, dict) else 0)
         return result
 
@@ -154,9 +201,28 @@ class Run:
         self.raw.append({"label": label, "response": payload})
 
 
+class GatedService(GatewayService):
+    """A GatewayService whose every tool call tags the attempts it caused with the caller-visible outcome and
+    raises StopPilot as soon as the per-attempt source gate has tripped, before any further call."""
+
+    def __init__(self, config, recorder: Recorder | None):
+        super().__init__(config, notebooklm_client=recorder, logger=JsonLogger(stream=io.StringIO(), level="info"))
+        self.audit = recorder.audit if recorder is not None else None
+
+    def call(self, tool, arguments):
+        n0 = len(self.audit.entries) if self.audit else 0
+        r = super().call(tool, arguments)
+        if self.audit:
+            tag = r["status"] + (":" + r["error"]["code"] if r.get("error") else "")
+            for e in self.audit.entries[n0:]:
+                e["caller_outcome"] = tag
+            if self.audit.tripped:
+                raise StopPilot("SOURCE_GATE")
+        return r
+
+
 def service(config: Path, client) -> GatewayService:
-    return GatewayService(load_config(config), notebooklm_client=client,
-                          logger=JsonLogger(stream=io.StringIO(), level="info"))
+    return GatedService(load_config(config), client)
 
 
 def write_temp(tmp: Path, config: Path, *, mode: str, index_edit=None, nb_overrides: dict | None = None) -> Path:
@@ -212,10 +278,11 @@ def lookup_ok(r: dict) -> bool:
     return r["status"] in ("FOUND", "UNKNOWN") or (r.get("error") or {}).get("code") == "CITED_SOURCE_NOT_WHITELISTED"
 
 
-def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit: list, expected_sent: list) -> None:
+def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_obj: Audit) -> None:
     """The B2 cases in plan order. Run.case raises StopPilot on the first FAIL, before any later call."""
+    audit, expected_sent = audit_obj.entries, audit_obj.expected
     main_client = make_client()
-    rec = Recorder(main_client, audit, "main")
+    rec = Recorder(main_client, audit_obj, "main")
     main_cfg = write_temp(tmp, config, mode=mode)
     svc = service(main_cfg, rec)
     try:
@@ -224,7 +291,7 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit: 
         r = svc.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
         run.keep("P5", r)
         mine = audit[n0:]
-        ok = (lookup_ok(r) and len(mine) == 1 and mine[0]["sent_source_ids"] == expected_sent
+        ok = (lookup_ok(r) and len(mine) == 1 and mine[0]["requested_source_ids"] == expected_sent
               and mine[0]["outcome"] == "returned")
         run.case("P5", "citation shape of a live semantic lookup (Q-S1)", "PASS" if ok else "FAIL",
                  "exactly one notebook_query sending exactly the 3 mapped source ids; status FOUND/UNKNOWN or "
@@ -295,7 +362,8 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit: 
             head, sep, rest = t.partition(f'sync: {{sha256: "{sha8794}"')
             assert sep, "TCVN 8794 sync entry not found"
             return head + "sync: null" + rest[rest.index("}") + 1:]   # first "}" closes the sync object
-        nosync = write_temp(tmp, config, mode=mode, index_edit=drop_sync)
+        edit11 = drop_sync if P11_EXTRA_INDEX_EDIT is None else (lambda t: P11_EXTRA_INDEX_EDIT(drop_sync(t)))
+        nosync = write_temp(tmp, config, mode=mode, index_edit=edit11)
         r11 = service(nosync, rec).call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
         run.keep("P11", r11)
         hits = [e for e in r11.get("results") or [] if e["DOCUMENT"]["id"] == "TCVN-8794-2011"]
@@ -314,7 +382,7 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit: 
 
     # P8: timeout recovery with a 1 s budget on a fresh client, then the same client with the normal budget
     client8 = make_client(slow=True)
-    rec8 = Recorder(client8, audit, "p8")
+    rec8 = Recorder(client8, audit_obj, "p8")
     try:
         tight = write_temp(tmp, config, mode=mode, nb_overrides={"timeout_s": 1, "max_attempts": 1, "total_budget_s": 1})
         r8 = service(tight, rec8).call("standards_lookup", {"query": Q_S1 + " (P8)", **copy.deepcopy(CTX)})
@@ -352,23 +420,30 @@ def execute(config: Path, make_client, *, kind: str, out: Path) -> tuple[int, di
         return 2, summary
     summary.update(pre)
     expected_sent = sorted(pre["mapped_source_ids"].values())
-    run, audit, stopped = Run(), [], None
+    audit_obj = Audit(expected_sent)
+    run, stopped = Run(), None
     with tempfile.TemporaryDirectory(prefix="m02-stage-b-") as tmp:
         try:
-            run_cases(run, config, Path(tmp), make_client, "mcp_stdio", audit, expected_sent)
+            run_cases(run, config, Path(tmp), make_client, "mcp_stdio", audit_obj)
         except StopPilot as e:
             stopped = str(e)
+    audit_obj.finalize()
+    audit = audit_obj.entries
     done = {c["id"] for c in run.cases}
     for cid in PLANNED:
         if cid not in done:
             run.cases.append({"id": cid, "case": "not run", "result": "NOT_RUN",
                               "expected": "-", "observed": {"stopped_after": stopped}})
-    injection = any(INJECTION_SOURCE in e["sent_source_ids"] for e in audit)
-    wrong_set = [e["attempt"] for e in audit if e["sent_source_ids"] != expected_sent]
-    failed = stopped is not None or injection or bool(wrong_set) or any(c["result"] == "FAIL" for c in run.cases)
-    summary.update(cases=run.cases, stopped_after=stopped, notebook_query_attempts=audit,
-                   attempt_count=len(audit), injection_source_sent=injection,
-                   attempts_with_wrong_source_set=wrong_set, status="FAIL" if failed else "PASS",
+    injection = any(INJECTION_SOURCE in e["requested_source_ids"] for e in audit)
+    wrong_set = [e["attempt"] for e in audit if e["requested_source_ids"] != expected_sent]
+    in_flight = [e["attempt"] for e in audit if e["outcome"] == "in_flight"]
+    failed = (stopped is not None or injection or bool(wrong_set) or bool(in_flight)
+              or any(c["result"] == "FAIL" for c in run.cases))
+    summary.update(cases=run.cases, stopped_after=stopped, source_gate=audit_obj.tripped,
+                   notebook_query_attempts=audit, attempt_count=len(audit),
+                   sent_to_backend_count=sum(1 for e in audit if e["sent_to_backend"] is True),
+                   injection_source_requested=injection, attempts_with_wrong_source_set=wrong_set,
+                   status="FAIL" if failed else "PASS",
                    utc_end=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
     summary = strip_text(summary)
     out.mkdir(parents=True, exist_ok=True)
@@ -407,7 +482,8 @@ def main() -> int:
         return 2
     for c in summary["cases"]:
         print(f"{c['result']:12} {c['id']:5} {c['case']}")
-    print(f"notebook_query attempts: {summary['attempt_count']}; injection source sent: {summary['injection_source_sent']}")
+    print(f"notebook_query attempts: {summary['attempt_count']} (sent to backend: {summary['sent_to_backend_count']}); "
+          f"source gate: {summary['source_gate'] or 'ok'}")
     print(f"STATUS: {summary['status']}" + (f" (stopped after {summary['stopped_after']})" if summary["stopped_after"] else ""))
     print(f"[stage-b] summary (committable): {summary['summary_file']}")
     return code

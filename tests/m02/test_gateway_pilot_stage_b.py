@@ -32,12 +32,17 @@ class StageBRunner(unittest.TestCase):
     def tearDownClass(cls):
         cls._tmp.cleanup()
 
-    def run_fake(self, scenario, config=None):
+    def tearDown(self):
+        sb.P11_EXTRA_INDEX_EDIT = None
+
+    def run_fake(self, scenario, config=None, prepare=None):
         made = []
 
         def make_client(slow=False):
             fake = sb.fake_client(scenario)
             fake.delay_s = 1.5 if slow else 0
+            if prepare:
+                prepare(fake)
             made.append(fake)
             return fake
         code, summary = sb.execute(config or self.config, make_client, kind=f"fake:{scenario}",
@@ -56,8 +61,10 @@ class StageBRunner(unittest.TestCase):
         self.assertEqual(s["attempt_count"], backend_calls)          # audit covers every call of every client
         self.assertEqual([a["client"] for a in s["notebook_query_attempts"]], ["main", "main", "p8", "p8"])
         expected = sorted(s["mapped_source_ids"].values())
-        self.assertTrue(all(a["sent_source_ids"] == expected for a in s["notebook_query_attempts"]))
-        self.assertEqual((s["injection_source_sent"], s["attempts_with_wrong_source_set"]), (False, []))
+        self.assertTrue(all(a["requested_source_ids"] == expected for a in s["notebook_query_attempts"]))
+        self.assertEqual((s["injection_source_requested"], s["attempts_with_wrong_source_set"], s["source_gate"]),
+                         (False, [], None))
+        self.assertEqual(s["sent_to_backend_count"], 4)
 
     def test_mixed_run_p10b_and_p7_not_observed_without_old_evidence(self):
         code, s, _ = self.run_fake("mixed")
@@ -67,7 +74,7 @@ class StageBRunner(unittest.TestCase):
                          ("PASS", "NOT_OBSERVED", "NOT_OBSERVED", "NOT_OBSERVED", "PASS"))
         p10 = next(c for c in s["cases"] if c["id"] == "P10")
         self.assertEqual(p10["observed"]["outcome"], "OUT_OF_SCOPE_OBSERVED")
-        self.assertFalse(s["injection_source_sent"])                 # cited by the backend, never sent
+        self.assertFalse(s["injection_source_requested"])            # cited by the backend, never sent
 
     def test_first_fail_stops_before_any_further_call(self):
         code, s, made = self.run_fake("auth")
@@ -77,6 +84,44 @@ class StageBRunner(unittest.TestCase):
         self.assertEqual(self.results(s), {"P5": "FAIL", "P10": "NOT_RUN", "P6": "NOT_RUN", "P7": "NOT_RUN",
                                            "P11": "NOT_RUN", "P8": "NOT_RUN"})
         self.assertEqual(s["notebook_query_attempts"][0]["outcome"], "returned")
+
+    def test_wrong_source_set_after_p5_is_blocked_before_transport_and_stops(self):
+        # P11's temporary INDEX maps TCVN 5575 to the injection source: the attempt must never reach the backend.
+        sb.P11_EXTRA_INDEX_EDIT = lambda t: t.replace("d54bb084-5c50-4cef-8979-6e909f791c1e", sb.INJECTION_SOURCE)
+        code, s, made = self.run_fake("clean")
+        self.assertEqual((code, s["status"], s["stopped_after"]), (1, "FAIL", "SOURCE_GATE"))
+        self.assertIn("attempt 2", s["source_gate"])
+        last = s["notebook_query_attempts"][-1]
+        self.assertEqual((last["outcome"], last["sent_to_backend"]), ("blocked_wrong_source_set", False))
+        self.assertIn(sb.INJECTION_SOURCE, last["requested_source_ids"])
+        self.assertEqual(sum(len(f.calls) for f in made), 1)        # only P5 reached the backend
+        self.assertEqual(len(made), 1)                               # the P8 client was never created
+        r = self.results(s)
+        self.assertEqual((r["P5"], r["P10"], r["P6"], r["P7"], r["P11"], r["P8"]),
+                         ("PASS", "PASS", "PASS", "PASS", "NOT_RUN", "NOT_RUN"))
+        self.assertEqual((s["injection_source_requested"], s["sent_to_backend_count"]), (True, 1))
+
+    def test_timeout_attempt_has_a_terminal_outcome_with_code_and_timing(self):
+        _, s, _ = self.run_fake("clean")
+        self.assertNotIn("in_flight", [a["outcome"] for a in s["notebook_query_attempts"]])
+        tight = s["notebook_query_attempts"][2]
+        self.assertEqual((tight["client"], tight["caller_outcome"], tight["outcome"]),
+                         ("p8", "ERROR:TIMEOUT", "returned_after_caller_timeout"))
+        self.assertGreaterEqual(tight["elapsed_ms"], 1000)
+        self.assertTrue(all("elapsed_ms" in a for a in s["notebook_query_attempts"]))
+
+    def test_exception_attempt_has_a_terminal_outcome_and_stops(self):
+        from gateway.errors import GatewayError
+
+        def prepare(fake):
+            fake.raise_with = [GatewayError("BACKEND_UNAVAILABLE", "fake transport failure", retryable=False)]
+        code, s, made = self.run_fake("clean", prepare=prepare)
+        self.assertEqual((code, s["stopped_after"]), (1, "P5"))
+        (a,) = s["notebook_query_attempts"]
+        self.assertEqual((a["outcome"], a["exception"], a["sent_to_backend"], a["caller_outcome"]),
+                         ("exception", "BACKEND_UNAVAILABLE", "not_confirmed", "ERROR:BACKEND_UNAVAILABLE"))
+        self.assertIn("elapsed_ms", a)
+        self.assertEqual(sum(len(f.calls) for f in made), 1)
 
     def test_refuses_before_any_client_when_injection_source_is_mapped(self):
         bad = self.root / "bad"

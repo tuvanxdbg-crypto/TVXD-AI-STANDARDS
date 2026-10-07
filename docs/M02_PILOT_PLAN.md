@@ -343,8 +343,14 @@ B2." (B0 approved; B1/B2 not approved.)
   - the first FAIL stops the run before any further NotebookLM call; later cases are `NOT_RUN`;
   - every `notebook_query` attempt of every client, P8 included, is audited before it is sent, so timeouts and
     exceptions are recorded too;
-  - the run FAILs if any attempt sent a source set other than exactly the three mapped ids, or ever sent the
-    injection source;
+  - per-attempt source gate (GPT_REVIEW_V1 at `221f300`): an attempt whose source set is not exactly the three
+    mapped ids, or that contains the injection source, is refused before transport (`blocked_wrong_source_set`,
+    `sent_to_backend: false`). The run then stops (`stopped_after: SOURCE_GATE`) before any further call, and any
+    later attempt would be `blocked_after_stop`;
+  - before the summary is written every attempt reaches a terminal outcome. The outcomes are `returned`,
+    `exception` (with code and timing), the `…_after_caller_timeout` variants for a worker that finished after the
+    caller got `TIMEOUT`, `blocked_*`, or `abandoned_unfinished` after a bounded wait. A final `in_flight` FAILs the
+    run. `sent_to_backend` is true, false or `not_confirmed`, e.g. for a failure before `tools/call`;
   - P5 requires exactly that set;
   - P7 is `NOT_OBSERVED`, not PASS, when P5 produced no NotebookLM evidence to verify.
 - Offline regressions: `tests/m02/test_gateway_pilot_stage_b.py`.
