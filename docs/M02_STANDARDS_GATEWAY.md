@@ -24,7 +24,7 @@ execution request, kept verbatim in the appendix) and the roadmap
 | Retry/timeout | `gateway/retry.py` | bounded attempts and total budget; only transient errors retried |
 | Logs | `gateway/logs.py` | whitelisted keys only; no query, context or source text |
 | Fixtures | `tests/m02/fixtures/` | fake library, `INDEX.yaml`, `INDEX.md`, config, fixture MCP config |
-| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 121 offline unit/contract tests (44 regressions for the review findings F1–F12 in `test_gateway_regressions.py`; 4 Windows-only junction/reparse controls in `test_gateway_windows.py`, skipped elsewhere) + real Claude Code checks on the fixture Gateway |
+| Tests | `tests/m02/test_gateway_*.py`, `tests/m02/m02_surface.py` | 127 offline unit/contract tests (45 in `test_gateway_regressions.py`: F1–F12 plus `SyncedAtPrecision`; 5 stage-B runner regressions in `test_gateway_pilot_stage_b.py`; 4 Windows-only junction/reparse controls in `test_gateway_windows.py`, skipped elsewhere) + real Claude Code checks on the fixture Gateway |
 | Windows runner | `scripts/m02/m02-tests.ps1` | fail-fast; `-WithClaude` adds the real Claude Code checks |
 
 ## 2. Implementation decisions
@@ -294,6 +294,22 @@ Against the pre-fix Gateway all five F11 tests fail (2 errors, 3 failures). `CLA
 | F12 [BLOCKER] citations outside the whitelist were dropped, but the full NotebookLM `ANSWER` was kept and attached to evidence from the allowed citations, so out-of-scope content (e.g. the M01 injection source) could shape a `FOUND`/`VERIFIED`, cached result | `NotebookLMAdapter.query` treats any citation or `sources_used` entry outside the queried source ids, or without a source id, as out of scope and returns no answer and no citations, only the out-of-scope ids. The service then raises `CITED_SOURCE_NOT_WHITELISTED` before any evidence is built, across all notebooks of the lookup, so nothing is returned, registered or cached | `test_gateway_regressions.F12OutOfScopeCitations`: mixed allowed + injection source, out-of-scope `sources_used`, unattributed citation (each: error, no answer/passage text in the response or logs, no registered evidence, the repeat lookup queries the backend again), the all-whitelisted control (`VERIFIED`, cached), and the adapter unit; `test_gateway_service.Semantic`: mixed response discarded, only-out-of-scope response, no-citation response `UNKNOWN`, queried-set control |
 
 Against the pre-fix Gateway the six new negative tests fail (5 errors, 1 failure); the controls pass on both.
+
+## 16. Stage B runner review — GPT_REVIEW_V1 at `32b8705` (PATCH_REQUIRED, runner gates and provenance)
+
+The Gateway code is unchanged. Two things did change:
+- **INDEX schema:** `sync.synced_at` now accepts a date (`YYYY-MM-DD`) as well as a date-time. Provenance known only
+  to the day is stored as a date, not padded with an invented time. `SyncedAtPrecision` checks this: a date and a
+  date-time are accepted, malformed values are `INDEX_INVALID`.
+- **Stage-B runner** `tests/m02/pilot_stage_b.py`:
+  - it stops at the first FAIL, before any further NotebookLM call;
+  - one audit records every `notebook_query` attempt of every client before it is sent, P8 and exceptions included;
+  - the injection-source and exact-source-set checks cover every attempt;
+  - P5 requires exactly the mapped source set;
+  - P7 is `NOT_OBSERVED` without old NotebookLM evidence.
+  `test_gateway_pilot_stage_b.py` covers these: the clean run audits all four attempts including P8, the mixed run
+  gives P10-B with P7 `NOT_OBSERVED`, an auth failure stops after one call, a mapped injection source is refused
+  before any client starts, and the summaries carry no text.
 
 ## Appendix — Issue #4 specification (verbatim)
 

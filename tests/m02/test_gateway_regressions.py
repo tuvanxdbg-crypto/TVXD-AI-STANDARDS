@@ -485,6 +485,25 @@ class F12OutOfScopeCitations(Base):
                          ("a", [QCVN_SRC], []))
 
 
+class SyncedAtPrecision(Base):
+    """B1 provenance (GPT_REVIEW_V1 at 32b8705): synced_at holds the precision actually known, never a padded time."""
+
+    def test_date_only_and_date_time_are_accepted_padding_garbage_is_not(self):
+        from gateway.index import parse_index
+        text = self.fx.index.read_text(encoding="utf-8")
+        old = 'synced_at: "2026-10-01T00:00:00Z"'
+        self.assertIn(old, text)
+        for value, ok in (('"2026-10-01"', True), ('"2026-10-01T08:15:00+07:00"', True),
+                          ('"2026-10-01 noon"', False), ('"01/10/2026"', False)):
+            raw = text.replace(old, f"synced_at: {value}", 1).encode("utf-8")
+            if ok:
+                self.assertTrue(parse_index(raw).documents, value)
+            else:
+                with self.assertRaises(GatewayError) as cm:
+                    parse_index(raw)
+                self.assertEqual(cm.exception.code, "INDEX_INVALID", value)
+
+
 class McpStandIn(unittest.TestCase):
     """McpStdioNotebookLMClient against tests/m02/fake_mcp_server.py (offline)."""
 

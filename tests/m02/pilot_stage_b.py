@@ -7,8 +7,13 @@ The committed config `docs/m02-pilot/gateway.pilot.stage-b.json` keeps `notebook
 the runner writes a temporary copy with `mode: mcp_stdio` (never committed); the Gateway then starts the M01 gated
 server from the project `.mcp.json` and refuses any tool surface other than the four M01 read tools. The runner
 itself only calls `standards_lookup` / `standards_verify`; the Gateway sends `notebook_query` with the mapped source
-ids only. No notebook_get, source_get_content, upload or change. `--fake clean|mixed` runs the same cases offline
-against tests/m02/fake_notebooklm.py (no Google contact), for dry runs on make_pilot_synthetic.py output.
+ids only. No notebook_get, source_get_content, upload or change. `--fake clean|mixed|auth` runs the same cases
+offline against tests/m02/fake_notebooklm.py (no Google contact), for dry runs on make_pilot_synthetic.py output.
+
+Gates: the first FAIL stops the run before any further NotebookLM call (later cases are NOT_RUN). Every
+notebook_query attempt from every client (P8 included) is recorded in one audit before it is sent, so a timeout or
+exception still leaves a record; the run FAILs if any attempt sent a source set other than exactly the three mapped
+ids, or ever sent the M01 injection source.
 
 Cases (plan §6b): P5 citation shape, P6 cold vs cache, P7 revoked notebook whitelist, P8 timeout recovery,
 P10 out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED or P10-B OUT_OF_SCOPE_OBSERVED), P11 no sync identity.
@@ -58,17 +63,32 @@ CTX = {"work_code": WORK_CODE, "assessment_date": DAY,
        "project_context": {"conditions": {"COND-TRUONG-TRUNG-HOC": True}}}   # COND-KET-CAU-THEP stays unset
 
 
-class Recorder:
-    """Wraps the NotebookLM client; records the response shape (ids, key names, counts), never text."""
+PLANNED = ("P5", "P10", "P6", "P7", "P11", "P8")
 
-    def __init__(self, inner):
-        self.inner = inner
-        self.queries: list[dict] = []
+
+class StopPilot(Exception):
+    """A case FAILed: the plan stops the pilot before any further NotebookLM call."""
+
+
+class Recorder:
+    """Wraps a NotebookLM client. Every notebook_query attempt is appended to the shared audit BEFORE it is sent
+    (so a timeout or exception still leaves a record), then completed with the response shape: ids, key names,
+    counts. Never the answer text, passages or excerpts."""
+
+    def __init__(self, inner, audit: list, label: str):
+        self.inner, self.audit, self.label = inner, audit, label
 
     def notebook_query(self, notebook_id, query, source_ids):
-        sent = sorted(source_ids)
+        entry = {"attempt": len(self.audit) + 1, "client": self.label, "notebook_id": notebook_id,
+                 "sent_source_ids": sorted(source_ids), "outcome": "in_flight"}
+        self.audit.append(entry)
         t0 = time.monotonic()
-        result = self.inner.notebook_query(notebook_id, query, source_ids)
+        try:
+            result = self.inner.notebook_query(notebook_id, query, source_ids)
+        except BaseException as e:
+            entry.update(outcome="exception", exception=getattr(e, "code", None) or type(e).__name__,
+                         elapsed_ms=int((time.monotonic() - t0) * 1000))
+            raise
         raw = result.get("citations") if isinstance(result, dict) else None
         items = list(raw.values()) if isinstance(raw, dict) else list(raw or [])
         cited, unattributed, item_keys = set(), False, set()
@@ -85,16 +105,15 @@ class Recorder:
         used = result.get("sources_used") if isinstance(result, dict) else None
         used_ids = sorted({u for u in (used or []) if isinstance(u, str) and u})
         unattributed = unattributed or any(not (isinstance(u, str) and u) for u in (used or []))
-        outside = sorted((cited | set(used_ids)) - set(sent))
-        self.queries.append({
-            "notebook_id": notebook_id, "sent_source_ids": sent, "elapsed_ms": int((time.monotonic() - t0) * 1000),
-            "status": result.get("status") if isinstance(result, dict) else None,
-            "result_keys": sorted(result.keys()) if isinstance(result, dict) else [],
-            "citations_container": type(raw).__name__, "citation_item_keys": sorted(item_keys),
-            "citation_count": len(items), "cited_source_ids": sorted(cited), "sources_used": used_ids,
-            "unattributed_citation": unattributed, "out_of_scope_source_ids": outside,
-            "answer_chars": len(result.get("answer") or "") if isinstance(result, dict) else 0,
-        })
+        entry.update(
+            outcome="returned", elapsed_ms=int((time.monotonic() - t0) * 1000),
+            status=result.get("status") if isinstance(result, dict) else None,
+            result_keys=sorted(result.keys()) if isinstance(result, dict) else [],
+            citations_container=type(raw).__name__, citation_item_keys=sorted(item_keys),
+            citation_count=len(items), cited_source_ids=sorted(cited), sources_used=used_ids,
+            unattributed_citation=unattributed,
+            out_of_scope_source_ids=sorted((cited | set(used_ids)) - set(entry["sent_source_ids"])),
+            answer_chars=len(result.get("answer") or "") if isinstance(result, dict) else 0)
         return result
 
     def notebook_list(self):                       # not used by the stage B cases
@@ -115,7 +134,10 @@ def fake_client(scenario: str):
               "passage": "Yêu cầu giả lập về chiếu sáng lớp học trường trung học."}]
     if scenario == "mixed":
         cites.append({"source_id": INJECTION_SOURCE, "passage": "(fake) chỉ dẫn nhúng"})
-    return FakeNotebookLM({NOTEBOOK: {"answer": "(fake) câu trả lời giả lập", "citations": cites}})
+    fake = FakeNotebookLM({NOTEBOOK: {"answer": "(fake) câu trả lời giả lập", "citations": cites}})
+    if scenario == "auth":       # every call reports an expired login -> AUTH_REQUIRED (P5 FAIL, pilot stops)
+        fake.fail_with = [{"status": "error", "error": "authentication expired, please sign in"}] * 10
+    return fake
 
 
 class Run:
@@ -125,6 +147,8 @@ class Run:
 
     def case(self, cid, desc, result, expected, observed):
         self.cases.append({"id": cid, "case": desc, "result": result, "expected": expected, "observed": observed})
+        if result == "FAIL":
+            raise StopPilot(cid)
 
     def keep(self, label, payload):
         self.raw.append({"label": label, "response": payload})
@@ -184,116 +208,176 @@ def preconditions(config: Path) -> dict:
                          "total_budget_s": cfg.notebooklm.total_budget_s}}
 
 
-def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, recorder: Recorder) -> None:
+def lookup_ok(r: dict) -> bool:
+    return r["status"] in ("FOUND", "UNKNOWN") or (r.get("error") or {}).get("code") == "CITED_SOURCE_NOT_WHITELISTED"
+
+
+def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit: list, expected_sent: list) -> None:
+    """The B2 cases in plan order. Run.case raises StopPilot on the first FAIL, before any later call."""
+    main_client = make_client()
+    rec = Recorder(main_client, audit, "main")
     main_cfg = write_temp(tmp, config, mode=mode)
-    svc = service(main_cfg, recorder)
+    svc = service(main_cfg, rec)
+    try:
+        # P5: citation shape; the single query must send exactly the three mapped source ids
+        n0 = len(audit)
+        r = svc.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
+        run.keep("P5", r)
+        mine = audit[n0:]
+        ok = (lookup_ok(r) and len(mine) == 1 and mine[0]["sent_source_ids"] == expected_sent
+              and mine[0]["outcome"] == "returned")
+        run.case("P5", "citation shape of a live semantic lookup (Q-S1)", "PASS" if ok else "FAIL",
+                 "exactly one notebook_query sending exactly the 3 mapped source ids; status FOUND/UNKNOWN or "
+                 "CITED_SOURCE_NOT_WHITELISTED", {**resp_summary(r), "attempts": [e["attempt"] for e in mine]})
+        p5 = r
 
-    # P5: citation shape (Q-S1 without document_id, semantic route over the three mapped sources)
-    n0 = len(recorder.queries)
-    r = svc.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
-    run.keep("P5", r)
-    ok_status = r["status"] in ("FOUND", "UNKNOWN") or (r.get("error") or {}).get("code") == "CITED_SOURCE_NOT_WHITELISTED"
-    run.case("P5", "citation shape of a live semantic lookup (Q-S1)",
-             "PASS" if ok_status and len(recorder.queries) == n0 + 1 else "FAIL",
-             "one notebook_query with the 3 mapped source ids; status FOUND/UNKNOWN or CITED_SOURCE_NOT_WHITELISTED",
-             {**resp_summary(r), "query_shape": recorder.queries[n0:]})
-    p5 = r
+        # P10: out-of-scope boundary, from the P5 attempt
+        observed = any(e.get("out_of_scope_source_ids") or e.get("unattributed_citation") for e in mine)
+        if not observed:
+            run.case("P10", "out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED)", "PASS",
+                     "every cited/used id in the sent source_ids; live F12 branch not triggered (offline regressions apply)",
+                     {"outcome": "OUT_OF_SCOPE_NOT_OBSERVED", "attempts": [e["attempt"] for e in mine]})
+        else:
+            before = len(audit)
+            again = svc.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
+            run.keep("P10 repeat", again)
+            discarded = all(x["status"] == "ERROR" and (x.get("error") or {}).get("code") == "CITED_SOURCE_NOT_WHITELISTED"
+                            and not x.get("results") for x in (p5, again))
+            run.case("P10", "out-of-scope boundary (P10-B OUT_OF_SCOPE_OBSERVED)",
+                     "PASS" if discarded and len(audit) == before + 1 else "FAIL",
+                     "CITED_SOURCE_NOT_WHITELISTED, no answer/evidence, not cached (repeat queries again), 0 VERIFIED",
+                     {"outcome": "OUT_OF_SCOPE_OBSERVED", "first": resp_summary(p5), "repeat": resp_summary(again),
+                      "attempts": [e["attempt"] for e in audit[n0:]]})
 
-    # P10: out-of-scope boundary, classified from every notebook_query of the run so far
-    shapes = recorder.queries[n0:]
-    observed = any(q["out_of_scope_source_ids"] or q["unattributed_citation"] for q in shapes)
-    if not observed:
-        run.case("P10", "out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED)", "PASS",
-                 "every cited/used id is in the sent source_ids; live F12 branch not triggered (offline regressions apply)",
-                 {"outcome": "OUT_OF_SCOPE_NOT_OBSERVED", "sent": [q["sent_source_ids"] for q in shapes],
-                  "cited": [q["cited_source_ids"] for q in shapes], "used": [q["sources_used"] for q in shapes]})
-    else:
-        before = len(recorder.queries)
-        again = svc.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
-        run.keep("P10 repeat", again)
-        discarded = all(x["status"] == "ERROR" and (x.get("error") or {}).get("code") == "CITED_SOURCE_NOT_WHITELISTED"
-                        and not x.get("results") for x in (p5, again))
-        run.case("P10", "out-of-scope boundary (P10-B OUT_OF_SCOPE_OBSERVED)",
-                 "PASS" if discarded and len(recorder.queries) == before + 1 else "FAIL",
-                 "CITED_SOURCE_NOT_WHITELISTED, no answer/evidence, not cached (repeat queries again), 0 VERIFIED",
-                 {"outcome": "OUT_OF_SCOPE_OBSERVED", "first": resp_summary(p5), "repeat": resp_summary(again),
-                  "out_of_scope": [q["out_of_scope_source_ids"] for q in shapes]})
+        # P6: cold vs cache hit (needs a FOUND result from P5)
+        if p5["status"] == "FOUND":
+            before = len(audit)
+            hit = svc.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
+            run.keep("P6", hit)
+            ok = (len(audit) == before and hit["status"] == "FOUND"
+                  and all(e["RETRIEVAL_PATH"]["cache_hit"] for e in hit["results"])
+                  and [e["EVIDENCE_ID"] for e in hit["results"]] == [e["EVIDENCE_ID"] for e in p5["results"]])
+            run.case("P6", "same lookup again: cache hit, identity re-checked, no backend call", "PASS" if ok else "FAIL",
+                     "FOUND, cache_hit true, same EVIDENCE_IDs, no extra notebook_query", resp_summary(hit))
+        else:
+            run.case("P6", "cache hit", "NOT_OBSERVED", "needs a FOUND result in P5", {"p5_status": p5["status"]})
 
-    # P6: cold vs cache hit (needs a FOUND result from P5)
-    if p5["status"] == "FOUND":
-        before = len(recorder.queries)
-        hit = svc.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
-        run.keep("P6", hit)
-        ok = (len(recorder.queries) == before and hit["status"] == "FOUND"
-              and all(e["RETRIEVAL_PATH"]["cache_hit"] for e in hit["results"])
-              and [e["EVIDENCE_ID"] for e in hit["results"]] == [e["EVIDENCE_ID"] for e in p5["results"]])
-        run.case("P6", "same lookup again: cache hit, identity re-checked, no backend call", "PASS" if ok else "FAIL",
-                 "FOUND, cache_hit true, same EVIDENCE_IDs, no extra notebook_query", resp_summary(hit))
-    else:
-        run.case("P6", "cache hit", "NOT_OBSERVED", "needs a FOUND result in P5", {"p5_status": p5["status"]})
+        # P7: notebook removed from the whitelist (temporary INDEX copy); both halves are required for PASS
+        revoked = write_temp(tmp, config, mode=mode, index_edit=lambda t: t.replace(
+            f'notebooklm_notebooks: ["{NOTEBOOK}"]', "notebooklm_notebooks: []"))
+        svc7 = service(revoked, rec)
+        before = len(audit)
+        r7 = svc7.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
+        run.keep("P7 lookup", r7)
+        reasons = {x["document_id"]: x["reason"] for x in r7.get("excluded", [])}
+        lookup_part = (r7["status"] == "UNKNOWN" and not r7["results"] and len(audit) == before
+                       and all(reasons.get(d) == "NOTEBOOK_NOT_WHITELISTED" for d in PILOT_DOCS))
+        obs = {"lookup": resp_summary(r7)}
+        nb_ev = [e for e in p5.get("results") or [] if e["RETRIEVAL_PATH"]["route"] != "LOCAL"]
+        if not lookup_part:
+            result = "FAIL"
+        elif not nb_ev:
+            result = "NOT_OBSERVED"   # no old NotebookLM evidence to verify: the MAPPING half did not occur
+            obs["verify"] = "no NotebookLM evidence from P5"
+        else:
+            v7 = svc7.call("standards_verify", {"evidence": copy.deepcopy(nb_ev[0]), **copy.deepcopy(CTX)})
+            run.keep("P7 verify", v7)
+            mapping = {c["name"]: c["result"] for c in v7["checks"]}.get("MAPPING")
+            result = "PASS" if v7["status"] == "FAILED" and mapping == "FAIL" and len(audit) == before else "FAIL"
+            obs["verify"] = resp_summary(v7)
+        run.case("P7", "revoked notebook whitelist: excluded, no backend call; old evidence FAILED (MAPPING)", result,
+                 "UNKNOWN, all NOTEBOOK_NOT_WHITELISTED, 0 calls; old NotebookLM evidence verify FAILED (MAPPING)", obs)
 
-    # P7: notebook removed from the whitelist (temporary INDEX copy)
-    revoked = write_temp(tmp, config, mode=mode, index_edit=lambda t: t.replace(f'notebooklm_notebooks: ["{NOTEBOOK}"]',
-                                                                            "notebooklm_notebooks: []"))
-    svc7 = service(revoked, recorder)
-    before = len(recorder.queries)
-    r7 = svc7.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
-    run.keep("P7 lookup", r7)
-    reasons = {x["document_id"]: x["reason"] for x in r7.get("excluded", [])}
-    ok = (r7["status"] == "UNKNOWN" and not r7["results"] and len(recorder.queries) == before
-          and all(reasons.get(d) == "NOTEBOOK_NOT_WHITELISTED" for d in PILOT_DOCS))
-    obs = {"lookup": resp_summary(r7)}
-    nb_ev = [e for e in p5.get("results") or [] if e["RETRIEVAL_PATH"]["route"] != "LOCAL"]
-    if nb_ev:
-        v7 = svc7.call("standards_verify", {"evidence": copy.deepcopy(nb_ev[0]),
-                                             **{k: v for k, v in CTX.items()}})
-        run.keep("P7 verify", v7)
-        ok = ok and v7["status"] == "FAILED" and {c["name"]: c["result"] for c in v7["checks"]}.get("MAPPING") == "FAIL"
-        obs["verify"] = resp_summary(v7)
-    run.case("P7", "revoked notebook whitelist: excluded, no backend call; old evidence FAILED (MAPPING)",
-             "PASS" if ok else "FAIL", "UNKNOWN, all NOTEBOOK_NOT_WHITELISTED, 0 calls; verify FAILED", obs)
+        # P11: no sync identity for TCVN 8794 (temporary INDEX copy)
+        sha8794 = load_index(load_config(config).index_path).documents["TCVN-8794-2011"].versions[0].sha256
 
-    # P11: no sync identity for TCVN 8794 (temporary INDEX copy)
-    sha8794 = load_index(load_config(config).index_path).documents["TCVN-8794-2011"].versions[0].sha256
-
-    def drop_sync(t: str) -> str:
-        return t.replace(f'sync: {{sha256: "{sha8794}", synced_at: "2026-10-06T00:00:00Z"}}', "sync: null", 1)
-    nosync = write_temp(tmp, config, mode=mode, index_edit=drop_sync)
-    r11 = service(nosync, recorder).call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
-    run.keep("P11", r11)
-    hits = [e for e in r11.get("results") or [] if e["DOCUMENT"]["id"] == "TCVN-8794-2011"]
-    if hits:
-        ok = all(e["STATUS"] != "VERIFIED" and "SYNC_IDENTITY_MISSING" in [u["code"] for u in e["UNCERTAINTY"]]
-                 for e in hits)
-        run.case("P11", "source without sync identity is never VERIFIED", "PASS" if ok else "FAIL",
-                 "TCVN 8794 results UNKNOWN with SYNC_IDENTITY_MISSING", resp_summary(r11))
-    else:
-        run.case("P11", "source without sync identity", "NOT_OBSERVED" if r11["status"] != "ERROR" or
-                 (r11.get("error") or {}).get("code") == "CITED_SOURCE_NOT_WHITELISTED" else "FAIL",
-                 "needs a TCVN 8794 citation; none in this response", resp_summary(r11))
+        def drop_sync(t: str) -> str:
+            head, sep, rest = t.partition(f'sync: {{sha256: "{sha8794}"')
+            assert sep, "TCVN 8794 sync entry not found"
+            return head + "sync: null" + rest[rest.index("}") + 1:]   # first "}" closes the sync object
+        nosync = write_temp(tmp, config, mode=mode, index_edit=drop_sync)
+        r11 = service(nosync, rec).call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
+        run.keep("P11", r11)
+        hits = [e for e in r11.get("results") or [] if e["DOCUMENT"]["id"] == "TCVN-8794-2011"]
+        if hits:
+            ok = all(e["STATUS"] != "VERIFIED" and "SYNC_IDENTITY_MISSING" in [u["code"] for u in e["UNCERTAINTY"]]
+                     for e in hits)
+            run.case("P11", "source without sync identity is never VERIFIED", "PASS" if ok else "FAIL",
+                     "TCVN 8794 results UNKNOWN with SYNC_IDENTITY_MISSING", resp_summary(r11))
+        else:
+            run.case("P11", "source without sync identity", "NOT_OBSERVED" if lookup_ok(r11) else "FAIL",
+                     "needs a TCVN 8794 citation; none in this response", resp_summary(r11))
+    finally:
+        close = getattr(main_client, "close", None)
+        if close:
+            close()
 
     # P8: timeout recovery with a 1 s budget on a fresh client, then the same client with the normal budget
-    client8 = make_client()
-    rec8 = Recorder(client8)
-    tight = write_temp(tmp, config, mode=mode, nb_overrides={"timeout_s": 1, "max_attempts": 1, "total_budget_s": 1})
-    r8 = service(tight, rec8).call("standards_lookup", {"query": Q_S1 + " (P8)", **copy.deepcopy(CTX)})
-    run.keep("P8 tight", r8)
-    timed_out = (r8.get("error") or {}).get("code") == "TIMEOUT"
-    proc = getattr(client8, "_proc", None)
-    retired = proc is None or proc.poll() is not None
-    r8b = service(main_cfg, rec8).call("standards_lookup", {"query": Q_S1 + " (P8)", **copy.deepcopy(CTX)})
-    run.keep("P8 recover", r8b)
-    recovered = r8b["status"] in ("FOUND", "UNKNOWN") or (r8b.get("error") or {}).get("code") == "CITED_SOURCE_NOT_WHITELISTED"
-    if timed_out:
-        result = "PASS" if retired and recovered else "FAIL"
-    else:
-        result = "NOT_OBSERVED" if r8["status"] != "ERROR" else "FAIL"
-    run.case("P8", "1 s budget: structured TIMEOUT, process retired; next call on a fresh validated server", result,
-             "TIMEOUT, server process gone, next lookup completes", {"tight": resp_summary(r8),
-             "process_retired": retired, "recover": resp_summary(r8b)})
-    close = getattr(client8, "close", None)
-    if close:
-        close()
+    client8 = make_client(slow=True)
+    rec8 = Recorder(client8, audit, "p8")
+    try:
+        tight = write_temp(tmp, config, mode=mode, nb_overrides={"timeout_s": 1, "max_attempts": 1, "total_budget_s": 1})
+        r8 = service(tight, rec8).call("standards_lookup", {"query": Q_S1 + " (P8)", **copy.deepcopy(CTX)})
+        run.keep("P8 tight", r8)
+        timed_out = (r8.get("error") or {}).get("code") == "TIMEOUT"
+        proc = getattr(client8, "_proc", None)
+        retired = proc is None or proc.poll() is not None
+        if not timed_out:
+            run.case("P8", "1 s budget: structured TIMEOUT", "NOT_OBSERVED" if lookup_ok(r8) else "FAIL",
+                     "TIMEOUT (the backend answered within 1 s, so the timeout path did not occur)", resp_summary(r8))
+            return
+        if hasattr(client8, "delay_s"):
+            client8.delay_s = 0          # fake only: the recovery call answers in time
+        r8b = service(main_cfg, rec8).call("standards_lookup", {"query": Q_S1 + " (P8)", **copy.deepcopy(CTX)})
+        run.keep("P8 recover", r8b)
+        run.case("P8", "1 s budget: structured TIMEOUT, process retired; next call on a fresh validated server",
+                 "PASS" if retired and lookup_ok(r8b) else "FAIL", "TIMEOUT, server process gone, next lookup completes",
+                 {"tight": resp_summary(r8), "process_retired": retired, "recover": resp_summary(r8b)})
+    finally:
+        close = getattr(client8, "close", None)
+        if close:
+            close()
+
+
+def execute(config: Path, make_client, *, kind: str, out: Path) -> tuple[int, dict]:
+    """Preconditions, the cases (stopping at the first FAIL), the audit, and the two output files."""
+    started = dt.datetime.now(dt.timezone.utc)
+    summary = {"check": "m02-stage-b", "kind": kind, "head": git_head(),
+               "utc_start": started.isoformat(timespec="seconds"), "python": platform.python_version(),
+               "platform": platform.platform(), "query": "Q-S1", "assessment_date": DAY, "work_code": WORK_CODE}
+    try:
+        pre = preconditions(config)
+    except (Refused, GatewayError) as e:
+        summary.update(status="REFUSED", reason=getattr(e, "code", None) or str(e))
+        return 2, summary
+    summary.update(pre)
+    expected_sent = sorted(pre["mapped_source_ids"].values())
+    run, audit, stopped = Run(), [], None
+    with tempfile.TemporaryDirectory(prefix="m02-stage-b-") as tmp:
+        try:
+            run_cases(run, config, Path(tmp), make_client, "mcp_stdio", audit, expected_sent)
+        except StopPilot as e:
+            stopped = str(e)
+    done = {c["id"] for c in run.cases}
+    for cid in PLANNED:
+        if cid not in done:
+            run.cases.append({"id": cid, "case": "not run", "result": "NOT_RUN",
+                              "expected": "-", "observed": {"stopped_after": stopped}})
+    injection = any(INJECTION_SOURCE in e["sent_source_ids"] for e in audit)
+    wrong_set = [e["attempt"] for e in audit if e["sent_source_ids"] != expected_sent]
+    failed = stopped is not None or injection or bool(wrong_set) or any(c["result"] == "FAIL" for c in run.cases)
+    summary.update(cases=run.cases, stopped_after=stopped, notebook_query_attempts=audit,
+                   attempt_count=len(audit), injection_source_sent=injection,
+                   attempts_with_wrong_source_set=wrong_set, status="FAIL" if failed else "PASS",
+                   utc_end=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
+    summary = strip_text(summary)
+    out.mkdir(parents=True, exist_ok=True)
+    stamp = started.strftime("%Y%m%d-%H%M%S")
+    (out / f"stage-b-{stamp}.raw.json").write_text(json.dumps({"head": summary["head"], "responses": run.raw},
+                                                              indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    summary["summary_file"] = str(out / f"stage-b-{stamp}.summary.json")
+    Path(summary["summary_file"]).write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    return (1 if failed else 0), summary
 
 
 def main() -> int:
@@ -301,67 +385,32 @@ def main() -> int:
     ap.add_argument("--config", type=Path, default=CONFIG)
     g = ap.add_mutually_exclusive_group(required=True)
     g.add_argument("--live", action="store_true", help="real NotebookLM via the M01 gated server (needs approval)")
-    g.add_argument("--fake", choices=("clean", "mixed"), help="offline fake backend (dry run)")
+    g.add_argument("--fake", choices=("clean", "mixed", "auth"), help="offline fake backend (dry run)")
     ap.add_argument("--out", type=Path, default=HERE / "evidence" / "local")
     args = ap.parse_args()
     config = args.config.resolve()
-    started = dt.datetime.now(dt.timezone.utc)
-    summary = {"check": "m02-stage-b", "kind": "live NotebookLM (M01 gated server)" if args.live else f"fake:{args.fake}",
-               "head": git_head(), "utc_start": started.isoformat(timespec="seconds"),
-               "python": platform.python_version(), "platform": platform.platform(), "query": "Q-S1",
-               "assessment_date": DAY, "work_code": WORK_CODE}
-    try:
-        summary.update(preconditions(config))
-    except (Refused, GatewayError) as e:
-        summary.update(status="REFUSED", reason=getattr(e, "code", None) or str(e))
-        print(json.dumps(summary, indent=2, ensure_ascii=False))
-        return 2
     cfg = load_config(config)
     if args.live:
-        def make_client():
+        def make_client(slow: bool = False):
             return McpStdioNotebookLMClient(cfg.notebooklm.mcp_config, cfg.notebooklm.server)
+        kind = "live NotebookLM (M01 gated server)"
     else:
-        def make_client():
+        def make_client(slow: bool = False):
             fake = fake_client(args.fake)
-            fake.delay_s = 0
+            fake.delay_s = 1.5 if slow else 0
             return fake
-    run = Run()
-    main_client = make_client()
-    recorder = Recorder(main_client)
-    with tempfile.TemporaryDirectory(prefix="m02-stage-b-") as tmp:
-        if not args.live:   # make the fake slow only for the tight-budget P8 call
-            orig = make_client
-
-            def make_client():
-                fake = orig()
-                fake.delay_s = 1.5
-                return fake
-        try:
-            run_cases(run, config, Path(tmp), make_client, "mcp_stdio", recorder)
-        finally:
-            close = getattr(main_client, "close", None)
-            if close:
-                close()
-    queries = recorder.queries
-    summary.update(cases=run.cases, notebook_queries=queries,
-                   injection_source_sent=any(INJECTION_SOURCE in q["sent_source_ids"] for q in queries),
-                   status="FAIL" if any(c["result"] == "FAIL" for c in run.cases) else "PASS",
-                   utc_end=dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"))
-    if summary["injection_source_sent"]:
-        summary["status"] = "FAIL"
-    summary = strip_text(summary)
-    args.out.mkdir(parents=True, exist_ok=True)
-    stamp = started.strftime("%Y%m%d-%H%M%S")
-    (args.out / f"stage-b-{stamp}.raw.json").write_text(json.dumps({"head": summary["head"], "responses": run.raw},
-                                                                   indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    sum_path = args.out / f"stage-b-{stamp}.summary.json"
-    sum_path.write_text(json.dumps(summary, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        kind = f"fake:{args.fake}"
+    code, summary = execute(config, make_client, kind=kind, out=args.out)
     sys.stdout.reconfigure(errors="backslashreplace")
-    for c in run.cases:
+    if code == 2:
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+        return 2
+    for c in summary["cases"]:
         print(f"{c['result']:12} {c['id']:5} {c['case']}")
-    print(f"STATUS: {summary['status']}")
-    print(f"[stage-b] summary (committable): {sum_path}")
-    return 0 if summary["status"] == "PASS" else 1
+    print(f"notebook_query attempts: {summary['attempt_count']}; injection source sent: {summary['injection_source_sent']}")
+    print(f"STATUS: {summary['status']}" + (f" (stopped after {summary['stopped_after']})" if summary["stopped_after"] else ""))
+    print(f"[stage-b] summary (committable): {summary['summary_file']}")
+    return code
 
 
 if __name__ == "__main__":

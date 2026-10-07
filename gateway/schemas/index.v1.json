@@ -318,8 +318,11 @@
                           "pattern": "^[0-9a-f]{64}$"
                         },
                         "synced_at": {
-                          "type": "string",
-                          "format": "date-time"
+                          "description": "When the NotebookLM source was uploaded/synced, at the precision actually known: a date-time when the instant is known, a date (YYYY-MM-DD) when only the day is known. Never pad a date with an invented time.",
+                          "anyOf": [
+                            {"type": "string", "format": "date-time"},
+                            {"type": "string", "format": "date"}
+                          ]
                         }
                       }
                     }

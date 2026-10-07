@@ -326,7 +326,8 @@ B2." (B0 approved; B1/B2 not approved.)
 - 4 sources: the three §2 titles, each exactly once, plus the M01 injection source, which is never mapped.
 
 **B1 prepared** (not run against NotebookLM): `m02-pilot/INDEX.pilot.stage-b.yaml`.
-- It is the stage A INDEX plus the B0 mapping, `sync.sha256` = §2 hashes (owner provenance), and the notebook whitelist.
+- It is the stage A INDEX plus the B0 mapping, `sync.sha256` = §2 hashes (owner provenance), `synced_at` =
+  `2026-10-06` (day precision), and the notebook whitelist.
 - `gateway.pilot.stage-b.json` points at it and stays `mode: disabled`.
 
 **B2 runner prepared, NOT approved:** `tests/m02/pilot_stage_b.py`.
@@ -337,7 +338,18 @@ B2." (B0 approved; B1/B2 not approved.)
 - It refuses to start unless the committed config is disabled, exactly the three documents and one notebook are
   whitelisted, every mapping has sync identity = INDEX hash, the injection source is unmapped, and the local hashes
   match.
-- `--fake clean|mixed` dry-runs it offline on `make_pilot_synthetic.py` output.
+- `--fake clean|mixed|auth` dry-runs it offline on `make_pilot_synthetic.py` output.
+- Gates (GPT_REVIEW_V1 at `32b8705`):
+  - the first FAIL stops the run before any further NotebookLM call; later cases are `NOT_RUN`;
+  - every `notebook_query` attempt of every client, P8 included, is audited before it is sent, so timeouts and
+    exceptions are recorded too;
+  - the run FAILs if any attempt sent a source set other than exactly the three mapped ids, or ever sent the
+    injection source;
+  - P5 requires exactly that set;
+  - P7 is `NOT_OBSERVED`, not PASS, when P5 produced no NotebookLM evidence to verify.
+- Offline regressions: `tests/m02/test_gateway_pilot_stage_b.py`.
+- `synced_at` in the stage-B INDEX is the owner's upload date at day precision (`2026-10-06`). The INDEX schema
+  accepts a date when the instant is unknown, so no time is invented.
 
 B2 run order after approval (owner machine, non-elevated; `$G` as in §6a):
 ```powershell
