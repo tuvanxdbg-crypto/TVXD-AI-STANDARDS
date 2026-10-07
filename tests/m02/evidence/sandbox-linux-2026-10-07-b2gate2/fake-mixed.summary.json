@@ -1,0 +1,341 @@
+{
+  "check": "m02-stage-b",
+  "kind": "fake:mixed",
+  "head": "38467cb53088c61cf8a445e493ef244c16638259",
+  "utc_start": "2026-10-07T08:15:38+00:00",
+  "python": "3.11.15",
+  "platform": "Linux-6.18.44-fc-v77-x86_64-with-glibc2.39",
+  "query": "Q-S1",
+  "assessment_date": "2026-10-06",
+  "work_code": "THIET-KE-DAN-DUNG",
+  "index_sha256": "b106947eabb4af07e537c1793e38fe0e532e2d8d920f249a5389f798fa70559b",
+  "mapped_source_ids": {
+    "LUAT-135-2025-QH15": "8b75af2d-4477-40fb-a67f-3ee10173c221",
+    "TCVN-5575-2024": "d54bb084-5c50-4cef-8979-6e909f791c1e",
+    "TCVN-8794-2011": "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+  },
+  "notebook": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+  "timeouts": {
+    "timeout_s": 60.0,
+    "max_attempts": 2,
+    "total_budget_s": 120.0
+  },
+  "cases": [
+    {
+      "id": "P5",
+      "case": "citation shape of a live semantic lookup (Q-S1)",
+      "result": "PASS",
+      "expected": "exactly one notebook_query sending exactly the 3 mapped source ids; status FOUND/UNKNOWN or CITED_SOURCE_NOT_WHITELISTED",
+      "observed": {
+        "status": "ERROR",
+        "notebooklm_calls": 1,
+        "timing_ms": 18,
+        "error": "CITED_SOURCE_NOT_WHITELISTED",
+        "missing_inputs_count": 0,
+        "results": [],
+        "attempts": [
+          1
+        ]
+      }
+    },
+    {
+      "id": "P10",
+      "case": "out-of-scope boundary (P10-B OUT_OF_SCOPE_OBSERVED)",
+      "result": "PASS",
+      "expected": "CITED_SOURCE_NOT_WHITELISTED, no answer/evidence, not cached (repeat queries again), 0 VERIFIED",
+      "observed": {
+        "outcome": "OUT_OF_SCOPE_OBSERVED",
+        "first": {
+          "status": "ERROR",
+          "notebooklm_calls": 1,
+          "timing_ms": 18,
+          "error": "CITED_SOURCE_NOT_WHITELISTED",
+          "missing_inputs_count": 0,
+          "results": []
+        },
+        "repeat": {
+          "status": "ERROR",
+          "notebooklm_calls": 1,
+          "timing_ms": 1,
+          "error": "CITED_SOURCE_NOT_WHITELISTED",
+          "missing_inputs_count": 0,
+          "results": []
+        },
+        "attempts": [
+          1,
+          2
+        ]
+      }
+    },
+    {
+      "id": "P6",
+      "case": "cache hit",
+      "result": "NOT_OBSERVED",
+      "expected": "needs a FOUND result in P5",
+      "observed": {
+        "p5_status": "ERROR"
+      }
+    },
+    {
+      "id": "P7",
+      "case": "revoked notebook whitelist: excluded, no backend call; old evidence FAILED (MAPPING)",
+      "result": "NOT_OBSERVED",
+      "expected": "UNKNOWN, all NOTEBOOK_NOT_WHITELISTED, 0 calls; old NotebookLM evidence verify FAILED (MAPPING)",
+      "observed": {
+        "lookup": {
+          "status": "UNKNOWN",
+          "notebooklm_calls": 0,
+          "timing_ms": 15,
+          "error": null,
+          "missing_inputs_count": 1,
+          "excluded": [
+            {
+              "document_id": "LUAT-135-2025-QH15",
+              "reason": "NOTEBOOK_NOT_WHITELISTED"
+            },
+            {
+              "document_id": "TCVN-5575-2024",
+              "reason": "NOTEBOOK_NOT_WHITELISTED"
+            },
+            {
+              "document_id": "TCVN-8794-2011",
+              "reason": "NOTEBOOK_NOT_WHITELISTED"
+            }
+          ],
+          "results": []
+        },
+        "verify": "no NotebookLM evidence from P5"
+      }
+    },
+    {
+      "id": "P11",
+      "case": "source without sync identity",
+      "result": "NOT_OBSERVED",
+      "expected": "needs a TCVN 8794 citation; none in this response",
+      "observed": {
+        "status": "ERROR",
+        "notebooklm_calls": 1,
+        "timing_ms": 17,
+        "error": "CITED_SOURCE_NOT_WHITELISTED",
+        "missing_inputs_count": 0,
+        "results": []
+      }
+    },
+    {
+      "id": "P8",
+      "case": "1 s budget: structured TIMEOUT, process retired; next call on a fresh validated server",
+      "result": "PASS",
+      "expected": "TIMEOUT, server process gone, next lookup completes",
+      "observed": {
+        "tight": {
+          "status": "ERROR",
+          "notebooklm_calls": 1,
+          "timing_ms": 1014,
+          "error": "TIMEOUT",
+          "missing_inputs_count": 0,
+          "results": []
+        },
+        "process_retired": true,
+        "recover": {
+          "status": "ERROR",
+          "notebooklm_calls": 1,
+          "timing_ms": 16,
+          "error": "CITED_SOURCE_NOT_WHITELISTED",
+          "missing_inputs_count": 0,
+          "results": []
+        }
+      }
+    }
+  ],
+  "stopped_after": null,
+  "source_gate": null,
+  "notebook_query_attempts": [
+    {
+      "attempt": 1,
+      "client": "main",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 0,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "status"
+      ],
+      "citations_container": "list",
+      "citation_item_keys": [
+        "passage",
+        "source_id"
+      ],
+      "citation_count": 2,
+      "cited_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "sources_used": [],
+      "unattributed_citation": false,
+      "out_of_scope_source_ids": [
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "answer_chars": 26,
+      "caller_outcome": "ERROR:CITED_SOURCE_NOT_WHITELISTED"
+    },
+    {
+      "attempt": 2,
+      "client": "main",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 0,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "status"
+      ],
+      "citations_container": "list",
+      "citation_item_keys": [
+        "passage",
+        "source_id"
+      ],
+      "citation_count": 2,
+      "cited_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "sources_used": [],
+      "unattributed_citation": false,
+      "out_of_scope_source_ids": [
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "answer_chars": 26,
+      "caller_outcome": "ERROR:CITED_SOURCE_NOT_WHITELISTED"
+    },
+    {
+      "attempt": 3,
+      "client": "main",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 0,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "status"
+      ],
+      "citations_container": "list",
+      "citation_item_keys": [
+        "passage",
+        "source_id"
+      ],
+      "citation_count": 2,
+      "cited_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "sources_used": [],
+      "unattributed_citation": false,
+      "out_of_scope_source_ids": [
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "answer_chars": 26,
+      "caller_outcome": "ERROR:CITED_SOURCE_NOT_WHITELISTED"
+    },
+    {
+      "attempt": 4,
+      "client": "p8",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned_after_caller_timeout",
+      "sent_to_backend": true,
+      "caller_outcome": "ERROR:TIMEOUT",
+      "elapsed_ms": 1500,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "status"
+      ],
+      "citations_container": "list",
+      "citation_item_keys": [
+        "passage",
+        "source_id"
+      ],
+      "citation_count": 2,
+      "cited_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "sources_used": [],
+      "unattributed_citation": false,
+      "out_of_scope_source_ids": [
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "answer_chars": 26
+    },
+    {
+      "attempt": 5,
+      "client": "p8",
+      "notebook_id": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+      "requested_source_ids": [
+        "8b75af2d-4477-40fb-a67f-3ee10173c221",
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "d54bb084-5c50-4cef-8979-6e909f791c1e"
+      ],
+      "outcome": "returned",
+      "sent_to_backend": true,
+      "elapsed_ms": 0,
+      "status": "success",
+      "result_keys": [
+        "answer",
+        "citations",
+        "status"
+      ],
+      "citations_container": "list",
+      "citation_item_keys": [
+        "passage",
+        "source_id"
+      ],
+      "citation_count": 2,
+      "cited_source_ids": [
+        "8ccb8115-f552-4ecb-b42a-f0ee093f1d08",
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "sources_used": [],
+      "unattributed_citation": false,
+      "out_of_scope_source_ids": [
+        "b710e565-91f6-49f1-bea6-a6783cbca9f4"
+      ],
+      "answer_chars": 26,
+      "caller_outcome": "ERROR:CITED_SOURCE_NOT_WHITELISTED"
+    }
+  ],
+  "attempt_count": 5,
+  "sent_to_backend_count": 5,
+  "injection_source_requested": false,
+  "attempts_with_wrong_source_set": [],
+  "status": "PASS",
+  "utc_end": "2026-10-07T08:15:40+00:00",
+  "summary_file": "<scratch>"
+}

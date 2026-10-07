@@ -1,0 +1,9 @@
+PASS         P5    citation shape of a live semantic lookup (Q-S1)
+PASS         P10   out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED)
+PASS         P6    same lookup again: cache hit, identity re-checked, no backend call
+PASS         P7    revoked notebook whitelist: excluded, no backend call; old evidence FAILED (MAPPING)
+PASS         P11   source without sync identity is never VERIFIED
+PASS         P8    1 s budget: structured TIMEOUT, process retired; next call on a fresh validated server
+notebook_query attempts: 4 (sent to backend: 4); source gate: ok
+STATUS: PASS
+[stage-b] summary (committable): <scratch>/synb/ev/stage-b-20261007-081536.summary.json

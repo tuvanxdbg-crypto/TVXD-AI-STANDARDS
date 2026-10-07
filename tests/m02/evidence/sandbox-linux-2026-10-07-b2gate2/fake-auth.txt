@@ -1,0 +1,9 @@
+FAIL         P5    citation shape of a live semantic lookup (Q-S1)
+NOT_RUN      P10   not run
+NOT_RUN      P6    not run
+NOT_RUN      P7    not run
+NOT_RUN      P11   not run
+NOT_RUN      P8    not run
+notebook_query attempts: 1 (sent to backend: 1); source gate: ok
+STATUS: FAIL (stopped after P5)
+[stage-b] summary (committable): <scratch>/synb/ev/stage-b-20261007-081540.summary.json
