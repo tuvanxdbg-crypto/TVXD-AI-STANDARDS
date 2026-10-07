@@ -86,14 +86,36 @@ class Audit:
         self._lock = threading.Lock()
         self.sealed = False
         self.late_after_seal = 0     # worker completions that arrived after the snapshot (never written into it)
+        self.refused_after_seal = 0  # attempts that tried to open after the seal: refused, never sent
 
-    def open(self, client: str, notebook_id: str, requested: list[str]) -> dict:
-        entry = {"attempt": len(self.entries) + 1, "client": client, "notebook_id": notebook_id,
-                 "requested_source_ids": sorted(requested), "outcome": "in_flight", "sent_to_backend": None}
-        self.entries.append(entry)
-        self._done[entry["attempt"]] = threading.Event()
-        self._t0[entry["attempt"]] = time.monotonic()
-        return entry
+    def open(self, client: str, notebook_id: str, requested: list[str]) -> dict | None:
+        """Atomically allocate and append an attempt, or refuse (None) once the audit is sealed. The caller must not
+        touch the transport when this returns None."""
+        with self._lock:
+            if self.sealed:
+                self.refused_after_seal += 1
+                return None
+            entry = {"attempt": len(self.entries) + 1, "client": client, "notebook_id": notebook_id,
+                     "requested_source_ids": sorted(requested), "outcome": "in_flight", "sent_to_backend": None}
+            self.entries.append(entry)
+            self._done[entry["attempt"]] = threading.Event()
+            self._t0[entry["attempt"]] = time.monotonic()
+            return entry
+
+    def placeholder(self, client: str, caller_outcome: str) -> None:
+        """A tool call that returned TIMEOUT before its worker opened any attempt: the worker may still try to send
+        later, so record it (fail-closed) instead of letting the run look clean."""
+        with self._lock:
+            if self.sealed:
+                return
+            n = len(self.entries) + 1
+            self.entries.append({"attempt": n, "client": client, "notebook_id": None, "requested_source_ids": [],
+                                 "outcome": "no_attempt_seen_before_caller_timeout",
+                                 "sent_to_backend": "not_confirmed", "caller_outcome": caller_outcome,
+                                 "elapsed_ms": 0})
+            self._done[n] = threading.Event()
+            self._done[n].set()
+            self._t0[n] = time.monotonic()
 
     def close(self, entry: dict, **fields) -> None:
         with self._lock:
@@ -135,6 +157,8 @@ class Recorder:
     def notebook_query(self, notebook_id, query, source_ids):
         audit = self.audit
         entry = audit.open(self.label, notebook_id, list(source_ids))
+        if entry is None:            # the audit is sealed: never reach the transport
+            raise GatewayError("SOURCE_NOT_ALLOWED", "stage B audit is sealed; attempt refused before transport")
         requested = entry["requested_source_ids"]
         if audit.tripped:
             audit.close(entry, outcome="blocked_after_stop", sent_to_backend=False)
@@ -222,14 +246,18 @@ class GatedService(GatewayService):
     def __init__(self, config, recorder: Recorder | None):
         super().__init__(config, notebooklm_client=recorder, logger=JsonLogger(stream=io.StringIO(), level="info"))
         self.audit = recorder.audit if recorder is not None else None
+        self.label = recorder.label if recorder is not None else None
 
     def call(self, tool, arguments):
         n0 = len(self.audit.entries) if self.audit else 0
         r = super().call(tool, arguments)
         if self.audit:
             tag = r["status"] + (":" + r["error"]["code"] if r.get("error") else "")
-            for e in self.audit.entries[n0:]:
+            new = self.audit.entries[n0:]
+            for e in new:
                 e["caller_outcome"] = tag
+            if not new and (r.get("error") or {}).get("code") == "TIMEOUT":
+                self.audit.placeholder(self.label, tag)
             if self.audit.tripped:
                 raise StopPilot("SOURCE_GATE")
         return r
@@ -448,8 +476,10 @@ def execute(config: Path, make_client, *, kind: str, out: Path) -> tuple[int, di
             run.cases.append({"id": cid, "case": "not run", "result": "NOT_RUN",
                               "expected": "-", "observed": {"stopped_after": stopped}})
     injection = any(INJECTION_SOURCE in e["requested_source_ids"] for e in audit)
-    wrong_set = [e["attempt"] for e in audit if e["requested_source_ids"] != expected_sent]
-    unfinished = [e["attempt"] for e in audit if e["outcome"] in ("in_flight", "abandoned_unfinished")]
+    unfinished_outcomes = ("in_flight", "abandoned_unfinished", "no_attempt_seen_before_caller_timeout")
+    unfinished = [e["attempt"] for e in audit if e["outcome"] in unfinished_outcomes]
+    wrong_set = [e["attempt"] for e in audit if e["outcome"] != "no_attempt_seen_before_caller_timeout"
+                 and e["requested_source_ids"] != expected_sent]
     failed = (stopped is not None or injection or bool(wrong_set) or bool(unfinished)
               or any(c["result"] == "FAIL" for c in run.cases))
     summary.update(cases=run.cases, stopped_after=stopped, source_gate=audit_obj.tripped,

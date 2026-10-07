@@ -128,6 +128,57 @@ class StageBRunner(unittest.TestCase):
         self.assertEqual(json.dumps(s, sort_keys=True, ensure_ascii=False), frozen)
         self.assertEqual(sum(len(f.calls) for f in made), calls)   # no call after the snapshot
 
+    def test_sealed_audit_refuses_a_late_open_before_transport(self):
+        from gateway.errors import GatewayError
+        audit = sb.Audit(["a", "b", "c"])
+        snapshot = audit.finalize()
+        fake = sb.fake_client("clean")
+        with self.assertRaises(GatewayError) as cm:
+            sb.Recorder(fake, audit, "late").notebook_query(sb.NOTEBOOK, "q", ["a", "b", "c"])
+        self.assertEqual(cm.exception.code, "SOURCE_NOT_ALLOWED")
+        self.assertEqual((fake.calls, audit.entries, snapshot, audit.refused_after_seal), ([], [], [], 1))
+
+    def test_worker_that_opens_only_after_the_seal_never_sends_and_run_cannot_pass(self):
+        import threading
+        sealed, late_done, holder = threading.Event(), threading.Event(), {}
+        orig_query, orig_finalize = sb.Recorder.notebook_query, sb.Audit.finalize
+        first_p8 = {"seen": False}
+
+        def delayed_query(rec, notebook_id, query, source_ids):
+            if rec.label == "p8" and not first_p8["seen"]:
+                first_p8["seen"] = True        # past the retry precheck, held by the "scheduler" until the seal
+                sealed.wait(20)
+                try:
+                    return orig_query(rec, notebook_id, query, source_ids)
+                except Exception as e:          # noqa: BLE001 - recorded for the assertions below
+                    holder["error"] = getattr(e, "code", type(e).__name__)
+                    raise
+                finally:
+                    late_done.set()
+            return orig_query(rec, notebook_id, query, source_ids)
+
+        def finalize_then_signal(audit):
+            snap = orig_finalize(audit)
+            sealed.set()
+            return snap
+        sb.Recorder.notebook_query, sb.Audit.finalize = delayed_query, finalize_then_signal
+        try:
+            code, s, made = self.run_fake("clean", slow_delay=0)
+            before = Path(s["summary_file"]).read_text(encoding="utf-8")
+            self.assertTrue(late_done.wait(20))
+        finally:
+            sb.Recorder.notebook_query, sb.Audit.finalize = orig_query, orig_finalize
+        self.assertEqual((code, s["status"]), (1, "FAIL"))
+        ph = [a for a in s["notebook_query_attempts"] if a["outcome"] == "no_attempt_seen_before_caller_timeout"]
+        self.assertEqual([(a["client"], a["caller_outcome"], a["sent_to_backend"]) for a in ph],
+                         [("p8", "ERROR:TIMEOUT", "not_confirmed")])
+        self.assertIn(ph[0]["attempt"], s["unfinished_attempts"])
+        self.assertEqual(holder.get("error"), "SOURCE_NOT_ALLOWED")      # the late open was refused
+        backend = [c for f in made for c in f.calls if c[0] == "notebook_query"]
+        self.assertEqual(len(backend), 3)                                  # P5, P11, P8 recovery only
+        self.assertEqual(sum(1 for a in s["notebook_query_attempts"] if a["sent_to_backend"] is True), 3)
+        self.assertEqual(Path(s["summary_file"]).read_text(encoding="utf-8"), before)
+
     def test_exception_attempt_has_a_terminal_outcome_and_stops(self):
         from gateway.errors import GatewayError
 

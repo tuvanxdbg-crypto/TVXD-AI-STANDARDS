@@ -354,6 +354,10 @@ B2." (B0 approved; B1/B2 not approved.)
   - GPT_REVIEW_V1 at `3ebef42`: the audit is sealed into an immutable snapshot before the summary is written, and
     a worker that finishes later cannot change it. Any attempt whose worker did not confirm completion within the
     wait (`abandoned_unfinished`, `sent_to_backend: not_confirmed`) FAILs the run (`unfinished_attempts`);
+  - GPT_REVIEW_V1 at `c85671a`: attempts are opened atomically under the audit lock. Once the audit is sealed, an
+    attempt is refused before transport (`refused_after_seal`). A tool call that returns `TIMEOUT` before its worker
+    opened any attempt leaves a `no_attempt_seen_before_caller_timeout` record (`sent_to_backend: not_confirmed`).
+    That record FAILs the run, so a worker that starts late can neither send unseen nor let the run PASS;
   - P5 requires exactly that set;
   - P7 is `NOT_OBSERVED`, not PASS, when P5 produced no NotebookLM evidence to verify.
 - Offline regressions: `tests/m02/test_gateway_pilot_stage_b.py`.
