@@ -606,6 +606,7 @@ class F8NoBackendWorkAfterTheBudget(McpStandIn):
 
     def test_reviewer_repro_no_query_after_timeout_return(self):
         c = self.started(self.client("--call-delay", "0.35"))
+        (first,) = c.process_state()["validated_starts"]
         a = adapter(c, timeout_s=0.05, max_attempts=2, total_budget_s=0.1)
         t0 = time.monotonic()
         self.assertCode(lambda: a.query("nb-fixture-001", "q", ["src-qcvn01-2024"]), "TIMEOUT")
@@ -615,8 +616,62 @@ class F8NoBackendWorkAfterTheBudget(McpStandIn):
         self.assertNoCallAfter(returned)
         self.assertGreaterEqual(len(self.calls()), 1)
         self.assertLessEqual(len(self.calls()), 2)          # at most one send per attempt, both within budget
-        self.assertIsNone(c._proc)                          # timed-out in-flight request: process retired
-        self.assertFalse(c._ready)
+        self.assertRetryLeftOnlyAValidatedIdleGeneration(c, first)
+
+    def assertRetryLeftOnlyAValidatedIdleGeneration(self, c, first: dict) -> None:
+        """GPT_REVIEW_V1 at 378d5f0 (option B): the generation whose tools/call was in flight is retired and
+        verified. A retry may legitimately start and validate a NEW generation whose deadline then passes before
+        tools/call (refused before sending, by design kept for reuse); if so it is a new pid, validated on the exact
+        four-tool surface, ready and idle, and its explicit close is verified too."""
+        st = c.process_state()
+        retired = [x for x in st["teardowns"] if x["pid"] == first["pid"]]
+        self.assertEqual([(x["reason"], x["verified"]) for x in retired], [("retire", True)])
+        if c._proc is None:
+            self.assertFalse(c._ready)
+            return
+        (kept,) = [x for x in st["validated_starts"] if x["pid"] == c._proc.pid]
+        self.assertNotEqual(kept["pid"], first["pid"])
+        self.assertGreater(kept["generation"], first["generation"])
+        self.assertEqual((kept["tools"], kept["escaped_processes"] in (0, None), c._ready, st["alive"]),
+                         (4, True, True, True))
+        c.close()
+        closed = [x for x in c.process_state()["teardowns"] if x["pid"] == kept["pid"]]
+        self.assertEqual([(x["reason"], x["verified"]) for x in closed], [("close", True)])
+
+    def test_retry_generation_validated_then_expired_before_send_is_kept_idle_and_closes_verified(self):
+        """Deterministic seam for the branch above: the retry's new generation passes initialize + tools/list, then
+        its attempt deadline passes before tools/call."""
+        from gateway.retry import run_with_timeout
+        c = self.started(self.client("--call-delay", "0.35"))
+        (first,) = c.process_state()["validated_starts"]
+        # attempt 1: tools/call in flight, then TIMEOUT: generation 1 retired
+        self.assertCode(lambda: adapter(c, timeout_s=0.05, max_attempts=1, total_budget_s=0.05).query(
+            "nb-fixture-001", "q", ["src-qcvn01-2024"]), "TIMEOUT")
+        deadline = time.monotonic() + 10
+        while c._lock.locked() and time.monotonic() < deadline:   # attempt 1's worker finishes its teardown
+            time.sleep(0.01)
+        returned = time.time()
+        c._start_timeout = 10.0                             # a slow machine still validates within the 3 s attempt
+        orig_start = c._start
+
+        def start_then_expire(dl=None):
+            orig_start(dl)                                  # the new generation is validated within the deadline
+            while dl is not None and not dl.done():         # ... and the deadline passes before tools/call
+                time.sleep(0.005)
+        c._start = start_then_expire
+        try:
+            with self.assertRaises(GatewayError) as cm:
+                run_with_timeout(lambda: c.notebook_query("nb-fixture-001", "q", ["src-qcvn01-2024"]), 3.0)
+            self.assertEqual(cm.exception.code, "TIMEOUT")
+            deadline = time.monotonic() + 10
+            while c._lock.locked() and time.monotonic() < deadline:   # the attempt's worker refuses and returns
+                time.sleep(0.01)
+        finally:
+            c._start = orig_start
+        self.assertEqual(self.calls(), ["call notebook_query"])      # only attempt 1's call ever reached the server
+        self.assertNoCallAfter(returned)
+        self.assertIsNotNone(c._proc)                                 # the branch occurred: a kept generation
+        self.assertRetryLeftOnlyAValidatedIdleGeneration(c, first)
 
     def test_queued_attempts_never_send_after_expiry(self):
         c = self.started(self.client())
