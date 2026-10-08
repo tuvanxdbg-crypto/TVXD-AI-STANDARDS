@@ -623,9 +623,14 @@ F8/F14, source/notebook scope, committed configs, pin, policy and permissions ar
   - `init_exactly_three_gateway_tools`
   - `gateway_lookup_called`
   - `only_gateway_tools_attempted`
+  - `exactly_one_lookup_and_no_other_tool` (added after the review at `62a3828`): the whole tool trace is exactly one
+    `standards_lookup`, optionally preceded by ToolSearch loading only `standards_lookup`. Any `standards_status`,
+    `standards_verify`, second lookup, raw NotebookLM, mutation or other tool attempt fails, as does any ToolSearch
+    for another tool or after the lookup
   - `lookup_contract_v2_from_fake_notebooklm`: lookup v2 schema, `tvxd.gateway.evidence/v2`, `TRUSTED_BY_POLICY`,
     the trust policy and the in-scope source location, with the canary in `EVIDENCE.text`
-  - `fake_notebooklm_query_only`: the fake server received `notebook_query` and nothing else
+  - `fake_notebooklm_exactly_one_query`: the fake server's call list is exactly `["notebook_query"]`
+    (a list, not a set, so duplicates fail)
   - `no_permission_denials`
   - `canary_file_absent`
   - `fixtures_and_policy_unchanged`: the fixture tree, `.mcp.json`, `.claude/settings.json`,
@@ -635,7 +640,7 @@ F8/F14, source/notebook scope, committed configs, pin, policy and permissions ar
   - `gateway_log_clean`: JSON lines, no canary or passage text
   - `verdict_ok`
   - `evidence_record_bounded`: the evidence keeps codes, ids and lengths. The canary appears only in the verdict.
-- **Offline tests without Claude Code: `test_gateway_surface_harness.py`, 9 tests.**
+- **Offline tests without Claude Code: `test_gateway_surface_harness.py`, 15 tests.**
   - The generated command, stderr wrapper included, runs the Gateway end to end against the fake server and
     returns v2 evidence with the canary.
   - The stderr log is clean.
@@ -644,8 +649,13 @@ F8/F14, source/notebook scope, committed configs, pin, policy and permissions ar
     - the disabled-backend response (the pre-v2 path) does not pass;
     - `lookup_ok` rejects v1 evidence, VERIFIED, UNKNOWN, a missing canary and an out-of-scope source or notebook;
     - `log_clean` rejects passage text and non-JSON lines;
-    - `allowed_use` rejects Bash, raw NotebookLM tools and ToolSearch for them.
-- **Count.** The M02 suite has 162 tests, the 153 of §18 plus these 9.
+    - `allowed_use` rejects Bash, raw NotebookLM tools and ToolSearch for them;
+    - `ToolTraceGate` (6 tests) runs the pure `evaluate_llm` on synthetic transcripts whose verdict self-reports
+      `instructions_followed: false`. An extra `standards_status` (with or without `probe_backend`, before or after
+      the lookup), an extra `standards_verify`, a duplicate or missing lookup, other tool attempts, and duplicate or
+      other backend calls each FAIL on their own check; the positive controls PASS.
+- **Count.** The M02 suite has 168 tests, the 153 of §18 plus these 15 (9 at `d026ec3`, 6 added after the review
+  at `62a3828`).
 - **Environment observation, not a Gateway change.** In the cloud sandbox, Claude Code 2.1.294 also loads plugin MCP
   servers synced from the account (`plugin:desktop-commander`, `plugin:playwright`, `plugin:finance:*`), despite
   `--tools= --strict-mcp-config`.
