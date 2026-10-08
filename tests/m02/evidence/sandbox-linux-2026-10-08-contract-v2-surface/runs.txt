@@ -1,0 +1,7 @@
+synced-plugins surface exit 1
+clean surface 1 exit 0
+clean surface 2 exit 0
+clean llm 1 exit 0
+clean llm 2 exit 0
+clean llm 3 exit 0
+done
