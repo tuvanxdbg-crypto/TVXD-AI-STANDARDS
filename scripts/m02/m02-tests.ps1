@@ -47,7 +47,7 @@ try {
     if ($WithClaude) {
         if (-not $env:MCP_TIMEOUT) { $env:MCP_TIMEOUT = '120000' }   # this process only
         Run-Step 'M02 model-visible surface (real Claude Code, fixture Gateway)' ($gw + @('tests/m02/m02_surface.py', 'surface'))
-        Run-Step 'M02 LLM data boundary (real Claude Code, fixture Gateway)' ($gw + @('tests/m02/m02_surface.py', 'llm'))
+        Run-Step 'M02 LLM data boundary (real Claude Code, fake NotebookLM via temporary Gateway config)' ($gw + @('tests/m02/m02_surface.py', 'llm'))
     }
 } catch {
     $failure = $_.Exception.Message
