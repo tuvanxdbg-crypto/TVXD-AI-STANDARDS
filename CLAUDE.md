@@ -50,13 +50,17 @@ Do not infer that a standard is applicable merely because it exists in NotebookL
 Do not make legal-validity or design-compliance conclusions in M01.
 
 ## Ngôn ngữ và múi giờ
-Mọi văn bản do AI viết trong repo (báo cáo, tài liệu nghiệm thu, comment review, mô tả PR, nội dung file quy ước) viết bằng tiếng Việt. Tên biến, lệnh, đường dẫn và thuật ngữ kỹ thuật giữ tiếng Anh khi cần.
+Quy tắc này áp dụng cho phần diễn giải và báo cáo do AI soạn: báo cáo, tài liệu nghiệm thu, comment review, mô tả PR, nội dung file quy ước. Phần này viết bằng tiếng Việt. Tên biến, lệnh, đường dẫn, tên trường, marker và thuật ngữ kỹ thuật giữ nguyên tiếng Anh khi cần.
 
-Mọi mốc thời gian ghi trong tài liệu (ngày nghiệm thu, hạn mốc, ngày review, log) dùng múi giờ UTC+7 (Asia/Bangkok), định dạng `YYYY-MM-DD HH:mm +07:00`.
+Thời điểm có giờ trong phần do AI soạn ghi theo UTC+7 (Asia/Bangkok), định dạng `YYYY-MM-DD HH:mm +07:00`. Ngày không kèm giờ ghi `YYYY-MM-DD`.
 
-Dữ liệu máy đọc (JSON, YAML, log có cấu trúc) giữ trường thời gian dạng ISO 8601 có offset `+07:00`.
+Không áp dụng cho các loại sau, giữ nguyên như nguồn:
+- Log và evidence gốc, output của công cụ, thời điểm do GitHub hoặc công cụ khác cung cấp, trích dẫn nguyên văn cần đối chiếu. Giữ nguyên ngôn ngữ và timestamp. Nếu cần, thêm diễn giải tiếng Việt hoặc giờ UTC+7 ở chỗ riêng, không ghi đè dữ liệu gốc.
+- JSON, YAML và log có cấu trúc. Mỗi trường thời gian theo schema hoặc contract của trường đó. Ví dụ trường `utc` trong `tests/m01/m01_probe.py` và `tests/m01/m01_lock.py` vẫn là UTC, không đổi sang `+07:00`. Trường mới không có contract riêng mà cần giờ UTC+7 thì ghi ISO 8601 không có dấu cách, ví dụ `2026-10-08T22:00:00+07:00`.
+- Ngày chỉ có ngày: giữ `YYYY-MM-DD`, không tự thêm giờ hay múi giờ khi nguồn không có.
+- Timestamp dạng số, thời lượng và đồng hồ monotonic: không đổi thành thời điểm lịch.
 
-Nội dung tiếng Anh hoặc múi giờ khác có sẵn chỉ đổi khi đang sửa đúng phần đó, không dịch hàng loạt trong PR này.
+Không sửa code, schema, runtime hay evidence lịch sử để khớp quy tắc trình bày này. Nội dung tiếng Anh hoặc múi giờ khác đã có chỉ đổi khi đang sửa đúng phần đó, không dịch hàng loạt.
 
 ## Security
 Never commit credentials, cookies, browser profiles, auth caches, tokens, secrets, or local NotebookLM session data.
