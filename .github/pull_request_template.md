@@ -13,7 +13,8 @@
 - [ ] No direct main-branch mutation
 - [ ] No CAD write capability introduced in M01
 
-## GPT_REVIEW_V1
+## REVIEW_V1
+REVIEWER_MODEL: GPT-6.1 Sol
 REVIEWED_COMMIT:
 DECISION:
 NEXT_ALLOWED_STEP:
