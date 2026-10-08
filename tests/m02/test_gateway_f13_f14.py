@@ -222,6 +222,13 @@ def kill_pid(pid: int) -> None:
         pass
 
 
+def no_containment_init(tree, proc) -> None:
+    """_ProcessTree.__init__ as when containment cannot be set up (e.g. _win_job_assign returned None): no job is
+    created, so none is closed. Closing a real kill-on-close job would kill the stand-in itself on Windows, which
+    is a different failure mode (GPT_REVIEW_V1 at 6b92227)."""
+    tree.proc, tree.kind, tree._job = proc, "none", None
+
+
 class StandIn(unittest.TestCase):
     """McpStdioNotebookLMClient against fake_uvx_wrapper.py -> fake_mcp_server.py (a two-process tree)."""
 
@@ -349,12 +356,7 @@ class F14ProcessTree(StandIn):
 
     def test_containment_unavailable_is_blocked_not_pass(self):
         orig = nlm._ProcessTree.__init__
-
-        def no_containment(self, proc):
-            orig(self, proc)
-            self.close()
-            self.kind = "none"
-        nlm._ProcessTree.__init__ = no_containment
+        nlm._ProcessTree.__init__ = no_containment_init
         try:
             c = self.client("--call-delay", "3")
             before = c.process_state()
@@ -389,16 +391,21 @@ class F14RunnerEndToEnd(StandIn):
     def tearDownClass(cls):
         cls._syn.cleanup()
 
-    def patch_nth_tree(self, n: int, change) -> list[int]:
-        """Apply `change(tree)` to the n-th _ProcessTree built from now on (1-based); returns the pids it hit.
+    def patch_nth_tree(self, n: int, change=None, *, unavailable: bool = False) -> list[int]:
+        """For the n-th _ProcessTree built from now on (1-based): build it without containment (`unavailable`), or
+        apply `change(tree)` after the real build. Returns the pids it hit.
         Run order: main client (1), P8 timed-out attempt (2), P8 recovery (3)."""
         orig, count, hit = nlm._ProcessTree.__init__, [0], []
 
         def patched(tree, proc):
-            orig(tree, proc)
             count[0] += 1
+            if count[0] == n and unavailable:
+                no_containment_init(tree, proc)
+            else:
+                orig(tree, proc)
             if count[0] == n:
-                change(tree)
+                if change:
+                    change(tree)
                 hit.append(proc.pid)
         nlm._ProcessTree.__init__ = patched
         self.addCleanup(setattr, nlm._ProcessTree, "__init__", orig)
@@ -444,14 +451,17 @@ class F14RunnerEndToEnd(StandIn):
             self.assertNotIn(leak, text)
 
     def test_recovery_containment_unavailable_is_blocked(self):
-        hit = self.patch_nth_tree(3, lambda tree: (tree.close(), setattr(tree, "kind", "none")))
+        hit = self.patch_nth_tree(3, unavailable=True)
         code, s, _ = self.run_runner(("--init-delay", "2.5", "--delay-once", str(self.dir / "once")))
         self.assertEqual((code, s["status"], s["stopped_after"]), (3, "BLOCKED", "P8"))
         p8 = next(c for c in s["cases"] if c["id"] == "P8")
         self.assertEqual(p8["result"], "BLOCKED")
-        (tight,), (rec,) = p8["observed"]["teardowns"], p8["observed"]["recover_teardowns"]
-        self.assertEqual((tight["verified"], rec["pid"], rec["containment"], rec["tree_empty"]),
-                         (True, hit[0], "none", None))           # the timed-out teardown was fine; recovery is not
+        (tight,) = p8["observed"]["teardowns"]
+        self.assertTrue(tight["verified"])                       # the timed-out teardown was fine; recovery is not
+        # select the recovery teardown by the patched pid (a valid client retry may add entries)
+        rec = [x for x in p8["observed"]["recover_teardowns"] if x["pid"] == hit[0]]
+        self.assertEqual(len(rec), 1)
+        self.assertEqual((rec[0]["containment"], rec[0]["tree_empty"], rec[0]["verified"]), ("none", None, False))
 
     def test_recovery_wrapper_exits_but_descendant_survives_is_fail(self):
         nlm._ProcessTree.VERIFY_S = 1.0
@@ -464,7 +474,12 @@ class F14RunnerEndToEnd(StandIn):
         (tight,), (rec,) = p8["observed"]["teardowns"], p8["observed"]["recover_teardowns"]
         self.assertEqual((tight["verified"], rec["pid"], rec["wrapper_exited"], rec["tree_empty"], rec["verified"]),
                          (True, hit[0], True, False, False))
-        self.assertTrue(pid_alive(self.sleepers()[-1]))          # the recovery server's descendant is still alive
+        # the verdict rests on the record above (measured before the job handle closes). After it: POSIX leaves
+        # the recovery server's descendant alive; on Windows closing the kill-on-close job is a backstop that ends it
+        if os.name == "nt":
+            self.assertFalse(pid_alive(self.sleepers()[-1]))
+        else:
+            self.assertTrue(pid_alive(self.sleepers()[-1]))
         self.assertFalse(pid_alive(self.sleepers()[0]))          # the timed-out server's one was killed with its tree
 
     def test_call_timeout_variant_counts_the_query_as_sent(self):
