@@ -417,7 +417,12 @@ M01 pin/config/policy are unchanged.
   - GPT_REVIEW_V1 at `8762641`: the recovery server is closed and its tree verified before the P8 result is
     decided, and both teardowns are in the P8 summary. Unverifiable recovery containment gives `BLOCKED`; a
     surviving descendant gives FAIL.
-- Validation: `tests/m02/evidence/sandbox-linux-2026-10-07-f13f14/` and `…-f14recovery/`. The Windows job-object path needs an offline
+- Validation: `tests/m02/evidence/sandbox-linux-2026-10-07-f13f14/` and `…-f14recovery/`.
+- Windows offline run, owner, ducdq, 2026-10-08, at `6ed225b`: `tests/m02/evidence/windows-ducdq-2026-10-08-f14/`.
+  - FAILED: 157 tests, 2 failures, 1 error. All three are negative tests whose simulation closes the kill-on-close
+    job handle.
+  - The job-object retire, close, recovery and both whole-runner P8 variants passed.
+  - F14 on Windows is not yet accepted; a test-only fix is proposed for review. No B2 run. The Windows job-object path needs an offline
   run on ducdq; until then F14 on Windows is unproven.
 
 B2 run order (owner machine, non-elevated; `$G` as in §6a):
