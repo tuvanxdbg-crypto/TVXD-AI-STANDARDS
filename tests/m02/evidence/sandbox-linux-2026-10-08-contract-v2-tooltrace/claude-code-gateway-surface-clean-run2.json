@@ -1,0 +1,22 @@
+{
+  "check": "m02-gateway-surface",
+  "kind": "real Claude Code, fixture Gateway (NotebookLM disabled)",
+  "mcp_config": "gateway.mcp.json",
+  "claude_code": "2.1.294 (Claude Code)",
+  "utc": "2026-10-08T18:35:50+00:00",
+  "status": "PASS",
+  "tools_visible_to_model": [
+    "mcp__tvxd-standards-gateway__standards_lookup",
+    "mcp__tvxd-standards-gateway__standards_status",
+    "mcp__tvxd-standards-gateway__standards_verify"
+  ],
+  "mcp_servers": [
+    {
+      "name": "tvxd-standards-gateway",
+      "status": "connected"
+    }
+  ],
+  "unexpected_tools": [],
+  "missing_tools": [],
+  "notebooklm_tools_visible": []
+}
