@@ -4,7 +4,7 @@
 F13: strict normalization of the notebooklm-mcp-cli 0.15.1 citation shape (citations {number: source_id},
 references [{source_id, citation_number, cited_text}], sources_used) and of the earlier object shape. In-scope,
 consistent responses become FOUND; any missing, malformed, contradictory or out-of-scope entry discards the whole
-response (CITED_SOURCE_NOT_WHITELISTED, no answer, evidence, cache or VERIFIED).
+response (CITED_SOURCE_NOT_WHITELISTED, no answer, evidence, cache or TRUSTED_BY_POLICY).
 
 F14: timeout details name the MCP method / phase and whether notebook_query's tools/call was written; P8 judges
 only a terminal attempt; teardown kills and verifies the whole server process tree (a uvx-like wrapper and its
@@ -143,15 +143,15 @@ class F13ServiceDiscard(reg.Base):
         fake = FakeNotebookLM({"nb-fixture-001": body})
         svc, logs = make_service(self.fx.config, client=fake)
         r = lookup(svc, query="khoảng cách trước tủ điện", **ELEC)
-        self.assertFalse(schema.check(r, "lookup.response.v1.json"))
+        self.assertFalse(schema.check(r, "lookup.response.v2.json"))
         return fake, svc, logs, r
 
-    def test_exact_015_shape_in_scope_found_verified_and_cached(self):
+    def test_exact_015_shape_in_scope_found_trusted_and_cached(self):
         fake, svc, _logs, r = self.run_lookup(shape_015([(QCVN, PASSAGE)], answer="(fake) trả lời"))
         self.assertEqual(r["status"], "FOUND")
         ev = r["results"][0]
-        self.assertEqual((ev["STATUS"], ev["RETRIEVAL_PATH"]["route"]), ("VERIFIED", "NOTEBOOKLM"))
-        self.assertEqual(self.verify(svc, ev)["status"], "VERIFIED")
+        self.assertEqual((ev["STATUS"], ev["RETRIEVAL_PATH"]["route"]), ("TRUSTED_BY_POLICY", "NOTEBOOKLM"))
+        self.assertEqual(self.verify(svc, ev)["status"], "TRUSTED_BY_POLICY")
         again = lookup(svc, query="khoảng cách trước tủ điện", **ELEC)
         self.assertEqual((len(fake.calls), again["results"][0]["RETRIEVAL_PATH"]["cache_hit"]), (1, True))
 

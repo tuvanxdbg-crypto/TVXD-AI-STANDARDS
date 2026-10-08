@@ -1,9 +1,131 @@
 # M02 — Standards Gateway (offline-first)
 
-Status: **IN_PROGRESS / OFFLINE_VALIDATED candidate**. The Gateway core, adapters, schemas and
-tests are built and run against **fixture data only**. This is not an M02 overall PASS. Real
-library pilot, live NotebookLM calls from the Gateway, merge, M03 and AutoCAD are **not
-authorized** in this round.
+Status: **IN_PROGRESS / OFFLINE_VALIDATED candidate, contract v2**. The Gateway is built and tested
+against **fixture data and fake backends only**. This is not an M02 overall PASS. A live B2/P9 run,
+NotebookLM login, merge, M03 and AutoCAD are **not authorized**.
+
+## 0. Contract v2 — NotebookLM primary, trusted by owner policy (current)
+
+Authority: OWNER_ARCHITECTURE_CHANGE_V1, CHANGE_ID `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE`.
+- The decision is at the top of [Issue #2](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/2), and the
+  implementation request at the top of [Issue #4](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/4).
+- The owner confirmed it directly in the Claude chat on 2026-10-09: "Tôi xác nhận thay đổi kiến trúc
+  M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE như đăng trên PR #5 và đầu Issue #2/#4: NotebookLM là kênh chính, bỏ kiểm tra
+  danh tính nguồn (mapping/hash/sync), cho phép sửa đặc tả, code và tests offline."
+- Where it conflicts with the rest of this document (local-first, exact lookups with 0 NotebookLM calls, mandatory
+  mapping/hash/sync proof, post-query identity checks, `VERIFIED` in the old sense), **this section wins**.
+- §1–§17 stay as the history of contract v1. Their reviews and evidence certify contract v1 only, not this
+  architecture.
+
+**Flow.** request → query scope → valid cache → NotebookLM → evidence with citations.
+1. Validate the request (`*.request.v1.json`, unchanged).
+2. Load INDEX: reloaded when its hash changes; an invalid INDEX fails closed.
+3. Choose the query scope:
+   - `document_id`: that document; it must be whitelisted;
+   - otherwise the INDEX documents named in the query (whitelisted ones; the rest are listed as `NOT_WHITELISTED`);
+   - otherwise every whitelisted document.
+4. Per document, select the version (INDEX dates, or an explicit `version` with `document_id`) and decide
+   applicability (INDEX).
+5. Keep only documents whose version has a NotebookLM source in a whitelisted notebook. Every other document is
+   listed in `excluded` with `NOT_APPLICABLE`, `NOT_IN_NOTEBOOKLM_SCOPE`, `NOTEBOOK_NOT_WHITELISTED` or a version
+   error code.
+6. Check the cache (below).
+7. Query NotebookLM, the primary source, also when the document and clause are known:
+   - one `notebook_query` per whitelisted notebook, with only the scoped source ids;
+   - a requested clause is added to the query text as given.
+8. Run `check_citations` (F12/F13, unchanged). Anything out of scope, missing, malformed or contradictory discards
+   the whole response as `CITED_SOURCE_NOT_WHITELISTED`.
+9. Return one evidence item per cited source.
+
+**Trust.** Sources in the INDEX NotebookLM scope are trusted by owner policy. The Gateway no longer checks file
+hashes, local/Nextcloud mapping, sync identity or local reread, and reads no local file in lookup, verify or status
+(`source_root` is optional). Each evidence item states this explicitly:
+- `TRUST.checks_performed`: `DOCUMENT_WHITELISTED`, `NOTEBOOK_SCOPE`, `CITATION_SHAPE`, `VERSION_FROM_INDEX`,
+  `APPLICABILITY_FROM_INDEX`.
+- `TRUST.checks_not_performed`: `SOURCE_HASH`, `SYNC_IDENTITY`, `LOCAL_MAPPING`, `LOCAL_REREAD`,
+  `EXCERPT_IN_AUTHORITATIVE_FILE`, `CLAUSE_LOCATION`.
+- Every item also carries the uncertainty `SOURCE_IDENTITY_NOT_CHECKED`.
+
+The notebook/source scope is an **access limit**, not a restored identity check. Trusting the source does not prove
+that the interpretation is right, that the document is legally valid, or that a design complies.
+
+**Evidence v2** (`gateway/schemas/evidence.v2.json`, `CONTRACT: tvxd.gateway.evidence/v2`).
+- `STATUS`:
+  - `TRUSTED_BY_POLICY`: a cited passage from an in-scope source, INDEX applicability `APPLICABLE`, and no blocking
+    uncertainty;
+  - `NOT_APPLICABLE`;
+  - `UNKNOWN`: no passage (`NO_PASSAGE`), applicability undecided, or `VERSION_UNRESOLVED`.
+- `VERIFIED` no longer exists.
+- Kept as NotebookLM gave them:
+  - `SOURCE_LOCATION`: `{kind: notebooklm, notebook_id, source_id, citation_numbers}`;
+  - `EVIDENCE.text`: the first cited passage of that source;
+  - `ANSWER.text`: NotebookLM's answer.
+- `DOCUMENT`/`VERSION`/`SOURCE_ID` come from the INDEX scope of the queried source; they are not proven from a file.
+- `CLAUSE` is always null, with a reason: NotebookLM citations carry no clause id, and clause location is not
+  performed. Nothing is invented.
+- Informational uncertainty codes:
+  - `MULTIPLE_PASSAGES`: several passages of one source;
+  - `LAYOUT_DEPENDENT`: the passage names a table, figure or note;
+  - `TRUNCATED`;
+  - `UNTRUSTED_CONTENT`: `EVIDENCE.text` and `ANSWER.text` are data, never instructions.
+- `RETRIEVED_AT` replaces `VERIFIED_AT`: when NotebookLM returned the passage. A cache hit keeps the original time.
+
+**`standards_verify` v2** (`verify.response.v2.json`). It re-checks, against the current INDEX:
+- `INDEX_VALID`;
+- `CONTRACT`: v2 only;
+- `EVIDENCE_ID`: object integrity;
+- `ISSUED_BY_GATEWAY`: the object is identical to what this Gateway process issued. This replaces the file reread
+  as the guard against an edited text with a recomputed id. Any other object stays `UNKNOWN` until it is looked up
+  again;
+- `DOCUMENT_WHITELISTED`;
+- `VERSION_RESOLVED`: the INDEX version in force for the date;
+- `NOTEBOOK_SCOPE`: `SOURCE_ID`/title as in INDEX, the evidence notebook/source is that version's scope, and the
+  notebook is still whitelisted;
+- `EVIDENCE_PRESENT`;
+- `APPLICABILITY`.
+
+Results:
+- `TRUSTED_BY_POLICY` only if all of these PASS and applicability is `APPLICABLE`;
+- `FAILED` on any FAIL;
+- `NOT_APPLICABLE` or `UNKNOWN` otherwise.
+
+The response always carries `trust_policy` and `checks_not_performed`, and `checked_at` (when verify ran) replaces
+`verified_at`.
+
+**Cache v2** (`gateway/cache.py`).
+- The key covers: contract version, trust policy, the effective query, `work_code`/date/conditions, scope method,
+  explicit version, `max_results`, the scope list (document, INDEX version, notebook id, source id), INDEX sha256
+  and rules version.
+- Entries expire after `cache.ttl_s` (config, default 3600 s; 0 disables caching), and an INDEX change drops all
+  entries.
+- Local files are not part of the key, so changing a library file does not invalidate an entry, by policy.
+- A hit is not evidence that anything was re-checked.
+- Entries of another contract or policy can never be served. The cache is in memory, so v1 entries die with the
+  process.
+
+**Status v2.**
+- `local` reports `not_used`.
+- `cache` reports the contract, policy and TTL.
+- A disabled NotebookLM makes the status `DEGRADED`, because lookups then return `BACKEND_UNAVAILABLE`; there is no
+  local fallback.
+
+**Migration v1 → v2.**
+- Responses use the schemas `*.response.v2.json`. The request schemas are unchanged.
+- Evidence fields: `SOURCE_HASH` removed, `VERIFIED_AT` → `RETRIEVED_AT`, plus `CONTRACT` and `TRUST`.
+- Statuses: `VERIFIED` → `TRUSTED_BY_POLICY`, `CANDIDATES` removed. Routes: only `NOTEBOOKLM`.
+- `standards_verify` refuses v1 evidence: `FAILED`, `CONTRACT` FAIL, with the instruction to run `standards_lookup`
+  again.
+- INDEX: `source.path`/`source.sha256` are optional. `notebooklm.sync` is optional provenance, never checked.
+- The `*.v1.json` response/evidence schemas stay in the repository for reference.
+
+**Unchanged:**
+- exactly three public tools, and raw NotebookLM tools never exposed;
+- the four M01 read tools, and the whitelist/notebook scope never widened;
+- strict citation handling (F12/F13);
+- content treated as data; logs without query or source text;
+- bounded timeouts and retries, retry generations, retirement, recovery close and process-tree teardown (F7–F10,
+  F14);
+- every committed config stays `notebooklm.mode: disabled`.
 
 Authority: [Issue #4](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/4) (specification and
 execution request, kept verbatim in the appendix) and the roadmap
@@ -443,6 +565,41 @@ Follow-up, GPT_REVIEW_V1 at `8762641` (PATCH_REQUIRED, recovery teardown gate):
     kill): FAIL, with the timed-out server's descendant killed and the recovery's still alive;
   - the PASS case requires both teardowns verified in the summary.
 - Revert check: against the runner at `8762641` both new negative tests report `(0, 'PASS')`.
+
+## 18. Requirements migration — contract v2 (OWNER_ARCHITECTURE_CHANGE_V1)
+
+Old requirement or test → new requirement or test. "Superseded" means OWNER_ARCHITECTURE_CHANGE_V1 removed the
+requirement; no unrelated negative control was removed.
+
+| Old (contract v1) | New (contract v2) |
+|---|---|
+| Exact lookups read the local file with 0 NotebookLM calls (`ExactLocal.test_exact_lookup_reads_local_and_never_calls_notebooklm`, `test_document_id_and_article_clause`) | A known document/clause still goes to NotebookLM, with only its scoped source (`KnownDocumentGoesToNotebookLM.test_known_document_and_clause_queries_only_its_notebooklm_source`, `test_document_id_and_clause_are_sent_and_clause_is_not_invented`) |
+| Version by date from the local file (`test_version_follows_assessment_date`) | Version by date from INDEX; a version without NotebookLM scope is excluded without a call (`test_version_without_notebooklm_scope_is_excluded_without_a_call`) |
+| Heading-search `CANDIDATES` (`test_heading_search_returns_candidates_not_exact`) | Superseded: no local heading search; `CANDIDATES` removed |
+| DOCX table → `LAYOUT_DEPENDENT` from local extraction (`test_docx_table_marks_layout_dependent`) | A passage naming a table/figure is flagged `LAYOUT_DEPENDENT`, informational, not reread (`Citations.test_layout_passage_is_flagged_not_reread`); DOCX extraction remains in `test_gateway_core.LocalAdapter` |
+| Query naming two documents → UNKNOWN (`test_query_naming_two_documents_is_unknown`) | Both scoped sources are queried together (`test_query_naming_two_documents_queries_both_sources`) |
+| `UNSUPPORTED_FORMAT` for a PDF document | A document without NotebookLM scope is `excluded` / UNKNOWN (`test_document_without_notebooklm_scope_is_unknown_not_a_format_error`); the PDF control stays at adapter level (`LocalAdapter.test_pdf_unsupported_is_structured`) |
+| Missing sync identity / wrong sync hash / local drift → never VERIFIED (`Semantic.test_missing_sync_identity_is_never_verified`, `test_wrong_mapping_drift_is_never_verified_even_after_reread`, `F6SemanticSourceIdentity.*`, `Verify.test_drift_after_lookup_fails`, `test_notebooklm_evidence_without_sync_identity_is_unknown`) | Superseded. Missing or mismatched sync and local changes do not block, and are reported as not checked (`NoLocalDependency.test_missing_or_mismatched_sync_identity_does_not_block`, `Verify.test_local_file_change_does_not_affect_verify`, `Cache.test_local_file_changes_do_not_touch_the_cache`) |
+| Layout passage → local reread; passage absent from the file → UNKNOWN (`test_layout_passage_triggers_local_reread`, `test_passage_absent_from_authoritative_file_gives_unknown_without_text`, `F2.test_passage_not_found`, `F2.test_failed_local_reread`) | Superseded (no local reread). A citation without a passage stays UNKNOWN with a reason (`Citations.test_citation_without_passage_is_unknown_with_reason`, `F2NoPassageIsNotTrusted.test_sources_used_without_passage`) |
+| — (new) | No local root/hash/mapping/sync proof needed, and no local file read (`NoLocalDependency.test_notebooklm_only_index_without_root_hash_or_sync_proof_is_usable`, `test_the_notebooklm_flow_never_reads_a_local_file`) |
+| — (new) | Citation numbers and answer kept (`Citations.test_citation_numbers_and_answer_are_kept`) |
+| Cache hit re-hashes local files; drift evicts (`Cache.test_hit_then_source_change_is_drift_not_cached_answer`) | Hit without backend, keeping `RETRIEVED_AT`; TTL expiry; TTL 0; contract/policy binding (`Cache.test_hit_serves_without_backend_and_keeps_retrieval_time`, `test_entry_expires_after_ttl`, `test_ttl_zero_disables_caching`, `test_entries_are_bound_to_the_contract_and_trust_policy`) |
+| Mapping change misses the semantic cache (`test_mapping_change_misses_semantic_cache`) | Scope change misses (`Cache.test_scope_change_misses`); INDEX rules, whitelist, applicability and invalid INDEX unchanged |
+| Verify re-derives hash, excerpt, clause and location from the file (`Verify.*`, `F1VerifyBindsEvidenceFields.*`) | Verify v2 (`Verify.test_by_id_and_by_object_reports_what_was_and_was_not_checked`, `test_tampered_object_fails`, `test_applicability_and_version_are_rechecked`, `test_scope_revocation_fails`, `test_legacy_v1_evidence_is_never_trusted`). F1 now checks the v2 fields: each modified field is FAILED or not trusted, and an edited text with a recomputed id is caught by `ISSUED_BY_GATEWAY` (`F1.test_each_modified_field_fails_its_own_check_and_is_never_trusted`, `test_modified_registered_evidence_is_not_rescued_by_its_id`, `test_evidence_from_another_process_is_unknown_not_trusted`, `test_lookup_to_verify_round_trip_never_upgrades`) |
+| F3 explicit version (local route) | Same rules on the NotebookLM route (`F3ExplicitVersionEligibility.*`, with fixture-copy NotebookLM scope for the 9999/2019 versions) |
+| F4 local lookup of point đ vs d (`test_end_to_end_lookup_returns_the_requested_point`) | Parser/canonical control kept; the requested point is sent to NotebookLM as given (`test_requested_point_is_sent_to_notebooklm_as_given`) |
+| F5 revoked notebook → verify `MAPPING` FAIL | `NOTEBOOK_SCOPE` FAIL (`F5NotebookWhitelistRevocation.test_revoked_notebook_fails_verification`) |
+| F11 ambiguous clause IDs in local lookups (`test_numeric_toc_and_body_duplicate_fails_closed`, `test_article_nested_point_duplicate_fails_closed`, `test_candidates_with_a_duplicated_id_are_never_verified`, `test_legacy_evidence_for_a_now_duplicated_id_is_not_verified`) | Superseded for lookups (no local clause resolution); the adapter control `F11AmbiguousClause.test_resolution_counts_matches` is kept |
+| F12 out-of-scope citations; F13 citation shape | Unchanged behaviour; statuses renamed (`F12OutOfScopeCitations.*`, `F13*`, `Citations.test_out_of_scope_or_contradictory_citations_discard_everything`) |
+| Injection fixture read from the local file (`DataBoundary.test_injection_fixture_is_returned_as_untrusted_data_only`); source root immutable (`SourceRootImmutable`) | Injected NotebookLM content stays data: one query only, no file/policy change, nothing logged (`DataBoundary.test_injected_notebooklm_content_is_returned_as_untrusted_data_only`); no local reads at all (`NoLocalDependency.test_the_notebooklm_flow_never_reads_a_local_file`) |
+| Status `deep` hashes local files (`StatusTool`) | `local: not_used`, cache TTL/policy; a disabled NotebookLM gives `DEGRADED` (`StatusTool.test_status_ok_and_degraded`) |
+| Server lookup over a local fixture → FOUND | With NotebookLM disabled, a known document gives a structured `BACKEND_UNAVAILABLE`, v2 schema (`McpSurface.test_lookup_call_and_structured_invalid_request`) |
+| Windows junction/reparse controls through lookup | The same negative controls on `LocalSourceAdapter` directly (`test_gateway_windows.py`); not removed |
+| Stage-B runner P7 `MAPPING`; P11 "never VERIFIED without sync"; preconditions sync = INDEX hash and local hashes | P7 `NOTEBOOK_SCOPE`; P11: not blocking, identity marked not checked; preconditions keep only scope, whitelist and injection-source checks (`pilot_stage_b.py`) |
+| F7–F10, F14, F8 retry generation | **Unchanged** (`F7McpStartupReadiness`, `F8NoBackendWorkAfterTheBudget`, `F9AbsoluteResponseDeadline`, `F10StalledStdin`, `F14*`) |
+
+Count: the M02 suite has 153 tests (was 158). By name, 43 old test names no longer exist and 38 new names exist. Most
+are renamed migrations, per the table; the net change is 5 fewer tests, all superseded local-route checks.
 
 ## Appendix — Issue #4 specification (verbatim)
 

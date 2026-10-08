@@ -10,6 +10,12 @@ replace the source files.
 
 Source root (configured in `gateway.fixture.json`): [`library/`](library/)
 
+**Contract v2 (M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE).** The Gateway no longer reads `library/` or checks
+`sha256`/`sync`. The "Test purpose" column describes the contract-v1 tests. In contract v2 the NotebookLM mapping
+column is the query scope (whitelisted notebook + source), and sync identity is optional provenance. Documents without a
+NotebookLM source (QCVN-FAKE-01@2019, TCVN-FAKE-9999, IEC-FAKE-60000) are excluded as `NOT_IN_NOTEBOOKLM_SCOPE`.
+The library files remain for the local-adapter module tests (`test_gateway_core.LocalAdapter`, Windows controls).
+
 | Document | Versions (effective) | Format / clause scheme | Whitelisted | Applicability (fake) | NotebookLM mapping | Test purpose |
 |---|---|---|---|---|---|---|
 | QCVN-FAKE-01 | 2024 (2025-01-01 →), 2019 (2020-01-01 → 2025-01-01, superseded) | md / numeric | yes | ELEC-LV-FAKE | 2024 → nb-fixture-001/src-qcvn01-2024, sync matches; 2019 unmapped | exact lookup, version by date, cache |

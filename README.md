@@ -4,7 +4,7 @@ AI standards knowledge gateway for construction regulations, standards, Notebook
 
 ## Architecture direction
 
-The current architecture authority is the approved roadmap, [Issue #2](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/2) (hybrid local + index + NotebookLM fallback). Summary for M02 onward:
+The current architecture authority is the approved roadmap, [Issue #2](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/2). Since the owner's architecture change `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE` (2026-10-09, top of Issue #2), the Gateway works as follows:
 
 ```text
 Claude Code
@@ -12,23 +12,30 @@ Claude Code
    v
 Standards Gateway MCP (M02+)
    |
-   +--> CACHE -> INDEX (WORK_CODE, applicability, source/version whitelist)
-   |
-   +--> exact source/clause known  --> LOCAL SOURCE READ (read-only sync/mount of Nextcloud)
-   +--> semantic discovery needed  --> NotebookLM semantic search
+   +--> INDEX (WORK_CODE, applicability, version, document whitelist,
+   |           NotebookLM notebook/source scope)
+   +--> CACHE (contract/policy/scope/INDEX bound, TTL)
+   +--> NotebookLM (primary source, scoped sources only; also for a known document/clause)
    |
    v
-structured grounded evidence (local reread only for ambiguity, layout-dependent
-content, uncertain mapping or suspected sync/version drift)
+evidence with NotebookLM citations, STATUS TRUSTED_BY_POLICY / NOT_APPLICABLE / UNKNOWN
+(sources trusted by owner policy: no hash, local mapping, sync or local reread checks)
 ```
 
-Nextcloud is the authoritative document store. NotebookLM is a semantic retrieval layer, not the master repository and not the component that decides applicability. GitHub is the governance layer for rules, mappings, indexes, hashes, tests and review.
+Nextcloud may keep the original documents, but they are no longer a mandatory verification step in the lookup flow. INDEX, not NotebookLM, decides applicability. GitHub is the governance layer for rules, indexes, scope, tests and review. The previous hybrid local-first design is kept in Issue #2 as history.
 
 M01 covers only one leg of this design, the NotebookLM read path, as a pilot. Nothing in M01 implements the Gateway, the INDEX or local retrieval.
 
 ## M02 — Standards Gateway (in progress, offline-first)
 
-The Gateway (`gateway/`) exposes exactly three MCP tools to Claude Code: `standards_lookup`, `standards_verify` and `standards_status`. Behind them are INDEX metadata, a read-only local adapter over the Nextcloud sync/mount, and a NotebookLM semantic adapter limited to the four M01 read tools (disabled in this round). It is built and tested on fixture data only; the real library pilot comes after review. See [docs/M02_STANDARDS_GATEWAY.md](docs/M02_STANDARDS_GATEWAY.md) and [Issue #4](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/4).
+The Gateway (`gateway/`) exposes exactly three MCP tools to Claude Code: `standards_lookup`, `standards_verify` and `standards_status`.
+
+Contract v2 follows the owner's architecture change `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE` (top of Issue #2/#4):
+- INDEX defines scope, versions and applicability.
+- NotebookLM is the primary source: it is used through the four M01 read tools only, limited to the whitelisted notebook/sources, and disabled in every committed config.
+- NotebookLM sources are trusted by owner policy. The Gateway checks no file hash, local mapping or sync identity, and evidence says so (`TRUSTED_BY_POLICY`, `TRUST.checks_not_performed`).
+
+The Gateway is built and tested on fixture data and fake backends only. See [docs/M02_STANDARDS_GATEWAY.md](docs/M02_STANDARDS_GATEWAY.md) §0 and [Issue #4](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/4).
 
 ## M01 — NotebookLM content-read-only pilot (closed 2026-10-05)
 

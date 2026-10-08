@@ -1,0 +1,289 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "evidence.v2.json",
+  "title": "Evidence item v2 (NotebookLM primary, trusted by owner policy)",
+  "description": "OWNER_ARCHITECTURE_CHANGE_V1 M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE. NotebookLM is the primary source and is trusted by owner policy: source identity (hash, Nextcloud/local mapping, sync identity, local reread) is NOT checked. v1 fields SOURCE_HASH and VERIFIED_AT are removed; see docs/M02_STANDARDS_GATEWAY.md, contract v2 migration.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "CONTRACT",
+    "EVIDENCE_ID",
+    "STATUS",
+    "DOCUMENT",
+    "VERSION",
+    "CLAUSE",
+    "APPLICABILITY",
+    "SOURCE_ID",
+    "SOURCE_LOCATION",
+    "RETRIEVAL_PATH",
+    "EVIDENCE",
+    "ANSWER",
+    "UNCERTAINTY",
+    "TRUST",
+    "RETRIEVED_AT",
+    "NULL_REASONS"
+  ],
+  "properties": {
+    "CONTRACT": {
+      "const": "tvxd.gateway.evidence/v2",
+      "type": "string"
+    },
+    "EVIDENCE_ID": {
+      "type": "string",
+      "pattern": "^ev_[0-9a-f]{24}$"
+    },
+    "STATUS": {
+      "type": "string",
+      "enum": [
+        "TRUSTED_BY_POLICY",
+        "NOT_APPLICABLE",
+        "UNKNOWN"
+      ],
+      "description": "TRUSTED_BY_POLICY: a NotebookLM passage cited from a queried, in-scope source, with INDEX applicability APPLICABLE; the source is trusted by owner policy and its identity was not checked. Never source verification, legal validity or design compliance. UNKNOWN: no passage, or applicability or version not decided."
+    },
+    "DOCUMENT": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        }
+      }
+    },
+    "VERSION": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "The INDEX version whose NotebookLM source was queried (INDEX scope), not a version proven from a file."
+    },
+    "CLAUSE": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "heading"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "heading": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    },
+    "APPLICABILITY": {
+      "$ref": "common.v1.json#/$defs/applicability"
+    },
+    "SOURCE_ID": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "INDEX source key <document>@<version> of the queried NotebookLM source."
+    },
+    "SOURCE_LOCATION": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "kind",
+            "notebook_id",
+            "source_id",
+            "citation_numbers"
+          ],
+          "properties": {
+            "kind": {
+              "const": "notebooklm",
+              "type": "string"
+            },
+            "notebook_id": {
+              "type": "string"
+            },
+            "source_id": {
+              "type": "string"
+            },
+            "citation_numbers": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "description": "Citation numbers NotebookLM returned for this source (empty when it gave none)."
+            }
+          }
+        }
+      ]
+    },
+    "RETRIEVAL_PATH": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "route",
+        "resolved_by",
+        "cache_hit"
+      ],
+      "properties": {
+        "route": {
+          "const": "NOTEBOOKLM",
+          "type": "string"
+        },
+        "resolved_by": {
+          "type": "string",
+          "enum": [
+            "DOCUMENT_ID",
+            "INDEX_CODE",
+            "SEMANTIC"
+          ],
+          "description": "How the queried scope was chosen: one document by document_id, the documents named in the query, or every whitelisted in-scope document."
+        },
+        "cache_hit": {
+          "type": "boolean"
+        }
+      }
+    },
+    "EVIDENCE": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "truncated",
+        "untrusted_data",
+        "layout_dependent"
+      ],
+      "properties": {
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "untrusted_data": {
+          "const": true,
+          "type": "boolean"
+        },
+        "layout_dependent": {
+          "type": "boolean"
+        }
+      }
+    },
+    "ANSWER": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "text",
+        "origin"
+      ],
+      "properties": {
+        "text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "origin": {
+          "type": "string",
+          "enum": [
+            "NONE",
+            "NOTEBOOKLM"
+          ]
+        }
+      }
+    },
+    "UNCERTAINTY": {
+      "type": "array",
+      "items": {
+        "$ref": "common.v1.json#/$defs/uncertainty"
+      }
+    },
+    "TRUST": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "basis",
+        "policy",
+        "checks_performed",
+        "checks_not_performed"
+      ],
+      "properties": {
+        "basis": {
+          "const": "OWNER_POLICY",
+          "type": "string"
+        },
+        "policy": {
+          "const": "M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE",
+          "type": "string"
+        },
+        "checks_performed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "DOCUMENT_WHITELISTED",
+              "NOTEBOOK_SCOPE",
+              "CITATION_SHAPE",
+              "VERSION_FROM_INDEX",
+              "APPLICABILITY_FROM_INDEX"
+            ]
+          }
+        },
+        "checks_not_performed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "SOURCE_HASH",
+              "SYNC_IDENTITY",
+              "LOCAL_MAPPING",
+              "LOCAL_REREAD",
+              "EXCERPT_IN_AUTHORITATIVE_FILE",
+              "CLAUSE_LOCATION"
+            ]
+          }
+        }
+      }
+    },
+    "RETRIEVED_AT": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "format": "date-time"
+        }
+      ],
+      "description": "When NotebookLM returned this passage (a cache hit keeps the original time). Not a verification time."
+    },
+    "NULL_REASONS": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Reason for every top-level field that is null."
+    }
+  }
+}

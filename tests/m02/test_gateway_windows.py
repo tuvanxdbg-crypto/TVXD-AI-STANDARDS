@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""M02 Windows-only confinement controls (OWNER_WINDOWS_M02_FIXTURE_ACCEPTANCE).
+"""M02 Windows-only confinement controls (OWNER_WINDOWS_M02_FIXTURE_ACCEPTANCE), on the local source adapter.
+
+Contract v2 (M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE) no longer reads local files in standards_lookup, so these
+negative controls now exercise gateway.adapters.local.LocalSourceAdapter directly (it stays in the repository for
+the historical stage-A tooling); they were not removed.
 
 A junction (directory reparse point) or a file symlink inside the source root that points outside it
 must be refused, and the outside canary must never be read or returned. A normal path stays readable.
@@ -16,12 +20,14 @@ import subprocess
 import sys
 import unittest
 
-from helpers import TODAY, FixtureCopy, lookup, make_service
+from helpers import FixtureCopy
 
+from gateway.adapters.local import LocalSourceAdapter
+from gateway.config import load_config
 from gateway.errors import GatewayError
+from gateway.index import load_index
 
 OUTSIDE_CANARY = "TVXD-M02-OUTSIDE-ROOT-CANARY-7A3C"
-ELEC = {"work_code": "ELEC-LV-FAKE", "assessment_date": TODAY}
 QCVN_2024 = "02_QCVN/QCVN-FAKE-01-2024.md"
 
 
@@ -57,24 +63,29 @@ class WindowsReparseConfinement(unittest.TestCase):
         text = text.replace(f'path: "{QCVN_2024}"', f'path: "{rel}"', 1).replace(old_sha, sha)
         self.fx.index.write_text(text, encoding="utf-8")
 
+    def adapter(self) -> LocalSourceAdapter:
+        cfg = load_config(self.fx.config)
+        return LocalSourceAdapter(cfg.source_root, cfg.limits)
+
+    def qcvn_2024(self):
+        return load_index(self.fx.index).documents["QCVN-FAKE-01"].versions[0]
+
     def assertRefusedWithoutReading(self, rel: str) -> None:
-        svc, logs = make_service(self.fx.config)
-        reads = svc.local.reads
+        local = self.adapter()
+        reads = local.reads
         with self.assertRaises(GatewayError) as cm:
-            svc.local.resolve(rel)
+            local.resolve(rel)
         self.assertEqual(cm.exception.code, "SOURCE_NOT_ALLOWED", rel)
         self.point_index_at(rel)
-        r = lookup(svc, query="QCVN FAKE 01 mục 2.1", **ELEC)
-        self.assertEqual((r["status"], r["error"]["code"]), ("ERROR", "SOURCE_NOT_ALLOWED"), rel)
-        dump = json.dumps(r, ensure_ascii=False) + logs.getvalue()
-        self.assertNotIn(OUTSIDE_CANARY, dump)
-        self.assertEqual(svc.local.reads, reads, "the outside file must not be read")
+        with self.assertRaises(GatewayError) as cm:
+            local.load(self.qcvn_2024())
+        self.assertEqual(cm.exception.code, "SOURCE_NOT_ALLOWED", rel)
+        self.assertNotIn(OUTSIDE_CANARY, json.dumps(cm.exception.to_dict(), ensure_ascii=False))
+        self.assertEqual(local.reads, reads, "the outside file must not be read")
 
     def test_normal_path_control_is_readable(self):
-        svc, _ = make_service(self.fx.config)
-        ev = lookup(svc, query="QCVN FAKE 01 mục 2.1", **ELEC)["results"][0]
-        self.assertEqual(ev["STATUS"], "VERIFIED")
-        self.assertIn("1111 mm", ev["EVIDENCE"]["text"])
+        doc = self.adapter().load(self.qcvn_2024())
+        self.assertIn("1111 mm", "\n".join(doc.text.lines))
 
     def test_directory_junction_inside_root_to_outside_is_refused(self):
         link = self.fx.library / "02_QCVN" / "jdir"

@@ -17,6 +17,9 @@ ids, or ever sent the M01 injection source.
 
 Cases (plan §6b): P5 citation shape, P6 cold vs cache, P7 revoked notebook whitelist, P8 timeout recovery,
 P10 out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED or P10-B OUT_OF_SCOPE_OBSERVED), P11 no sync identity.
+Contract v2 (OWNER_ARCHITECTURE_CHANGE_V1, M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE): preconditions no longer require
+sync identity = INDEX hash or local file hashes; P7 checks NOTEBOOK_SCOPE; P11 checks that a missing sync identity no
+longer blocks (owner policy) while the result still says the identity was not checked.
 P9 (model surface) and the preflights are separate commands (see the plan). A case whose precondition did not occur
 (e.g. no FOUND result to re-use for P6) is reported NOT_OBSERVED, never PASS.
 
@@ -323,19 +326,12 @@ def preconditions(config: Path) -> dict:
     mapped = {}
     for doc in index.documents.values():
         (v,) = doc.versions
-        if v.mapping is None or v.mapping.notebook_id != NOTEBOOK or v.mapping.sync_sha256 != v.sha256:
-            raise Refused(f"{doc.id}: mapping missing, in another notebook, or sync identity != INDEX hash")
+        if v.mapping is None or v.mapping.notebook_id != NOTEBOOK:
+            raise Refused(f"{doc.id}: no NotebookLM source in scope, or the source is in another notebook")
         mapped[doc.id] = v.mapping.source_id
     if INJECTION_SOURCE in mapped.values() or len(set(mapped.values())) != 3:
         raise Refused("the M01 injection source is mapped, or two documents share a source id")
-    svc = GatewayService(cfg, logger=JsonLogger(stream=io.StringIO(), level="info"))
-    for doc in index.documents.values():
-        (v,) = doc.versions
-        try:
-            if svc.local.file_sha256(v.path) != v.sha256:
-                raise Refused(f"{doc.id}: local file hash differs from INDEX; stop and report")
-        except GatewayError as e:
-            raise Refused(f"{doc.id}: {e.code}") from None
+    # Contract v2: sync identity and local file hashes are no longer preconditions (owner policy).
     return {"index_sha256": index.sha256, "mapped_source_ids": mapped, "notebook": NOTEBOOK,
             "timeouts": {"timeout_s": cfg.notebooklm.timeout_s, "max_attempts": cfg.notebooklm.max_attempts,
                          "total_budget_s": cfg.notebooklm.total_budget_s}}
@@ -418,16 +414,17 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
         if not lookup_part:
             result = "FAIL"
         elif not nb_ev:
-            result = "NOT_OBSERVED"   # no old NotebookLM evidence to verify: the MAPPING half did not occur
+            result = "NOT_OBSERVED"   # no old NotebookLM evidence to verify: the scope half did not occur
             obs["verify"] = "no NotebookLM evidence from P5"
         else:
             v7 = svc7.call("standards_verify", {"evidence": copy.deepcopy(nb_ev[0]), **copy.deepcopy(CTX)})
             run.keep("P7 verify", v7)
-            mapping = {c["name"]: c["result"] for c in v7["checks"]}.get("MAPPING")
-            result = "PASS" if v7["status"] == "FAILED" and mapping == "FAIL" and len(audit) == before else "FAIL"
+            scope = {c["name"]: c["result"] for c in v7["checks"]}.get("NOTEBOOK_SCOPE")
+            result = "PASS" if v7["status"] == "FAILED" and scope == "FAIL" and len(audit) == before else "FAIL"
             obs["verify"] = resp_summary(v7)
-        run.case("P7", "revoked notebook whitelist: excluded, no backend call; old evidence FAILED (MAPPING)", result,
-                 "UNKNOWN, all NOTEBOOK_NOT_WHITELISTED, 0 calls; old NotebookLM evidence verify FAILED (MAPPING)", obs)
+        run.case("P7", "revoked notebook whitelist: excluded, no backend call; old evidence FAILED (NOTEBOOK_SCOPE)",
+                 result, "UNKNOWN, all NOTEBOOK_NOT_WHITELISTED, 0 calls; old NotebookLM evidence verify FAILED "
+                 "(NOTEBOOK_SCOPE)", obs)
 
         # P11: no sync identity for TCVN 8794 (temporary INDEX copy)
         sha8794 = load_index(load_config(config).index_path).documents["TCVN-8794-2011"].versions[0].sha256
@@ -442,10 +439,15 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
         run.keep("P11", r11)
         hits = [e for e in r11.get("results") or [] if e["DOCUMENT"]["id"] == "TCVN-8794-2011"]
         if hits:
-            ok = all(e["STATUS"] != "VERIFIED" and "SYNC_IDENTITY_MISSING" in [u["code"] for u in e["UNCERTAINTY"]]
-                     for e in hits)
-            run.case("P11", "source without sync identity is never VERIFIED", "PASS" if ok else "FAIL",
-                     "TCVN 8794 results UNKNOWN with SYNC_IDENTITY_MISSING", resp_summary(r11))
+            # Contract v2: a missing sync identity no longer blocks, and the result must not hide that the source
+            # identity was not checked.
+            ok = all(e["STATUS"] in ("TRUSTED_BY_POLICY", "UNKNOWN") and not any(
+                     u["code"] in ("SYNC_IDENTITY_MISSING", "SOURCE_DRIFT") for u in e["UNCERTAINTY"]) and
+                     "SOURCE_IDENTITY_NOT_CHECKED" in [u["code"] for u in e["UNCERTAINTY"]] and
+                     "SYNC_IDENTITY" in e["TRUST"]["checks_not_performed"] for e in hits)
+            run.case("P11", "source without sync identity: not blocking (owner policy), identity marked not checked",
+                     "PASS" if ok else "FAIL", "TCVN 8794 results without SYNC_IDENTITY_MISSING, with "
+                     "SOURCE_IDENTITY_NOT_CHECKED and TRUST.checks_not_performed SYNC_IDENTITY", resp_summary(r11))
         else:
             run.case("P11", "source without sync identity", "NOT_OBSERVED" if lookup_ok(r11) else "FAIL",
                      "needs a TCVN 8794 citation; none in this response", resp_summary(r11))

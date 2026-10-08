@@ -1,5 +1,8 @@
 """Read-only local source adapter over the configured source root (Nextcloud sync/mount).
 
+Since contract v2 (M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE) the Gateway service does not use this adapter: lookup,
+verify and status read no local files. It stays for the historical stage-A tooling and keeps its confinement tests.
+
 Security rules:
   * Callers never pass paths. Paths come from INDEX and must pass paths.relpath_problems.
   * Every path component below the root is lstat'ed: symlinks and Windows reparse

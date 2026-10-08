@@ -1,7 +1,20 @@
 # M02 — Bounded live pilot plan
 
-Status: **STAGE A DONE AND REVIEWED; B0 DONE; B2 RAN ONCE (2026-10-07) AND FAILED AT P8; F13/F14 PATCHED OFFLINE,
-AWAITING REVIEW; B2 RE-RUN NOT AUTHORIZED.**
+Status: **ARCHITECTURE CHANGED (contract v2, 2026-10-09): NotebookLM primary, trusted by owner policy. Stage A/B0/B2
+and the F13/F14 work below are history of contract v1. Any further stage-B run needs a new plan review for
+contract v2 and the owner's direct approval.**
+
+Contract v2 (OWNER_ARCHITECTURE_CHANGE_V1, `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE`; docs/M02_STANDARDS_GATEWAY.md §0):
+- The Gateway no longer reads `C:\Vanban_XDCB` or checks file hashes, sync identity or mappings to local files.
+- The INDEX NotebookLM scope (notebook `8ca84143-…`, the three mapped sources) remains the only query scope.
+- Consequences for this plan:
+  - the ACL/hash preflight (§1, §6a) and stage A (local route) no longer gate a lookup;
+  - in `pilot_stage_b.py` the preconditions keep scope, whitelist and injection-source checks only;
+  - P7 checks `NOTEBOOK_SCOPE`;
+  - P11 checks that a missing sync identity does not block and is reported as not checked.
+- The Windows F14 offline re-run requested at `6f5a48d` is superseded by a re-run at the contract-v2 HEAD.
+
+History (contract v1):
 - Stage A ran on the owner's machine (§6a).
 - Its open finding (non-unique clause IDs) was fixed as F11, re-run on the real files, and passed GPT_REVIEW_V1 at
   `5f6f254`.

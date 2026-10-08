@@ -98,11 +98,10 @@ class ServiceLevel(unittest.TestCase):
         fake = FakeNotebookLM(OK)
         fake.fail_with = [{"status": "error", "error": "login required"}]
         svc, _ = make_service(client=fake)
-        reads = svc.local.reads
+        self.assertFalse(hasattr(svc, "local"))           # contract v2: no other backend to switch to silently
         r = lookup(svc, query="khoảng cách trước tủ điện", **ELEC)
         self.assertEqual((r["status"], r["error"]["code"]), ("ERROR", "AUTH_REQUIRED"))
         self.assertEqual(len(fake.calls), 1)
-        self.assertEqual(svc.local.reads, reads)          # no silent switch to another backend
         (_, _, _, sent), = fake.calls
         self.assertNotIn("src-qcvn02", sent)
 

@@ -1,7 +1,9 @@
 # INDEX.yaml — machine-readable metadata for the M02 FIXTURE library.
 # FIXTURE ONLY: every document, effective date, applicability entry, reviewer and
 # NotebookLM mapping below is fake test data. It says nothing about real standards.
-# Paths are relative to the configured source_root; sha256 is the hash of the file bytes.
+# Paths are relative to the configured source_root; sha256 is the hash of the file bytes. Since contract v2
+# (M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE) path/sha256/sync are optional provenance the Gateway never checks; the
+# notebooklm notebook/source pairs define the only scope NotebookLM is queried with.
 schema: tvxd.gateway.index/v1
 index_version: "2026-10-05-fixture.1"
 rules_version: "fixture-rules.1"

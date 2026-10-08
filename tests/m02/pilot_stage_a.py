@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """M02 bounded pilot, stage A (local only, notebooklm.mode=disabled). docs/M02_PILOT_PLAN.md §6, §6a.
 
+HISTORICAL: stage A exercised the contract-v1 local route, which OWNER_ARCHITECTURE_CHANGE_V1
+(M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE, contract v2) removed from standards_lookup. Its runs are evidence of the
+code at their recorded commits only; `discover`/`run` are not meaningful against contract v2. The shared helpers
+(ev_summary, resp_summary, git_head, strip_text, ...) are still used by the stage-B runner.
+
 Runs on the owner's machine, non-elevated, after the owner's direct approval and a PASS from
 scripts/m02/pilot/stage-a-preflight.ps1. It reads only the three files named in the pilot INDEX, through the
 Gateway's own read-only local adapter. It never writes under the source root, never calls NotebookLM and never
@@ -120,8 +125,15 @@ def strip_text(obj):
 
 
 def ev_summary(ev: dict) -> dict:
-    return {"EVIDENCE_ID": ev["EVIDENCE_ID"], "STATUS": ev["STATUS"], "DOCUMENT": (ev["DOCUMENT"] or {}).get("id"),
-            "VERSION": ev["VERSION"], "CLAUSE": (ev["CLAUSE"] or {}).get("id"), "SOURCE_HASH": ev["SOURCE_HASH"],
+    """IDs, statuses and codes of one evidence item (contract v1 or v2; no text)."""
+    out = {"EVIDENCE_ID": ev["EVIDENCE_ID"], "STATUS": ev["STATUS"], "DOCUMENT": (ev["DOCUMENT"] or {}).get("id"),
+           "VERSION": ev["VERSION"], "CLAUSE": (ev["CLAUSE"] or {}).get("id")}
+    if "SOURCE_HASH" in ev:                    # contract v1 only
+        out["SOURCE_HASH"] = ev["SOURCE_HASH"]
+    if "TRUST" in ev:                          # contract v2
+        out.update(CONTRACT=ev["CONTRACT"], TRUST=ev["TRUST"]["basis"],
+                   SOURCE_LOCATION=ev["SOURCE_LOCATION"])
+    return out | {
             "APPLICABILITY": ev["APPLICABILITY"]["status"],
             "missing": list(ev["APPLICABILITY"].get("missing", [])),
             "route": ev["RETRIEVAL_PATH"]["route"], "cache_hit": ev["RETRIEVAL_PATH"]["cache_hit"],

@@ -6,8 +6,7 @@
   "additionalProperties": false,
   "required": [
     "schema",
-    "index_path",
-    "source_root"
+    "index_path"
   ],
   "properties": {
     "schema": {
@@ -20,7 +19,8 @@
     },
     "source_root": {
       "type": "string",
-      "minLength": 1
+      "minLength": 1,
+      "description": "Optional since contract v2 (M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE): the Gateway lookup/verify/status flow no longer reads local files."
     },
     "notebooklm": {
       "type": "object",
@@ -65,6 +65,12 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 100000
+        },
+        "ttl_s": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2592000,
+          "description": "Lifetime of a cached lookup in seconds (default 3600); 0 disables caching."
         }
       }
     },

@@ -31,9 +31,10 @@ class NotebookLMConfig:
 @dataclass(frozen=True)
 class Config:
     index_path: Path
-    source_root: Path
+    source_root: Path | None = None   # optional since contract v2: lookup/verify/status never read local files
     notebooklm: NotebookLMConfig = field(default_factory=NotebookLMConfig)
     cache_max_entries: int = 256
+    cache_ttl_s: int = 3600
     limits: Limits = field(default_factory=Limits)
     log_level: str = "info"
 
@@ -65,7 +66,7 @@ def load_config(path: str | Path) -> Config:
     nb = data.get("notebooklm", {})
     return Config(
         index_path=_path(base, data["index_path"]),
-        source_root=_path(base, data["source_root"]),
+        source_root=_path(base, data["source_root"]) if data.get("source_root") else None,
         notebooklm=NotebookLMConfig(
             mode=nb.get("mode", "disabled"),
             mcp_config=_path(base, nb["mcp_config"]) if nb.get("mcp_config") else None,
@@ -75,6 +76,7 @@ def load_config(path: str | Path) -> Config:
             total_budget_s=float(nb.get("total_budget_s", 120)),
         ),
         cache_max_entries=int(data.get("cache", {}).get("max_entries", 256)),
+        cache_ttl_s=int(data.get("cache", {}).get("ttl_s", 3600)),
         limits=Limits(**data.get("limits", {})),
         log_level=data.get("logging", {}).get("level", "info"),
     )

@@ -69,11 +69,14 @@ class McpSurface(unittest.TestCase):
             self.assertIn("Unknown tool", res["content"][0]["text"])
 
     def test_lookup_call_and_structured_invalid_request(self):
+        # Contract v2: NotebookLM is the primary source; the committed fixture config keeps it disabled, so even a
+        # known document returns a structured BACKEND_UNAVAILABLE error (no local fallback).
         res = self.srv.rpc("tools/call", {"name": "standards_lookup", "arguments": {
             "query": "HD FAKE INJECTION mục 2", "work_code": "GEN-FAKE", "assessment_date": TODAY}})["result"]
-        self.assertFalse(res["isError"])
-        self.assertEqual(res["structuredContent"]["status"], "FOUND")
-        self.assertIn(CANARY, res["structuredContent"]["results"][0]["EVIDENCE"]["text"])
+        self.assertTrue(res["isError"])
+        self.assertEqual((res["structuredContent"]["schema"], res["structuredContent"]["error"]["code"]),
+                         ("tvxd.gateway.lookup.response/v2", "BACKEND_UNAVAILABLE"))
+        self.assertNotIn(CANARY, res["content"][0]["text"])
         bad = self.srv.rpc("tools/call", {"name": "standards_lookup", "arguments": {"query": 5}})["result"]
         self.assertTrue(bad["isError"])
         self.assertEqual(bad["structuredContent"]["error"]["code"], "INVALID_REQUEST")

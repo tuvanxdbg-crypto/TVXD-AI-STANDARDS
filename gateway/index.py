@@ -1,8 +1,10 @@
 """INDEX.yaml: load, validate (schema + semantic checks), version selection and applicability.
 
-INDEX is machine metadata only. It never replaces the authoritative source file, and
-applicability comes only from owner-reviewed INDEX entries plus the request context;
-the Gateway never infers that a standard applies because it exists.
+INDEX is machine metadata only. Applicability comes only from owner-reviewed INDEX entries
+plus the request context; the Gateway never infers that a standard applies because it exists.
+Since contract v2 (M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE) INDEX also defines the NotebookLM
+scope (whitelisted notebook + source per version) that limits every query; local file
+path/hash and sync identity are optional provenance and are never checked.
 """
 from __future__ import annotations
 
@@ -37,11 +39,11 @@ class Version:
     status: str
     effective_from: dt.date | None
     effective_to: dt.date | None
-    path: str
+    path: str | None       # authoritative file metadata; optional and never checked since contract v2
     format: str
-    sha256: str
+    sha256: str | None
     clause_scheme: str
-    mapping: Mapping | None
+    mapping: Mapping | None  # NotebookLM scope: the only notebook/source queried for this version
 
     @property
     def source_key(self) -> str:
@@ -160,7 +162,8 @@ def parse_index(raw: bytes) -> Index:
         versions = []
         for v in d["versions"]:
             where = f"{d['id']}@{v['version']}"
-            for p in relpath_problems(v["source"]["path"]):
+            path = v["source"].get("path")
+            for p in relpath_problems(path) if path is not None else []:
                 problems.append(f"{where}: source.path {p}")
             ef, et = _date(v["effective_from"]), _date(v["effective_to"])
             if ef and et and et <= ef:
@@ -175,8 +178,8 @@ def parse_index(raw: bytes) -> Index:
                 sync = m.get("sync")
                 mapping = Mapping(m["notebook_id"], m["source_id"], sync["sha256"] if sync else None,
                                   sync["synced_at"] if sync else None)
-            versions.append(Version(d["id"], v["version"], v["status"], ef, et, v["source"]["path"],
-                                    v["source"]["format"], v["source"]["sha256"], v["source"]["clause_scheme"],
+            versions.append(Version(d["id"], v["version"], v["status"], ef, et, path,
+                                    v["source"]["format"], v["source"].get("sha256"), v["source"]["clause_scheme"],
                                     mapping))
         app = d["applicability"]
         docs[d["id"]] = Document(d["id"], d["title"], d["doc_type"], tuple(d["codes"]), tuple(d["topics"]),
@@ -205,7 +208,7 @@ def select_version(doc: Document, day: dt.date | None, requested: str | None) ->
     """Pick the version to read. Returns (version, notes). Raises on not-found or ambiguity.
 
     An explicitly requested version only says which file to read. It does not make the
-    version eligible or unambiguous: callers must gate VERIFIED on version_check().
+    version eligible or unambiguous: callers must gate a trusted/verified result on version_check().
     """
     usable = [v for v in doc.versions if v.status not in ("draft", "withdrawn")]
     if requested is not None:

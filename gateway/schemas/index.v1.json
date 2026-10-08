@@ -243,9 +243,7 @@
           "type": "object",
           "additionalProperties": false,
           "required": [
-            "path",
             "format",
-            "sha256",
             "clause_scheme"
           ],
           "properties": {
@@ -276,7 +274,8 @@
                 "article"
               ]
             }
-          }
+          },
+          "description": "Authoritative file metadata. Since contract v2 path and sha256 are optional and never checked by the Gateway (M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE)."
         },
         "notebooklm": {
           "anyOf": [
@@ -320,15 +319,22 @@
                         "synced_at": {
                           "description": "When the NotebookLM source was uploaded/synced, at the precision actually known: a date-time when the instant is known, a date (YYYY-MM-DD) when only the day is known. Never pad a date with an invented time.",
                           "anyOf": [
-                            {"type": "string", "format": "date-time"},
-                            {"type": "string", "format": "date"}
+                            {
+                              "type": "string",
+                              "format": "date-time"
+                            },
+                            {
+                              "type": "string",
+                              "format": "date"
+                            }
                           ]
                         }
                       }
                     }
                   ]
                 }
-              }
+              },
+              "description": "NotebookLM scope of this version: the only notebook/source the Gateway may query for it. `sync` is kept as optional provenance; since contract v2 it is never required or checked."
             }
           ]
         }

@@ -55,6 +55,7 @@ class NotebookLMClient(Protocol):
 class Citation:
     source_id: str
     passage: str | None
+    number: int | None = None   # NotebookLM citation number, when the response gave one
 
 
 @dataclass
@@ -261,13 +262,14 @@ def check_citations(result: dict, requested) -> CitationCheck:
     # references / sources_used ids that no citation names (only possible when there are no citations)
     for n in sorted(numbered):
         sid, passage = numbered[n]
-        chk.citations.append(Citation(sid, passage or ref_passages.get(n)))
+        chk.citations.append(Citation(sid, passage or ref_passages.get(n), n))
     for i, (sid, passage) in enumerate(unnumbered, start=1):
         chk.citations.append(Citation(sid, passage or ref_passages.get(i)))
     named = {c.source_id for c in chk.citations}
-    for sid, text in ref_unnumbered + [(ref_numbers[n], ref_passages.get(n)) for n in sorted(ref_numbers)]:
+    for sid, text, num in ([(s, t, None) for s, t in ref_unnumbered]
+                           + [(ref_numbers[n], ref_passages.get(n), n) for n in sorted(ref_numbers)]):
         if sid not in named:
-            chk.citations.append(Citation(sid, text or None))
+            chk.citations.append(Citation(sid, text or None, num))
             named.add(sid)
     for sid in chk.used_ids:
         if sid not in named:

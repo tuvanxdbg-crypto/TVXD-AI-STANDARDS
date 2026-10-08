@@ -20,7 +20,7 @@
     },
     "deep": {
       "type": "boolean",
-      "description": "Hash every INDEX source file under the local root (slower)."
+      "description": "Accepted for compatibility; since contract v2 the Gateway reads no local files, so it changes nothing."
     },
     "probe_backend": {
       "type": "boolean",
