@@ -93,6 +93,16 @@ def fake_answer() -> dict:
             "sources_used": [SOURCE]}
 
 
+def inside(path: Path, root: Path) -> bool:
+    """True when path is root or below it. Paths on different Windows drives are never inside each other
+    (os.path.commonpath raises ValueError for them, e.g. a C: temp directory and a D: checkout on a CI runner)."""
+    try:
+        common = os.path.commonpath([str(path), str(root)])
+    except ValueError:
+        return False
+    return os.path.normcase(common) == os.path.normcase(str(root))
+
+
 def build_fake_backend(tmp: Path) -> dict[str, Path]:
     """Write the temporary Gateway configuration under tmp (outside the repository) and return its paths.
 
@@ -101,7 +111,7 @@ def build_fake_backend(tmp: Path) -> dict[str, Path]:
     gateway.mcp.json is the committed fixture gateway.mcp.json with --config replaced by gateway.json and the
     command wrapped so that the Gateway's stderr log lands in gateway-stderr.log."""
     tmp = tmp.resolve()
-    if os.path.normcase(os.path.commonpath([str(tmp), str(REPO)])) == os.path.normcase(str(REPO)):
+    if inside(tmp, REPO):
         raise ValueError("the temporary Gateway configuration must live outside the repository")
     paths = {name: tmp / name for name in ("answer.json", "fake-calls.log", "gateway-stderr.log",
                                             "notebooklm.mcp.json", "gateway.json", "gateway.mcp.json")}
