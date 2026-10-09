@@ -177,7 +177,7 @@ M03 chỉ thêm một tài liệu ngắn `docs/REVIEW_PROCESS.md`, viết lại 
 2. **M03-B, chủ repo làm trên GitHub sau khi M03-A merge:**
    - Áp dụng ruleset D1 với tên status check đúng như CI đã chạy.
    - Bật D4 lớp 2.
-   - Xem trang Security → Secret scanning của repo sau khi bật. Xác nhận lần quét lịch sử đã xong, và xử lý mọi alert theo D4.
+   - Xem trang Security → Secret scanning của repo sau khi bật. Xác nhận lần quét lịch sử đã xong, và xử lý mọi alert theo D4. Nếu GitHub không cung cấp chỉ báo chính thức cho lần quét lịch sử, áp dụng tiêu chí thay thế ở §7a.
    - Gửi lại cho Claude để ghi evidence:
      - bản export JSON của ruleset (Settings → Rules → Export) hoặc ảnh chụp màn hình, trong đó thấy chế độ strict;
      - ảnh chụp trang Code security và trang danh sách alert secret scanning (gồm cả alert đã đóng);
@@ -196,8 +196,42 @@ Theo CLAUDE.md, mỗi mốc nghiệm thu phải ghi đủ: mục tiêu, evidence
 | Mốc | Mục tiêu | Evidence yêu cầu | Điều kiện đạt | Người duyệt |
 |---|---|---|---|---|
 | M03-A | CI, CODEOWNERS, script metadata, PR template, tài liệu quy trình | Link 3 lần chạy CI xanh trên HEAD của PR; link các lần chạy đỏ có chủ đích (mỗi job một lần); output test âm của D5 | 3 job xanh trên HEAD; mỗi job từng đỏ đúng một lần khi cố ý làm hỏng; D5 có đủ 6 test âm | REVIEW_V1 tại HEAD, chủ repo |
-| M03-B | Ruleset trên `main`, secret scanning, cổng phê duyệt fork | Export JSON hoặc ảnh chụp ruleset; ảnh chụp trang Code security; ảnh chụp danh sách alert secret scanning (mở và đã đóng); ảnh chụp cài đặt phê duyệt workflow của fork | Đủ các thông số D1 đã chốt, kể cả strict. Lớp 2 của D4 bật, lần quét lịch sử đã xong, và mọi alert đã được rotate/thu hồi rồi mới đóng. Nếu không xác nhận được lần quét lịch sử hoặc không đọc được alert, ghi trạng thái là `CHƯA KIỂM CHỨNG` và M03-B không được ghi PASS. Cài đặt fork ở mức mặc định hoặc chặt hơn | Chủ repo |
+| M03-B | Ruleset trên `main`, secret scanning, cổng phê duyệt fork | Export JSON hoặc ảnh chụp ruleset; ảnh chụp trang Code security; ảnh chụp danh sách alert secret scanning (mở và đã đóng); ảnh chụp cài đặt phê duyệt workflow của fork | Đủ các thông số D1 đã chốt, kể cả strict. Lớp 2 của D4 bật, lần quét lịch sử đã xong, và mọi alert đã được rotate/thu hồi rồi mới đóng. Nếu không xác nhận được lần quét lịch sử hoặc không đọc được alert, ghi trạng thái là `CHƯA KIỂM CHỨNG` và M03-B không được ghi PASS. Ngoại lệ duy nhất: điều kiện "lần quét lịch sử đã xong" được thay bằng tiêu chí ở §7a khi đủ điều kiện áp dụng của §7a. Cài đặt fork ở mức mặc định hoặc chặt hơn | Chủ repo |
 | M03-C | Ruleset thực sự chặn | Output của push thẳng và force push bị từ chối; PR thử bị chặn khi check đỏ; PR thử bị chặn khi nhánh chậm hơn `main` | Cả 4 tình huống đều bị chặn | REVIEW_V1 tại HEAD evidence, chủ repo |
+
+### 7a. Tiêu chí thay thế cho điều kiện "lần quét lịch sử đã xong" (sửa đổi A1)
+
+**Thẩm quyền.** Chủ repo quyết định trong chat Claude ngày 2026-10-09, nguyên văn: "Tôi quyết định chấp nhận tiêu chí thay thế cho điều kiện quét lịch sử secret ở §7 và cho phép soạn bản sửa đổi spec M03." Sửa đổi này chỉ có hiệu lực sau khi có REVIEW_V1 PASS tại đúng SHA chứa nó và chủ repo phê duyệt trực tiếp đúng SHA đó.
+
+**Lý do.**
+- Endpoint chính thức duy nhất cho biết trạng thái quét là `GET /repos/{owner}/{repo}/secret-scanning/scan-history`, trả về `backfill_scans`. Theo tài liệu REST của GitHub, endpoint này "requires GitHub Advanced Security".
+- Repo này là repo public, dùng Secret Protection miễn phí, không có GitHub Advanced Security. Khi gọi thật, endpoint trả HTTP 404 "Advanced Security is disabled on this repository" (evidence M03-B, `gh-api-secret-scanning-console.txt`).
+- Giao diện cũng không có chỉ báo nào cho biết lần quét lịch sử đã xong. Vì vậy, với cấu hình này, điều kiện gốc ở §7 không bao giờ thỏa được.
+
+**Điều kiện áp dụng.** Chỉ dùng §7a khi đồng thời:
+1. repo là public và không bật GitHub Advanced Security;
+2. đã gọi `scan-history` bằng tài khoản chủ repo và nhận lỗi cho thấy endpoint không dùng được trên repo (ghi nguyên văn lỗi vào evidence).
+
+Nếu sau này repo bật GitHub Advanced Security, hoặc `scan-history` dùng được, thì quay về điều kiện gốc: phải có một `backfill_scans` loại `git` với `status: completed`.
+
+**Tiêu chí thay thế.** Phải đạt **tất cả**:
+
+| # | Tiêu chí | Evidence |
+|---|---|---|
+| A1-1 | Secret Protection và Push protection đang bật | Ảnh chụp Settings → Advanced Security |
+| A1-2 | Lần đọc alert thứ nhất, sau khi bật Secret Protection: 0 alert `open`; mọi alert `resolved` (nếu có) đã được rotate/thu hồi ở nhà cung cấp trước khi đóng, theo D4 | Ảnh trang Secret scanning (Open và Closed) **và** kết quả REST API `GET /repos/{owner}/{repo}/secret-scanning/alerts` với `state=open` và `state=resolved`, `hide_secret=true`, gọi bằng tài khoản chủ repo; chỉ ghi số đếm, hoặc loại secret, file, commit và cách xử lý, không ghi giá trị secret |
+| A1-3 | Lần đọc alert thứ hai, **ít nhất 24 giờ sau khi bật Secret Protection**, bằng cùng lệnh REST API như A1-2: vẫn 0 alert `open`, và mọi alert mới (nếu có) đã được xử lý theo D4 | Output nguyên văn kèm thời điểm chạy (UTC+7) và thời điểm bật Secret Protection |
+| A1-4 | Lời gọi `scan-history` và lỗi trả về được ghi nguyên văn | Output nguyên văn |
+
+Mốc 24 giờ là một biện pháp bù do LEAD đề xuất. Tài liệu GitHub không công bố thời gian một lần quét lịch sử. Mốc này chỉ để có thêm một lần đọc cách xa thời điểm bật, chứ không chứng minh lần quét đã xong.
+
+**Cách ghi trạng thái.**
+- Khi đạt đủ A1-1 đến A1-4, hạng mục D4 lịch sử được ghi là **`ĐẠT THEO TIÊU CHÍ THAY THẾ (A1)`**. Không ghi là "lần quét lịch sử đã xong".
+- Evidence phải giữ một câu giới hạn: tiêu chí A1 không chứng minh GitHub đã quét xong toàn bộ lịch sử. Nó chỉ cho thấy không có alert nào trong hai lần đọc cách nhau ít nhất 24 giờ.
+- Nếu thiếu một tiêu chí, hạng mục vẫn là `CHƯA KIỂM CHỨNG` và M03-B không được ghi PASS.
+- Các phần khác của M03-B (D1, D3, rotate trước khi đóng alert) giữ nguyên như §7.
+
+**Rủi ro còn lại, được chấp nhận theo quyết định của chủ repo:** nếu lần quét lịch sử chưa xong ở cả hai lần đọc, một secret cũ trong lịch sử có thể chưa được phát hiện. Khi đó GitHub sẽ tạo alert sau, và chủ repo phải xử lý theo D4 (rotate trước, rồi đóng), kể cả sau khi M03 đã đóng.
 
 ## 8. Quyết định của chủ repo
 
@@ -213,7 +247,7 @@ Chủ repo trả lời trong chat Claude ngày 2026-10-09, nguyên văn: "1. Kh�
 ### 8a. Hệ quả của việc chuyển sang public
 
 Lịch sử Git giờ ai cũng đọc được, gồm cả các commit cũ. Rà nhanh trên nhánh này tại `aa973cb`:
-- **Secret: chỉ kiểm được cây hiện tại.** `tests/m01/check_no_secrets.py` PASS, nghĩa là không phát hiện secret trong cây file đã track tại `aa973cb`, theo các mẫu của M01-09. Không có địa chỉ email trong các file đó; các chuỗi "gmail" chỉ là tên plugin trong evidence. Kết quả này **không** chứng minh lịch sử Git không có secret: script không quét commit cũ hay file đã xóa. Lịch sử đã công khai vẫn ở trạng thái `CHƯA KIỂM CHỨNG` cho đến khi GitHub secret scanning quét xong toàn bộ lịch sử và chủ repo xử lý mọi alert (D4, M03-B).
+- **Secret: chỉ kiểm được cây hiện tại.** `tests/m01/check_no_secrets.py` PASS, nghĩa là không phát hiện secret trong cây file đã track tại `aa973cb`, theo các mẫu của M01-09. Không có địa chỉ email trong các file đó; các chuỗi "gmail" chỉ là tên plugin trong evidence. Kết quả này **không** chứng minh lịch sử Git không có secret: script không quét commit cũ hay file đã xóa. Lịch sử đã công khai vẫn ở trạng thái `CHƯA KIỂM CHỨNG` cho đến khi GitHub secret scanning quét xong toàn bộ lịch sử và chủ repo xử lý mọi alert (D4, M03-B), hoặc đến khi đạt tiêu chí thay thế ở §7a.
 - **Email trong metadata commit.** Trường author/committer của 13 commit chứa email Gmail cá nhân của chủ repo, và 1 commit chứa một email máy cục bộ dạng `@tvxd.local`. Các commit còn lại dùng `noreply@anthropic.com` hoặc `noreply@github.com`. Đây là metadata Git, không nằm trong file nên lớp quét file không thấy. Với commit mới, chủ repo có thể bật "Keep my email addresses private" và "Block command line pushes that expose my email" trong cài đặt email của tài khoản GitHub, rồi đặt `git config user.email` thành địa chỉ noreply mà GitHub cấp. Đây là cài đặt tài khoản, nằm ngoài M03.
 - **Định danh hạ tầng công khai.** Đường dẫn có tên tài khoản Windows `ducdq.tvxdbg` xuất hiện trong 7 file evidence. Notebook ID `8ca84143-…` và các source ID xuất hiện trong 50 file đã track (35 file evidence M02, 15 file code, fixture và tài liệu). Những ID này không phải secret: muốn đọc notebook vẫn cần đăng nhập và quyền chia sẻ. Tuy vậy, chúng cho người ngoài biết cấu trúc hệ thống.
 - **Nội dung tài liệu không có trong repo.** Không có PDF tiêu chuẩn, không có văn bản nguồn hay transcript thô. Evidence chỉ ghi ID, mã trạng thái, số đếm và thời gian, đúng quy tắc từ M01.
