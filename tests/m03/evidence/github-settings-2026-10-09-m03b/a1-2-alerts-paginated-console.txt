@@ -1,0 +1,14 @@
+Console output pasted by the owner into the Claude chat on 2026-10-09 (Windows PowerShell, owner machine,
+GitHub CLI logged in as tuvanxdbg-crypto by the owner). Verbatim. Criterion A1-2 of
+docs/M03_GITHUB_GOVERNANCE.md §7a (approved at 9139f5010f6cfe01822b86119161d3562b5d0201).
+--paginate reads every page; hide_secret=true; --jq prints one line per alert with non-sensitive fields only.
+Empty output = 0 alerts in that state on every page. The owner ran the two reads once before and once after
+Get-Date; both runs are empty.
+
+PS C:\Users\ducdq.tvxdbg> gh api --paginate "repos/tuvanxdbg-crypto/TVXD-AI-STANDARDS/secret-scanning/alerts?state=open&hide_secret=true&per_page=100" --jq ".[] | [.number, .state, .secret_type, .resolution, .resolved_at] | @tsv"
+PS C:\Users\ducdq.tvxdbg> gh api --paginate "repos/tuvanxdbg-crypto/TVXD-AI-STANDARDS/secret-scanning/alerts?state=resolved&hide_secret=true&per_page=100" --jq ".[] | [.number, .state, .secret_type, .resolution, .resolved_at] | @tsv"
+PS C:\Users\ducdq.tvxdbg> Get-Date -Format "yyyy-MM-dd HH:mm zzz"
+2026-10-09 16:54 +07:00
+PS C:\Users\ducdq.tvxdbg> gh api --paginate "repos/tuvanxdbg-crypto/TVXD-AI-STANDARDS/secret-scanning/alerts?state=open&hide_secret=true&per_page=100" --jq ".[] | [.number, .state, .secret_type, .resolution, .resolved_at] | @tsv"
+PS C:\Users\ducdq.tvxdbg> gh api --paginate "repos/tuvanxdbg-crypto/TVXD-AI-STANDARDS/secret-scanning/alerts?state=resolved&hide_secret=true&per_page=100" --jq ".[] | [.number, .state, .secret_type, .resolution, .resolved_at] | @tsv"
+PS C:\Users\ducdq.tvxdbg>

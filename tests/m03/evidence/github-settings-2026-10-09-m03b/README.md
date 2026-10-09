@@ -32,8 +32,22 @@ Các ảnh chụp 1 và 2 được chụp trước khi chủ repo thêm Merge v�
 | D1 ruleset | Đạt theo evidence | JSON từ API và ảnh 1 |
 | D3 phê duyệt fork | Đạt theo evidence | Ảnh và xác nhận "đã Save" của chủ repo |
 | D4 lớp 2: Secret Protection và Push protection đang bật | Đạt theo evidence | Ảnh |
-| D4 lớp 2: danh sách alert qua API có xác thực | Đạt theo evidence | REST API `secret-scanning/alerts`, gọi bằng tài khoản chủ repo: 0 alert `open`, 0 alert `resolved` |
+| D4 lớp 2: danh sách alert qua API có xác thực | Đạt theo evidence | REST API `secret-scanning/alerts`, gọi bằng tài khoản chủ repo: 0 alert `open`, 0 alert `resolved`. Lần gọi đầu (`gh-api-secret-scanning-console.txt`) chỉ đếm một trang; lần đọc hết mọi trang theo A1-2 ở `a1-2-alerts-paginated-console.txt` |
 | D4 lớp 2: lần quét lịch sử đã xong | **`CHƯA KIỂM CHỨNG`** | Endpoint chính thức `secret-scanning/scan-history` trả 404 "Advanced Security is disabled on this repository", nên không đọc được trạng thái quét. Không có evidence chính thức nào khác. Vì chưa biết lần quét đã xong hay chưa, danh sách 0 alert cũng chưa được coi là đầy đủ. Xem giới hạn 2 |
+
+
+### Tiến độ theo tiêu chí thay thế A1 (§7a)
+
+§7a có hiệu lực từ khi chủ repo phê duyệt `9139f5010f6cfe01822b86119161d3562b5d0201` ngày 2026-10-09 (REVIEW_V1 5467514547; ghi nhận trên PR #9). Điều kiện áp dụng thỏa: repo public, không có GitHub Advanced Security, và lỗi của `scan-history` đã được ghi (A1-4).
+
+| Tiêu chí | Trạng thái | Evidence |
+|---|---|---|
+| A1-1 Secret Protection và Push protection đang bật | Đạt | `advanced-security-secret-protection.png` |
+| A1-2 Lần đọc thứ nhất, đọc hết mọi trang | Đạt | `a1-2-alerts-paginated-console.txt`: chạy lúc 2026-10-09 16:54 +07:00; `state=open` và `state=resolved` đều không in dòng nào, tức 0 alert trên mọi trang. Không có alert `resolved`, nên không cần evidence theo từng alert. Ảnh `secret-scanning-alerts.png` cũng cho 0 Open, 0 Closed |
+| A1-3 Lần đọc thứ hai, ít nhất 24 giờ sau khi bật | **Chưa thực hiện** | Sớm nhất sau 2026-10-10 12:20 +07:00. Mốc tính từ cận trên: ảnh alert 0/0 được chụp khoảng 12:20 +07:00 ngày 2026-10-09, nên Secret Protection đã bật trước thời điểm đó |
+| A1-4 Lỗi `scan-history` ghi nguyên văn | Đạt | `gh-api-secret-scanning-console.txt`: HTTP 404 "Advanced Security is disabled on this repository." |
+
+Vì A1-3 chưa có, hạng mục "lần quét lịch sử" vẫn là `CHƯA KIỂM CHỨNG` và M03-B chưa PASS.
 
 Spec §7 hàng M03-B quy định: nếu không xác nhận được lần quét lịch sử, trạng thái là `CHƯA KIỂM CHỨNG` và M03-B không được ghi PASS. Theo REVIEW_V1 5466884315 tại `eadf54e`, tài liệu này áp dụng đúng quy định đó.
 
