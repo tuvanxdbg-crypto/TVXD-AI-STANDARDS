@@ -1,0 +1,9 @@
+{
+  "schema": "tvxd.gateway.config/v1",
+  "index_path": "INDEX.yaml",
+  "source_root": "library",
+  "notebooklm": {"mode": "disabled"},
+  "cache": {"max_entries": 256},
+  "limits": {"max_source_bytes": 5242880, "max_excerpt_chars": 4000},
+  "logging": {"level": "info"}
+}

@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verify.response.v2.json",
+  "title": "standards_verify response v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "request_id",
+    "status",
+    "evidence_id",
+    "checks",
+    "applicability",
+    "checked_at",
+    "trust_policy",
+    "checks_not_performed",
+    "error",
+    "index",
+    "disclaimer",
+    "timing_ms"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tvxd.gateway.verify.response/v2",
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "TRUSTED_BY_POLICY",
+        "NOT_APPLICABLE",
+        "UNKNOWN",
+        "FAILED",
+        "ERROR"
+      ],
+      "description": "TRUSTED_BY_POLICY: every check PASSed and INDEX applicability is APPLICABLE; the source is trusted by owner policy (M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE) and its identity was not checked."
+    },
+    "evidence_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "result",
+          "detail"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "INDEX_VALID",
+              "CONTRACT",
+              "EVIDENCE_ID",
+              "ISSUED_BY_GATEWAY",
+              "DOCUMENT_WHITELISTED",
+              "VERSION_RESOLVED",
+              "NOTEBOOK_SCOPE",
+              "EVIDENCE_PRESENT",
+              "APPLICABILITY"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "UNKNOWN"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "applicability": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/applicability"
+        }
+      ]
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^req_[0-9a-f]{16}$"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/error"
+        }
+      ]
+    },
+    "index": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/index_ref"
+        }
+      ]
+    },
+    "disclaimer": {
+      "type": "string"
+    },
+    "timing_ms": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When standards_verify ran. Not a source verification time."
+    },
+    "trust_policy": {
+      "const": "M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE",
+      "type": "string"
+    },
+    "checks_not_performed": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "SOURCE_HASH",
+          "SYNC_IDENTITY",
+          "LOCAL_MAPPING",
+          "LOCAL_REREAD",
+          "EXCERPT_IN_AUTHORITATIVE_FILE",
+          "CLAUSE_LOCATION"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,33 @@
+=== fake:clean
+PASS         P5    citation shape of a live semantic lookup (Q-S1)
+PASS         P10   out-of-scope boundary (P10-A OUT_OF_SCOPE_NOT_OBSERVED)
+PASS         P6    same lookup again: cache hit, identity re-checked, no backend call
+PASS         P7    revoked notebook whitelist: excluded, no backend call; old evidence FAILED (MAPPING)
+PASS         P11   source without sync identity is never VERIFIED
+PASS         P8    1 s budget: structured TIMEOUT; process tree retired and verified; next call on a fresh validated server
+notebook_query attempts: 4 (sent to backend: 4); source gate: ok
+STATUS: PASS
+[stage-b] summary (committable): <synthetic>/out/stage-b-20261007-100139.summary.json
+exit=0
+=== fake:mixed
+PASS         P5    citation shape of a live semantic lookup (Q-S1)
+PASS         P10   out-of-scope boundary (P10-B OUT_OF_SCOPE_OBSERVED)
+NOT_OBSERVED P6    cache hit
+NOT_OBSERVED P7    revoked notebook whitelist: excluded, no backend call; old evidence FAILED (MAPPING)
+NOT_OBSERVED P11   source without sync identity
+PASS         P8    1 s budget: structured TIMEOUT; process tree retired and verified; next call on a fresh validated server
+notebook_query attempts: 5 (sent to backend: 5); source gate: ok
+STATUS: PASS
+[stage-b] summary (committable): <synthetic>/out/stage-b-20261007-100141.summary.json
+exit=0
+=== fake:auth
+FAIL         P5    citation shape of a live semantic lookup (Q-S1)
+NOT_RUN      P10   not run
+NOT_RUN      P6    not run
+NOT_RUN      P7    not run
+NOT_RUN      P11   not run
+NOT_RUN      P8    not run
+notebook_query attempts: 1 (sent to backend: 1); source gate: ok
+STATUS: FAIL (stopped after P5)
+[stage-b] summary (committable): <synthetic>/out/stage-b-20261007-100143.summary.json
+exit=1

@@ -1,0 +1,282 @@
+{
+  "check": "m02-stage-a-discover",
+  "kind": "M02 pilot stage A, local only, NotebookLM disabled",
+  "head": "3b33efc71812bf2facb52549d40e2109457cbb8e",
+  "utc_start": "2026-10-06T03:55:23+00:00",
+  "python": "3.11.16",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "assessment_date": "2026-10-06",
+  "work_code": "THIET-KE-DAN-DUNG",
+  "p1_clauses": {},
+  "config": "docs/m02-pilot/gateway.pilot.stage-a.json",
+  "notebooklm_mode": "disabled",
+  "index_version": "2026-10-pilot.1",
+  "index_sha256": "4299e7709b482fa1b924ff01ab8650fe3fa24c6061c56147f82ce7d6ffc5d17d",
+  "documents": [
+    "LUAT-135-2025-QH15",
+    "TCVN-5575-2024",
+    "TCVN-8794-2011"
+  ],
+  "limits": {
+    "max_source_bytes": 20971520,
+    "max_docx_uncompressed_bytes": 52428800
+  },
+  "hashes_before": {
+    "2025-LUAT-135-QH15-Xay-dung.docx": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+    "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+    "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f"
+  },
+  "hashes_after": {
+    "2025-LUAT-135-QH15-Xay-dung.docx": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+    "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+    "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f"
+  },
+  "source_unchanged": true,
+  "cases": [
+    {
+      "id": "D-LUAT-135-2025-QH15",
+      "case": "load and parse the pilot document",
+      "result": "PASS",
+      "expected": "document loads, >=1 section",
+      "observed": {
+        "format": "docx",
+        "clause_scheme": "article",
+        "bytes": 47416,
+        "lines": 912,
+        "layout_lines": 3,
+        "sections": 859,
+        "sections_by_level": {
+          "0": 8,
+          "1": 95,
+          "2": 367,
+          "3": 389
+        },
+        "section_ids": 859
+      }
+    },
+    {
+      "id": "D-TCVN-5575-2024",
+      "case": "load and parse the pilot document",
+      "result": "PASS",
+      "expected": "document loads, >=1 section",
+      "observed": {
+        "format": "docx",
+        "clause_scheme": "numeric",
+        "bytes": 14444867,
+        "lines": 4313,
+        "layout_lines": 1866,
+        "sections": 519,
+        "sections_by_level": {
+          "1": 60,
+          "2": 146,
+          "3": 294,
+          "4": 19
+        },
+        "section_ids": 519
+      }
+    },
+    {
+      "id": "D-TCVN-8794-2011",
+      "case": "load and parse the pilot document",
+      "result": "PASS",
+      "expected": "document loads, >=1 section",
+      "observed": {
+        "format": "docx",
+        "clause_scheme": "numeric",
+        "bytes": 35242,
+        "lines": 377,
+        "layout_lines": 37,
+        "sections": 171,
+        "sections_by_level": {
+          "1": 14,
+          "2": 47,
+          "3": 110
+        },
+        "section_ids": 171
+      }
+    },
+    {
+      "id": "Q-S1-doc",
+      "case": "Q-S1 with document_id TCVN-8794-2011 (keyword heuristic)",
+      "result": "PASS",
+      "expected": "CANDIDATES (or UNKNOWN if nothing matches), 0 NotebookLM calls; candidates are not exact clauses",
+      "observed": {
+        "status": "CANDIDATES",
+        "notebooklm_calls": 0,
+        "timing_ms": 156,
+        "error": null,
+        "missing_inputs_count": 0,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_76227074ecd5760df83f58b4",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": "4.1.4",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "HEURISTIC_MATCH",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          },
+          {
+            "EVIDENCE_ID": "ev_44ac84d979a84ea5735a1e7b",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": "5.1.1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "HEURISTIC_MATCH",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          },
+          {
+            "EVIDENCE_ID": "ev_3bcae49b7586ecd16d9959d8",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": "6.2.1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "HEURISTIC_MATCH",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          },
+          {
+            "EVIDENCE_ID": "ev_61964a84237cc012d55644bb",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": "3.2",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "HEURISTIC_MATCH",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          },
+          {
+            "EVIDENCE_ID": "ev_3d0b851e9fa58eb190674584",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": "5.1.6",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "HEURISTIC_MATCH",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "Q-S1-nodoc",
+      "case": "Q-S1 without document_id while NotebookLM is disabled",
+      "result": "PASS",
+      "expected": "UNKNOWN, no results, all three documents excluded as MAPPING_MISSING, 0 NotebookLM calls",
+      "observed": {
+        "status": "UNKNOWN",
+        "notebooklm_calls": 0,
+        "timing_ms": 0,
+        "error": null,
+        "missing_inputs_count": 1,
+        "excluded": [
+          {
+            "document_id": "LUAT-135-2025-QH15",
+            "reason": "MAPPING_MISSING"
+          },
+          {
+            "document_id": "TCVN-5575-2024",
+            "reason": "MAPPING_MISSING"
+          },
+          {
+            "document_id": "TCVN-8794-2011",
+            "reason": "MAPPING_MISSING"
+          }
+        ],
+        "results": []
+      }
+    },
+    {
+      "id": "SOURCE-UNCHANGED",
+      "case": "pilot file hashes after the run equal the hashes before and INDEX",
+      "result": "PASS",
+      "expected": "identical",
+      "observed": {
+        "hashes_after": {
+          "2025-LUAT-135-QH15-Xay-dung.docx": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+          "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+          "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f"
+        }
+      }
+    }
+  ],
+  "status": "PASS",
+  "utc_end": "2026-10-06T03:55:25+00:00"
+}

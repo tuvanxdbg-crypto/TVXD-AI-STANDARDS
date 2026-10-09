@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "verify.response.v1.json",
+  "title": "standards_verify response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "request_id",
+    "status",
+    "evidence_id",
+    "checks",
+    "applicability",
+    "verified_at",
+    "error",
+    "index",
+    "disclaimer",
+    "timing_ms"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tvxd.gateway.verify.response/v1",
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "VERIFIED",
+        "NOT_APPLICABLE",
+        "UNKNOWN",
+        "FAILED",
+        "ERROR"
+      ]
+    },
+    "evidence_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "result",
+          "detail"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "INDEX_VALID",
+              "EVIDENCE_ID",
+              "DOCUMENT_WHITELISTED",
+              "SOURCE_ID",
+              "VERSION_RESOLVED",
+              "SOURCE_LOCATION",
+              "SOURCE_HASH",
+              "EXCERPT_MATCH",
+              "CLAUSE",
+              "MAPPING",
+              "APPLICABILITY"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "UNKNOWN",
+              "SKIPPED"
+            ]
+          },
+          "detail": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "applicability": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/applicability"
+        }
+      ]
+    },
+    "verified_at": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "format": "date-time"
+        }
+      ]
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^req_[0-9a-f]{16}$"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/error"
+        }
+      ]
+    },
+    "index": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/index_ref"
+        }
+      ]
+    },
+    "disclaimer": {
+      "type": "string"
+    },
+    "timing_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

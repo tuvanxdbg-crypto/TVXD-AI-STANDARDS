@@ -1,0 +1,695 @@
+{
+  "check": "m02-stage-a-run",
+  "kind": "M02 pilot stage A, local only, NotebookLM disabled",
+  "head": "43f9ef4d04d5cbb322848e2717c0e9bf689cec54",
+  "utc_start": "2026-10-06T06:36:44+00:00",
+  "python": "3.11.16",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "assessment_date": "2026-10-06",
+  "work_code": "THIET-KE-DAN-DUNG",
+  "p1_clauses": {
+    "LUAT-135-2025-QH15": "Điều 1",
+    "TCVN-8794-2011": "6.2.1"
+  },
+  "config": "docs/m02-pilot/gateway.pilot.stage-a.json",
+  "notebooklm_mode": "disabled",
+  "index_version": "2026-10-pilot.1",
+  "index_sha256": "4299e7709b482fa1b924ff01ab8650fe3fa24c6061c56147f82ce7d6ffc5d17d",
+  "documents": [
+    "LUAT-135-2025-QH15",
+    "TCVN-5575-2024",
+    "TCVN-8794-2011"
+  ],
+  "limits": {
+    "max_source_bytes": 20971520,
+    "max_docx_uncompressed_bytes": 52428800
+  },
+  "hashes_before": {
+    "2025-LUAT-135-QH15-Xay-dung.docx": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+    "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+    "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f"
+  },
+  "hashes_after": {
+    "2025-LUAT-135-QH15-Xay-dung.docx": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+    "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+    "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f"
+  },
+  "source_unchanged": true,
+  "cases": [
+    {
+      "id": "P1-LUAT-135-2025-QH15",
+      "case": "exact/local lookup of owner-confirmed clause Điều 1",
+      "result": "PASS",
+      "expected": "FOUND, CLAUSE Điều 1, route LOCAL, 0 NotebookLM calls, STATUS VERIFIED",
+      "observed": {
+        "status": "FOUND",
+        "notebooklm_calls": 0,
+        "timing_ms": 187,
+        "error": null,
+        "missing_inputs_count": 0,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_d80cef65c90b5658d6366c25",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "LUAT-135-2025-QH15",
+            "VERSION": "2025",
+            "CLAUSE": "Điều 1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+              "observed": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "P1-TCVN-8794-2011",
+      "case": "exact/local lookup of owner-confirmed clause 6.2.1",
+      "result": "PASS",
+      "expected": "FOUND, CLAUSE 6.2.1, route LOCAL, 0 NotebookLM calls, STATUS VERIFIED",
+      "observed": {
+        "status": "FOUND",
+        "notebooklm_calls": 0,
+        "timing_ms": 63,
+        "error": null,
+        "missing_inputs_count": 0,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_3bcae49b7586ecd16d9959d8",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": "6.2.1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "P2-genuine-LUAT-135-2025-QH15",
+      "case": "standards_verify on the genuine P1 evidence",
+      "result": "PASS",
+      "expected": "VERIFIED; every identity check PASS (MAPPING SKIPPED for LOCAL)",
+      "observed": {
+        "status": "VERIFIED",
+        "notebooklm_calls": null,
+        "timing_ms": 172,
+        "error": null,
+        "missing_inputs_count": 0,
+        "checks": {
+          "INDEX_VALID": "PASS",
+          "EVIDENCE_ID": "PASS",
+          "DOCUMENT_WHITELISTED": "PASS",
+          "SOURCE_ID": "PASS",
+          "VERSION_RESOLVED": "PASS",
+          "SOURCE_LOCATION": "PASS",
+          "SOURCE_HASH": "PASS",
+          "EXCERPT_MATCH": "PASS",
+          "CLAUSE": "PASS",
+          "MAPPING": "SKIPPED",
+          "APPLICABILITY": "PASS"
+        }
+      }
+    },
+    {
+      "id": "P2-by-id-LUAT-135-2025-QH15",
+      "case": "standards_verify by evidence_id",
+      "result": "PASS",
+      "expected": "VERIFIED",
+      "observed": {
+        "status": "VERIFIED",
+        "notebooklm_calls": null,
+        "timing_ms": 156,
+        "error": null,
+        "missing_inputs_count": 0,
+        "checks": {
+          "INDEX_VALID": "PASS",
+          "EVIDENCE_ID": "PASS",
+          "DOCUMENT_WHITELISTED": "PASS",
+          "SOURCE_ID": "PASS",
+          "VERSION_RESOLVED": "PASS",
+          "SOURCE_LOCATION": "PASS",
+          "SOURCE_HASH": "PASS",
+          "EXCERPT_MATCH": "PASS",
+          "CLAUSE": "PASS",
+          "MAPPING": "SKIPPED",
+          "APPLICABILITY": "PASS"
+        }
+      }
+    },
+    {
+      "id": "P2-genuine-TCVN-8794-2011",
+      "case": "standards_verify on the genuine P1 evidence",
+      "result": "PASS",
+      "expected": "VERIFIED; every identity check PASS (MAPPING SKIPPED for LOCAL)",
+      "observed": {
+        "status": "VERIFIED",
+        "notebooklm_calls": null,
+        "timing_ms": 62,
+        "error": null,
+        "missing_inputs_count": 0,
+        "checks": {
+          "INDEX_VALID": "PASS",
+          "EVIDENCE_ID": "PASS",
+          "DOCUMENT_WHITELISTED": "PASS",
+          "SOURCE_ID": "PASS",
+          "VERSION_RESOLVED": "PASS",
+          "SOURCE_LOCATION": "PASS",
+          "SOURCE_HASH": "PASS",
+          "EXCERPT_MATCH": "PASS",
+          "CLAUSE": "PASS",
+          "MAPPING": "SKIPPED",
+          "APPLICABILITY": "PASS"
+        }
+      }
+    },
+    {
+      "id": "P2-by-id-TCVN-8794-2011",
+      "case": "standards_verify by evidence_id",
+      "result": "PASS",
+      "expected": "VERIFIED",
+      "observed": {
+        "status": "VERIFIED",
+        "notebooklm_calls": null,
+        "timing_ms": 62,
+        "error": null,
+        "missing_inputs_count": 0,
+        "checks": {
+          "INDEX_VALID": "PASS",
+          "EVIDENCE_ID": "PASS",
+          "DOCUMENT_WHITELISTED": "PASS",
+          "SOURCE_ID": "PASS",
+          "VERSION_RESOLVED": "PASS",
+          "SOURCE_LOCATION": "PASS",
+          "SOURCE_HASH": "PASS",
+          "EXCERPT_MATCH": "PASS",
+          "CLAUSE": "PASS",
+          "MAPPING": "SKIPPED",
+          "APPLICABILITY": "PASS"
+        }
+      }
+    },
+    {
+      "id": "P2-tampered-clause",
+      "case": "standards_verify on evidence with a tampered clause (JSON copy)",
+      "result": "PASS",
+      "expected": "FAILED",
+      "observed": {
+        "status": "FAILED",
+        "notebooklm_calls": null,
+        "timing_ms": 62,
+        "error": null,
+        "missing_inputs_count": 0,
+        "checks": {
+          "INDEX_VALID": "PASS",
+          "EVIDENCE_ID": "FAIL",
+          "DOCUMENT_WHITELISTED": "PASS",
+          "SOURCE_ID": "PASS",
+          "VERSION_RESOLVED": "PASS",
+          "SOURCE_LOCATION": "PASS",
+          "SOURCE_HASH": "PASS",
+          "EXCERPT_MATCH": "PASS",
+          "CLAUSE": "FAIL",
+          "MAPPING": "SKIPPED",
+          "APPLICABILITY": "PASS"
+        }
+      }
+    },
+    {
+      "id": "P2-tampered-source_hash",
+      "case": "standards_verify on evidence with a tampered source_hash (JSON copy)",
+      "result": "PASS",
+      "expected": "FAILED",
+      "observed": {
+        "status": "FAILED",
+        "notebooklm_calls": null,
+        "timing_ms": 62,
+        "error": null,
+        "missing_inputs_count": 0,
+        "checks": {
+          "INDEX_VALID": "PASS",
+          "EVIDENCE_ID": "FAIL",
+          "DOCUMENT_WHITELISTED": "PASS",
+          "SOURCE_ID": "PASS",
+          "VERSION_RESOLVED": "PASS",
+          "SOURCE_LOCATION": "PASS",
+          "SOURCE_HASH": "FAIL",
+          "EXCERPT_MATCH": "PASS",
+          "CLAUSE": "PASS",
+          "MAPPING": "SKIPPED",
+          "APPLICABILITY": "PASS"
+        }
+      }
+    },
+    {
+      "id": "P2-tampered-excerpt",
+      "case": "standards_verify on evidence with a tampered excerpt (JSON copy)",
+      "result": "PASS",
+      "expected": "FAILED",
+      "observed": {
+        "status": "FAILED",
+        "notebooklm_calls": null,
+        "timing_ms": 62,
+        "error": null,
+        "missing_inputs_count": 0,
+        "checks": {
+          "INDEX_VALID": "PASS",
+          "EVIDENCE_ID": "FAIL",
+          "DOCUMENT_WHITELISTED": "PASS",
+          "SOURCE_ID": "PASS",
+          "VERSION_RESOLVED": "PASS",
+          "SOURCE_LOCATION": "PASS",
+          "SOURCE_HASH": "PASS",
+          "EXCERPT_MATCH": "FAIL",
+          "CLAUSE": "PASS",
+          "MAPPING": "SKIPPED",
+          "APPLICABILITY": "PASS"
+        }
+      }
+    },
+    {
+      "id": "P2-tampered-version",
+      "case": "standards_verify on evidence with a tampered version (JSON copy)",
+      "result": "PASS",
+      "expected": "FAILED",
+      "observed": {
+        "status": "FAILED",
+        "notebooklm_calls": null,
+        "timing_ms": 0,
+        "error": null,
+        "missing_inputs_count": 0,
+        "checks": {
+          "INDEX_VALID": "PASS",
+          "EVIDENCE_ID": "FAIL",
+          "DOCUMENT_WHITELISTED": "PASS",
+          "VERSION_RESOLVED": "FAIL"
+        }
+      }
+    },
+    {
+      "id": "P3-no-work-code",
+      "case": "TCVN 8794 clause lookup with no work code",
+      "result": "PASS",
+      "expected": "STATUS UNKNOWN, missing lists work_code",
+      "observed": {
+        "status": "FOUND",
+        "notebooklm_calls": 0,
+        "timing_ms": 62,
+        "error": null,
+        "missing_inputs_count": 1,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_3bcae49b7586ecd16d9959d8",
+            "STATUS": "UNKNOWN",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": "6.2.1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "UNKNOWN",
+            "missing": [
+              "work_code"
+            ],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "APPLICABILITY_UNKNOWN",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "P3-no-condition",
+      "case": "TCVN 8794 clause lookup with no condition",
+      "result": "PASS",
+      "expected": "STATUS UNKNOWN, missing lists COND-TRUONG-TRUNG-HOC",
+      "observed": {
+        "status": "FOUND",
+        "notebooklm_calls": 0,
+        "timing_ms": 62,
+        "error": null,
+        "missing_inputs_count": 1,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_3bcae49b7586ecd16d9959d8",
+            "STATUS": "UNKNOWN",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": "6.2.1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "UNKNOWN",
+            "missing": [
+              "project_context.conditions.COND-TRUONG-TRUNG-HOC (Công trình là trường trung học)"
+            ],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "APPLICABILITY_UNKNOWN",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "P3-cond-ket-cau-thep-unknown",
+      "case": "TCVN 5575 with COND-KET-CAU-THEP unknown (keyword candidates; no owner-confirmed clause)",
+      "result": "PASS",
+      "expected": "every candidate STATUS UNKNOWN, missing COND-KET-CAU-THEP",
+      "observed": {
+        "status": "CANDIDATES",
+        "notebooklm_calls": 0,
+        "timing_ms": 2062,
+        "error": null,
+        "missing_inputs_count": 1,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_befccb46f8ae89dc41836620",
+            "STATUS": "UNKNOWN",
+            "DOCUMENT": "TCVN-5575-2024",
+            "VERSION": "2024",
+            "CLAUSE": "1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+              "observed": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "UNKNOWN",
+            "missing": [
+              "project_context.conditions.COND-KET-CAU-THEP (Công trình có kết cấu thép)"
+            ],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "HEURISTIC_MATCH",
+              "APPLICABILITY_UNKNOWN",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          },
+          {
+            "EVIDENCE_ID": "ev_8b8cb1491cd4eba9de8f6886",
+            "STATUS": "UNKNOWN",
+            "DOCUMENT": "TCVN-5575-2024",
+            "VERSION": "2024",
+            "CLAUSE": "1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+              "observed": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "UNKNOWN",
+            "missing": [
+              "project_context.conditions.COND-KET-CAU-THEP (Công trình có kết cấu thép)"
+            ],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "HEURISTIC_MATCH",
+              "APPLICABILITY_UNKNOWN",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          },
+          {
+            "EVIDENCE_ID": "ev_6559aa7494fb24f2b9cb9800",
+            "STATUS": "UNKNOWN",
+            "DOCUMENT": "TCVN-5575-2024",
+            "VERSION": "2024",
+            "CLAUSE": "17.1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+              "observed": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "UNKNOWN",
+            "missing": [
+              "project_context.conditions.COND-KET-CAU-THEP (Công trình có kết cấu thép)"
+            ],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "HEURISTIC_MATCH",
+              "APPLICABILITY_UNKNOWN",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      }
+    },
+    {
+      "id": "P4-lookup",
+      "case": "lookup after INDEX hash drift (temporary INDEX copy)",
+      "result": "PASS",
+      "expected": "ERROR SOURCE_DRIFT, no results",
+      "observed": {
+        "status": "ERROR",
+        "notebooklm_calls": 0,
+        "timing_ms": 31,
+        "error": "SOURCE_DRIFT",
+        "missing_inputs_count": 0,
+        "results": []
+      }
+    },
+    {
+      "id": "P4-verify",
+      "case": "verify P1 evidence against the drifted INDEX copy",
+      "result": "PASS",
+      "expected": "FAILED or ERROR, never VERIFIED",
+      "observed": {
+        "status": "FAILED",
+        "notebooklm_calls": null,
+        "timing_ms": 15,
+        "error": null,
+        "missing_inputs_count": 0,
+        "checks": {
+          "INDEX_VALID": "PASS",
+          "EVIDENCE_ID": "PASS",
+          "DOCUMENT_WHITELISTED": "PASS",
+          "SOURCE_ID": "PASS",
+          "VERSION_RESOLVED": "PASS",
+          "SOURCE_LOCATION": "PASS",
+          "SOURCE_HASH": "FAIL",
+          "EXCERPT_MATCH": "UNKNOWN",
+          "CLAUSE": "UNKNOWN",
+          "MAPPING": "SKIPPED",
+          "APPLICABILITY": "PASS"
+        }
+      }
+    },
+    {
+      "id": "SOURCE-UNCHANGED",
+      "case": "pilot file hashes after the run equal the hashes before and INDEX",
+      "result": "PASS",
+      "expected": "identical",
+      "observed": {
+        "hashes_after": {
+          "2025-LUAT-135-QH15-Xay-dung.docx": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+          "2024-TCVN-5575-Thiet-ke-ket-cau-thep.docx": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+          "2011-TCVN-8794-Truong-trung-hoc-yeu-cau-th.docx": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f"
+        }
+      }
+    }
+  ],
+  "findings": [
+    {
+      "id": "AMBIGUOUS-CLAUSE-LUAT-135-2025-QH15",
+      "clause": "Điều 93 khoản 1 điểm a",
+      "occurrences_at_lines": [
+        880,
+        882
+      ],
+      "lookup": {
+        "status": "FOUND",
+        "notebooklm_calls": 0,
+        "timing_ms": 155,
+        "error": null,
+        "missing_inputs_count": 0,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_a62e6be76d0e3c6abc23b159",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "LUAT-135-2025-QH15",
+            "VERSION": "2025",
+            "CLAUSE": "Điều 93 khoản 1 điểm a",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+              "observed": "c72b9ba9bcc3b743ab72afd1ab39f8ee580deaf5437ed72fd77bfae0ed3339af",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      },
+      "returned_line_start": 880
+    },
+    {
+      "id": "AMBIGUOUS-CLAUSE-TCVN-5575-2024",
+      "clause": "1",
+      "occurrences_at_lines": [
+        9,
+        108,
+        1314,
+        1354,
+        1530,
+        1837,
+        2132,
+        2510,
+        3610
+      ],
+      "lookup": {
+        "status": "FOUND",
+        "notebooklm_calls": 0,
+        "timing_ms": 1422,
+        "error": null,
+        "missing_inputs_count": 1,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_befccb46f8ae89dc41836620",
+            "STATUS": "UNKNOWN",
+            "DOCUMENT": "TCVN-5575-2024",
+            "VERSION": "2024",
+            "CLAUSE": "1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+              "observed": "87b3fd22e59b8ed1a6ebb9f7c3680a56d87af4cb58d1a34bba0d431665893124",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "UNKNOWN",
+            "missing": [
+              "project_context.conditions.COND-KET-CAU-THEP (Công trình có kết cấu thép)"
+            ],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "APPLICABILITY_UNKNOWN",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      },
+      "returned_line_start": 9
+    },
+    {
+      "id": "AMBIGUOUS-CLAUSE-TCVN-8794-2011",
+      "clause": "1",
+      "occurrences_at_lines": [
+        7,
+        36
+      ],
+      "lookup": {
+        "status": "FOUND",
+        "notebooklm_calls": 0,
+        "timing_ms": 47,
+        "error": null,
+        "missing_inputs_count": 0,
+        "results": [
+          {
+            "EVIDENCE_ID": "ev_bd9f164a4289584816911b26",
+            "STATUS": "VERIFIED",
+            "DOCUMENT": "TCVN-8794-2011",
+            "VERSION": "2011",
+            "CLAUSE": "1",
+            "SOURCE_HASH": {
+              "algorithm": "sha256",
+              "expected": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed": "827c9676fcc336ee593c341ccc62dc2029a934618a7883cf20462487c3dd688f",
+              "observed_from": "local_file",
+              "match": true
+            },
+            "APPLICABILITY": "APPLICABLE",
+            "missing": [],
+            "route": "LOCAL",
+            "cache_hit": false,
+            "uncertainty": [
+              "VERSION_SELECTION",
+              "UNTRUSTED_CONTENT"
+            ],
+            "truncated": false,
+            "layout_dependent": false
+          }
+        ]
+      },
+      "returned_line_start": 7
+    }
+  ],
+  "status": "PASS",
+  "utc_end": "2026-10-06T06:36:51+00:00"
+}

@@ -1,0 +1,20 @@
+PASS  P1-LUAT-135-2025-QH15            exact/local lookup of owner-confirmed clause Điều 1
+PASS  P1-TCVN-8794-2011                exact/local lookup of owner-confirmed clause 5.1
+PASS  PA-ambiguous-TCVN-8794-2011      exact lookup of duplicated clause ID 1 (2 occurrences)
+PASS  P2-genuine-LUAT-135-2025-QH15    standards_verify on the genuine P1 evidence
+PASS  P2-by-id-LUAT-135-2025-QH15      standards_verify by evidence_id
+PASS  P2-genuine-TCVN-8794-2011        standards_verify on the genuine P1 evidence
+PASS  P2-by-id-TCVN-8794-2011          standards_verify by evidence_id
+PASS  P2-tampered-clause               standards_verify on evidence with a tampered clause (JSON copy)
+PASS  P2-tampered-source_hash          standards_verify on evidence with a tampered source_hash (JSON copy)
+PASS  P2-tampered-excerpt              standards_verify on evidence with a tampered excerpt (JSON copy)
+PASS  P2-tampered-version              standards_verify on evidence with a tampered version (JSON copy)
+PASS  P3-no-work-code                  TCVN 8794 clause lookup with no work code
+PASS  P3-no-condition                  TCVN 8794 clause lookup with no condition
+PASS  P3-cond-ket-cau-thep-unknown     TCVN 5575 with COND-KET-CAU-THEP unknown (keyword candidates; no owner-confirmed clause)
+PASS  P4-lookup                        lookup after INDEX hash drift (temporary INDEX copy)
+PASS  P4-verify                        verify P1 evidence against the drifted INDEX copy
+PASS  SOURCE-UNCHANGED                 pilot file hashes after the run equal the hashes before and INDEX
+STATUS: PASS
+[stage-a] summary (committable): <scratch>/syn/ev/stage-a-run-20261006-065247.summary.json
+[stage-a] raw (local only, contains source text): <scratch>/syn/ev/stage-a-run-20261006-065247.raw.json

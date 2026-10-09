@@ -1,0 +1,59 @@
+{
+  "check": "m02-stage-b-v2-preflight-after",
+  "utc": "2026-10-09T02:58:26+00:00",
+  "expect_head": "6eb2aed5e6df0ef97dd91ae6b407f0228c408222",
+  "head": "6eb2aed5e6df0ef97dd91ae6b407f0228c408222",
+  "notebook": "8ca84143-c240-4fcb-98fe-e1f8c6cca02d",
+  "mapped_source_ids": {
+    "LUAT-135-2025-QH15": "8b75af2d-4477-40fb-a67f-3ee10173c221",
+    "TCVN-5575-2024": "d54bb084-5c50-4cef-8979-6e909f791c1e",
+    "TCVN-8794-2011": "8ccb8115-f552-4ecb-b42a-f0ee093f1d08"
+  },
+  "index_sha256": "4f933fbdbf6939e999a740b789d2c64d1bf79afb3ade88e5a4b03a9f21bdd96e",
+  "python": "3.11.16",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "status": "PASS",
+  "checks": [
+    {
+      "name": "HEAD_IS_APPROVED",
+      "result": "PASS",
+      "detail": "head=6eb2aed5e6df0ef97dd91ae6b407f0228c408222 expected=6eb2aed5e6df0ef97dd91ae6b407f0228c408222"
+    },
+    {
+      "name": "TREE_CLEAN",
+      "result": "PASS",
+      "detail": "clean"
+    },
+    {
+      "name": "COMMITTED_CONFIGS_DISABLED",
+      "result": "PASS",
+      "detail": "every committed Gateway config: mode disabled"
+    },
+    {
+      "name": "STAGE_B_SCOPE",
+      "result": "PASS",
+      "detail": "3 documents, notebook 8ca84143-c240-4fcb-98fe-e1f8c6cca02d"
+    },
+    {
+      "name": "M01_SERVER_PIN",
+      "result": "PASS",
+      "detail": "uvx notebooklm-mcp-cli==0.15.1, four read tools"
+    },
+    {
+      "name": "TOKEN_NOT_ELEVATED",
+      "result": "PASS",
+      "detail": "elevated=False"
+    },
+    {
+      "name": "TOKEN_INTEGRITY_AT_MOST_MEDIUM",
+      "result": "PASS",
+      "detail": "Medium"
+    },
+    {
+      "name": "NO_ACL_BYPASS_PRIVILEGES",
+      "result": "PASS",
+      "detail": "none held"
+    }
+  ],
+  "local_library_accessed": false
+}

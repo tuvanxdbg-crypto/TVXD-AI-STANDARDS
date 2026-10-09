@@ -1,0 +1,99 @@
+Console output pasted by the owner into the Claude chat on 2026-10-09 (PowerShell, owner machine ducdq).
+Verbatim, except that line breaks lost or merged by the terminal paste were restored (whitespace only).
+
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> git fetch origin claude/m02-standards-gateway
+remote: Enumerating objects: 51, done.
+remote: Counting objects: 100% (51/51), done.
+remote: Compressing objects: 100% (21/21), done.
+remote: Total 40 (delta 18), reused 40 (delta 18), pack-reused 0 (from 0)
+Unpacking objects: 100% (40/40), 30.12 KiB | 138.00 KiB/s, done.
+From https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS
+ * branch            claude/m02-standards-gateway -> FETCH_HEAD
+   eec1680..f9c1061  claude/m02-standards-gateway -> origin/claude/m02-standards-gateway
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> git pull --ff-only origin claude/m02-standards-gateway
+From https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS
+ * branch            claude/m02-standards-gateway -> FETCH_HEAD
+Updating eec1680..f9c1061
+Fast-forward
+[omitted: file list, identical to `git diff --stat eec1680 f9c1061`]
+ 22 files changed, 2448 insertions(+), 11 deletions(-)
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> git rev-parse HEAD
+f9c1061511ec5330b2eaa837fa8b9648c2bf503e
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> git status --short
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> claude --version
+2.1.293 (Claude Code)
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> $env:PYTHONIOENCODING='utf-8'
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> uv run --no-project --python 3.11 --with pyyaml==6.0.2 --exclude-newer 2026-10-03T00:00:00Z python -m unittest discover -s tests/m02 -p "test_gateway_f13_f14.py" -v 2>&1 | Tee-Object -FilePath $env:TEMP\m02-f14-windows-verbose.txt
+uv : test_contradictions_between_containers_are_inconsistent
+(test_gateway_f13_f14.F13CheckCitations.test_contradictions_between_containers_are_inconsistent) ... ok
+At line:1 char:1
++ uv run --no-project --python 3.11 --with pyyaml==6.0.2 --exclude-newe ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_contradict...sistent) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+test_earlier_object_shape_still_accepted
+(test_gateway_f13_f14.F13CheckCitations.test_earlier_object_shape_still_accepted) ... ok
+test_exact_015_shape_in_scope_is_usable_with_passages_by_number
+(test_gateway_f13_f14.F13CheckCitations.test_exact_015_shape_in_scope_is_usable_with_passages_by_number) ... ok
+test_int_keys_and_missing_cited_text_are_accepted
+(test_gateway_f13_f14.F13CheckCitations.test_int_keys_and_missing_cited_text_are_accepted) ... ok
+test_live_b2_shape_is_no_longer_a_p10_trigger
+(test_gateway_f13_f14.F13CheckCitations.test_live_b2_shape_is_no_longer_a_p10_trigger)
+The five B2 responses: citations a dict of string ids, sources_used the mapped TCVN 8794 source only. ... ok
+test_malformed_numbers_text_and_containers_are_inconsistent
+(test_gateway_f13_f14.F13CheckCitations.test_malformed_numbers_text_and_containers_are_inconsistent) ... ok
+test_missing_or_malformed_ids_are_unattributed
+(test_gateway_f13_f14.F13CheckCitations.test_missing_or_malformed_ids_are_unattributed) ... ok
+test_out_of_scope_in_any_container_is_reported_by_id
+(test_gateway_f13_f14.F13CheckCitations.test_out_of_scope_in_any_container_is_reported_by_id) ... ok
+test_sources_used_never_rescues_a_malformed_citation
+(test_gateway_f13_f14.F13CheckCitations.test_sources_used_never_rescues_a_malformed_citation) ... ok
+test_bad_variants_discard_answer_evidence_and_cache
+(test_gateway_f13_f14.F13ServiceDiscard.test_bad_variants_discard_answer_evidence_and_cache) ... ok
+test_exact_015_shape_in_scope_found_trusted_and_cached
+(test_gateway_f13_f14.F13ServiceDiscard.test_exact_015_shape_in_scope_found_trusted_and_cached) ... ok
+test_a_descendant_outside_the_containment_refuses_the_start
+(test_gateway_f13_f14.F14ProcessTree.test_a_descendant_outside_the_containment_refuses_the_start) ... skipped 'POSIX
+session escape check reads /proc'
+test_containment_unavailable_is_blocked_not_pass
+(test_gateway_f13_f14.F14ProcessTree.test_containment_unavailable_is_blocked_not_pass) ... ok
+test_graceful_close_also_verifies_the_tree
+(test_gateway_f13_f14.F14ProcessTree.test_graceful_close_also_verifies_the_tree) ... ok
+test_negative_control_wrapper_only_kill_leaves_the_child_and_p8_fails
+(test_gateway_f13_f14.F14ProcessTree.test_negative_control_wrapper_only_kill_leaves_the_child_and_p8_fails) ... ok
+test_recovery_runs_on_a_new_validated_process
+(test_gateway_f13_f14.F14ProcessTree.test_recovery_runs_on_a_new_validated_process) ... ok
+test_retirement_kills_and_verifies_wrapper_and_child
+(test_gateway_f13_f14.F14ProcessTree.test_retirement_kills_and_verifies_wrapper_and_child) ... ok
+test_all_cases_pass_with_startup_timeout_and_verified_teardown
+(test_gateway_f13_f14.F14RunnerEndToEnd.test_all_cases_pass_with_startup_timeout_and_verified_teardown) ... ok
+test_call_timeout_variant_counts_the_query_as_sent
+(test_gateway_f13_f14.F14RunnerEndToEnd.test_call_timeout_variant_counts_the_query_as_sent) ... ok
+test_recovery_containment_unavailable_is_blocked
+(test_gateway_f13_f14.F14RunnerEndToEnd.test_recovery_containment_unavailable_is_blocked) ... ok
+test_recovery_wrapper_exits_but_descendant_survives_is_fail
+(test_gateway_f13_f14.F14RunnerEndToEnd.test_recovery_wrapper_exits_but_descendant_survives_is_fail) ... ok
+test_tight_start_containment_unavailable_is_blocked
+(test_gateway_f13_f14.F14RunnerEndToEnd.test_tight_start_containment_unavailable_is_blocked) ... ok
+test_assignment_failure_terminates_the_suspended_root_before_it_runs
+(test_gateway_f13_f14.F14SuspendedStart.test_assignment_failure_terminates_the_suspended_root_before_it_runs) ... ok
+test_delayed_assignment_lets_no_child_start_before_resume
+(test_gateway_f13_f14.F14SuspendedStart.test_delayed_assignment_lets_no_child_start_before_resume) ... ok
+test_negative_control_without_suspension_a_delayed_assignment_lets_a_child_escape (test_gateway_f13_f14.F14SuspendedSta
+rt.test_negative_control_without_suspension_a_delayed_assignment_lets_a_child_escape) ... ok
+test_popen_kwargs_and_resume_rules (test_gateway_f13_f14.F14SuspendedStart.test_popen_kwargs_and_resume_rules) ... ok
+test_repeated_starts_never_escape_and_always_close_verified
+(test_gateway_f13_f14.F14SuspendedStart.test_repeated_starts_never_escape_and_always_close_verified) ... ok
+test_resume_failure_kills_the_contained_root_before_it_runs
+(test_gateway_f13_f14.F14SuspendedStart.test_resume_failure_kills_the_contained_root_before_it_runs) ... ok
+test_uncontained_start_is_refused_before_any_request
+(test_gateway_f13_f14.F14SuspendedStart.test_uncontained_start_is_refused_before_any_request) ... ok
+test_call_timeout_after_the_request_was_written_is_counted_as_sent
+(test_gateway_f13_f14.F14TimeoutDetails.test_call_timeout_after_the_request_was_written_is_counted_as_sent) ... ok
+test_sent_state_mapping (test_gateway_f13_f14.F14TimeoutDetails.test_sent_state_mapping) ... ok
+test_startup_timeout_is_not_counted_as_a_sent_notebook_query
+(test_gateway_f13_f14.F14TimeoutDetails.test_startup_timeout_is_not_counted_as_a_sent_notebook_query) ... ok
+----------------------------------------------------------------------
+Ran 32 tests in 37.068s
+OK (skipped=1)

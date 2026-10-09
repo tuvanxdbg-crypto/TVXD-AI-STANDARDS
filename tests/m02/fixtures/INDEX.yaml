@@ -1,0 +1,219 @@
+# INDEX.yaml — machine-readable metadata for the M02 FIXTURE library.
+# FIXTURE ONLY: every document, effective date, applicability entry, reviewer and
+# NotebookLM mapping below is fake test data. It says nothing about real standards.
+# Paths are relative to the configured source_root; sha256 is the hash of the file bytes. Since contract v2
+# (M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE) path/sha256/sync are optional provenance the Gateway never checks; the
+# notebooklm notebook/source pairs define the only scope NotebookLM is queried with.
+schema: tvxd.gateway.index/v1
+index_version: "2026-10-05-fixture.1"
+rules_version: "fixture-rules.1"
+fixture: true
+
+work_codes:
+  - code: ELEC-LV-FAKE
+    title: "Lắp đặt điện hạ thế (giả lập)"
+  - code: LIGHT-FAKE
+    title: "Chiếu sáng (giả lập)"
+  - code: GEN-FAKE
+    title: "Chung (giả lập)"
+
+documents:
+  - id: QCVN-FAKE-01
+    title: "QCVN FAKE 01 — Quy chuẩn giả lập về lắp đặt điện hạ thế"
+    doc_type: QCVN
+    codes: ["QCVN FAKE 01", "QCVN-FAKE-01"]
+    topics: [dien-ha-the, khoang-cach, tu-dien]
+    applicability:
+      reviewed: true
+      reviewed_by: "FIXTURE reviewer (not a real review)"
+      work_codes: [ELEC-LV-FAKE]
+      conditions: []
+    versions:
+      - version: "2024"
+        status: active
+        effective_from: "2025-01-01"
+        effective_to: null
+        source: {path: "02_QCVN/QCVN-FAKE-01-2024.md", format: md, sha256: "1cebd3d76c5af9fa7191c4179ff088c1e64c336e76247e1835fc515d60aa9569", clause_scheme: numeric}
+        notebooklm:
+          notebook_id: nb-fixture-001
+          source_id: src-qcvn01-2024
+          sync: {sha256: "1cebd3d76c5af9fa7191c4179ff088c1e64c336e76247e1835fc515d60aa9569", synced_at: "2026-10-01T00:00:00Z"}
+      - version: "2019"
+        status: superseded
+        effective_from: "2020-01-01"
+        effective_to: "2025-01-01"
+        source: {path: "02_QCVN/QCVN-FAKE-01-2019.md", format: md, sha256: "54475875561fdc773bfda346b9ede9ff190a22237f8bc3b13ed081f4f5c244ca", clause_scheme: numeric}
+        notebooklm: null
+
+  - id: QCVN-FAKE-02
+    title: "QCVN FAKE 02 — Tài liệu giả lập ngoài whitelist"
+    doc_type: QCVN
+    codes: ["QCVN FAKE 02"]
+    topics: [ngoai-whitelist]
+    applicability:
+      reviewed: true
+      reviewed_by: "FIXTURE reviewer (not a real review)"
+      work_codes: [ELEC-LV-FAKE]
+      conditions: []
+    versions:
+      - version: "2023"
+        status: active
+        effective_from: "2023-06-01"
+        effective_to: null
+        source: {path: "02_QCVN/QCVN-FAKE-02-2023.md", format: md, sha256: "87ca32197ef25d6a1fc1d32a315df298d343ec53eb5fe3c6fe7ecfacd2e80eab", clause_scheme: numeric}
+        notebooklm: {notebook_id: nb-not-allowed, source_id: src-qcvn02, sync: {sha256: "87ca32197ef25d6a1fc1d32a315df298d343ec53eb5fe3c6fe7ecfacd2e80eab", synced_at: "2026-10-01T00:00:00Z"}}
+
+  - id: LUAT-FAKE-99
+    title: "Luật giả lập số 99/2025/FAKE"
+    doc_type: LAW
+    codes: ["LUAT FAKE 99", "Luật giả lập số 99"]
+    topics: [phap-luat, chu-dau-tu]
+    applicability:
+      reviewed: true
+      reviewed_by: "FIXTURE reviewer (not a real review)"
+      work_codes: [ELEC-LV-FAKE, LIGHT-FAKE, GEN-FAKE]
+      conditions: []
+    versions:
+      - version: "2025"
+        status: active
+        effective_from: "2025-07-01"
+        effective_to: null
+        source: {path: "01_PHAP_LUAT/LUAT-FAKE-99-2025.txt", format: txt, sha256: "72316410d21f490d3087bec41c403873539717e1a54377e7a43c922f7115e121", clause_scheme: article}
+        notebooklm:
+          notebook_id: nb-fixture-001
+          source_id: src-luat99
+          sync: {sha256: "72316410d21f490d3087bec41c403873539717e1a54377e7a43c922f7115e121", synced_at: "2026-10-01T00:00:00Z"}
+
+  - id: TCVN-FAKE-7777
+    title: "TCVN FAKE 7777 — Hệ thống chiếu sáng giả lập"
+    doc_type: TCVN
+    codes: ["TCVN FAKE 7777"]
+    topics: [chieu-sang, do-roi]
+    applicability:
+      reviewed: true
+      reviewed_by: "FIXTURE reviewer (not a real review)"
+      work_codes: [LIGHT-FAKE]
+      conditions:
+        - id: COND-INDOOR
+          text: "Công trình trong nhà (giả lập)"
+    versions:
+      - version: "2023"
+        status: active
+        effective_from: "2023-01-01"
+        effective_to: null
+        source: {path: "03_TCVN/TCVN FAKE 7777 Hệ thống chiếu sáng.md", format: md, sha256: "2c050c17fad30ea7d7c92bcba5d4a951602b8d50dd9d076e5394a332c1610363", clause_scheme: numeric}
+        notebooklm:
+          notebook_id: nb-fixture-001
+          source_id: src-tcvn7777
+          sync: null
+
+  - id: TCVN-FAKE-8888
+    title: "TCVN FAKE 8888 — Cáp điện giả lập (DOCX)"
+    doc_type: TCVN
+    codes: ["TCVN FAKE 8888"]
+    topics: [cap-dien, tiet-dien]
+    applicability:
+      reviewed: true
+      reviewed_by: "FIXTURE reviewer (not a real review)"
+      work_codes: [ELEC-LV-FAKE]
+      conditions: []
+    versions:
+      - version: "2022"
+        status: active
+        effective_from: "2022-03-01"
+        effective_to: null
+        source: {path: "03_TCVN/TCVN-FAKE-8888-2022.docx", format: docx, sha256: "f51a34ef9fd3f53a1bdf9805340fe74a0bf4c182bdd6d35854dd813a7507e981", clause_scheme: numeric}
+        notebooklm:
+          notebook_id: nb-fixture-001
+          source_id: src-tcvn8888
+          # Deliberately wrong: NotebookLM holds a copy synced from a different file (drift fixture).
+          sync: {sha256: "54475875561fdc773bfda346b9ede9ff190a22237f8bc3b13ed081f4f5c244ca", synced_at: "2026-09-01T00:00:00Z"}
+
+  - id: TCVN-FAKE-9999
+    title: "TCVN FAKE 9999 — Hai phiên bản cùng hiệu lực (giả lập)"
+    doc_type: TCVN
+    codes: ["TCVN FAKE 9999"]
+    topics: [phien-ban]
+    applicability:
+      reviewed: true
+      reviewed_by: "FIXTURE reviewer (not a real review)"
+      work_codes: [GEN-FAKE]
+      conditions: []
+    versions:
+      - version: "2021"
+        status: active
+        effective_from: "2021-01-01"
+        effective_to: null
+        source: {path: "03_TCVN/TCVN-FAKE-9999-2021.md", format: md, sha256: "023789937f336e4a4677ff66dbfc04717a411e09bda61dc222600ea545c398c6", clause_scheme: numeric}
+        notebooklm: null
+      - version: "2022"
+        status: active
+        effective_from: "2022-01-01"
+        effective_to: null
+        source: {path: "03_TCVN/TCVN-FAKE-9999-2022.md", format: md, sha256: "ff179a0dcfc9869ce6dbdaf48bbea1685375294feab156b8a5b2c7e60e48595d", clause_scheme: numeric}
+        notebooklm: null
+
+  - id: IEC-FAKE-60000
+    title: "IEC FAKE 60000 — PDF giả lập (định dạng chưa hỗ trợ)"
+    doc_type: IEC
+    codes: ["IEC FAKE 60000"]
+    topics: [pdf]
+    applicability:
+      reviewed: true
+      reviewed_by: "FIXTURE reviewer (not a real review)"
+      work_codes: [ELEC-LV-FAKE]
+      conditions: []
+    versions:
+      - version: "2020"
+        status: active
+        effective_from: "2020-01-01"
+        effective_to: null
+        source: {path: "04_IEC/IEC-FAKE-60000.pdf", format: pdf, sha256: "5fe2b78be832f494da78290a7455fa23878af30d4b2efd56f6eef57ec8f708bb", clause_scheme: numeric}
+        notebooklm: null
+
+  - id: HD-FAKE-INJECTION
+    title: "HD FAKE INJECTION — Hướng dẫn giả lập có chỉ thị nhúng"
+    doc_type: GUIDE
+    codes: ["HD FAKE INJECTION"]
+    topics: [noi-dat, injection]
+    applicability:
+      reviewed: true
+      reviewed_by: "FIXTURE reviewer (not a real review)"
+      work_codes: [GEN-FAKE]
+      conditions: []
+    versions:
+      - version: "2026"
+        status: active
+        effective_from: "2026-01-01"
+        effective_to: null
+        source: {path: "05_HUONG_DAN/HD-FAKE-INJECTION.md", format: md, sha256: "ca7af172e1b11bd0afe68b7f5540059a86075722b0e034e7b5f6676004e56de8", clause_scheme: numeric}
+        notebooklm:
+          notebook_id: nb-fixture-001
+          source_id: src-injection
+          sync: {sha256: "ca7af172e1b11bd0afe68b7f5540059a86075722b0e034e7b5f6676004e56de8", synced_at: "2026-10-01T00:00:00Z"}
+
+  - id: HD-FAKE-UNREVIEWED
+    title: "HD FAKE UNREVIEWED — Phạm vi áp dụng chưa duyệt"
+    doc_type: GUIDE
+    codes: ["HD FAKE UNREVIEWED"]
+    topics: [chua-duyet]
+    applicability:
+      reviewed: false
+      reviewed_by: null
+      work_codes: []
+      conditions: []
+    versions:
+      - version: "2026"
+        status: active
+        effective_from: "2026-01-01"
+        effective_to: null
+        source: {path: "05_HUONG_DAN/HD-FAKE-UNREVIEWED.md", format: md, sha256: "5abf74cd912874496b16349f80a279b848bc9668ccc9ad6e1430dea1e8014de3", clause_scheme: numeric}
+        notebooklm:
+          notebook_id: nb-not-allowed
+          source_id: src-unreviewed
+          sync: {sha256: "5abf74cd912874496b16349f80a279b848bc9668ccc9ad6e1430dea1e8014de3", synced_at: "2026-10-01T00:00:00Z"}
+
+whitelist:
+  documents: [QCVN-FAKE-01, LUAT-FAKE-99, TCVN-FAKE-7777, TCVN-FAKE-8888, TCVN-FAKE-9999, IEC-FAKE-60000,
+              HD-FAKE-INJECTION, HD-FAKE-UNREVIEWED]
+  notebooklm_notebooks: [nb-fixture-001]

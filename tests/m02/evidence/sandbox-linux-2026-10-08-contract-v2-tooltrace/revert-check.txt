@@ -1,0 +1,8 @@
+revert: trace rule -> all(allowed_use), backend list -> set (the 62a3828 rules)
+FAIL: test_duplicate_lookup_fails (test_gateway_surface_harness.ToolTraceGate.test_duplicate_lookup_fails)
+FAIL: test_duplicate_or_other_backend_calls_fail (test_gateway_surface_harness.ToolTraceGate.test_duplicate_or_other_backend_calls_fail)
+FAIL: test_extra_standards_status_fails (test_gateway_surface_harness.ToolTraceGate.test_extra_standards_status_fails)
+FAIL: test_extra_standards_verify_fails (test_gateway_surface_harness.ToolTraceGate.test_extra_standards_verify_fails)
+FAIL: test_other_tool_attempts_fail (test_gateway_surface_harness.ToolTraceGate.test_other_tool_attempts_fail)
+Ran 15 tests in 0.357s
+FAILED (failures=5)

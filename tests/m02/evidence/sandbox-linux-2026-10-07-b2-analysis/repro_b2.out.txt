@@ -1,0 +1,18 @@
+shape: out_of_scope ['<unattributed>'] answer_kept False citations 0
+p8: caller got TIMEOUT after 1.00s
+p8: right after TIMEOUT: proc alive = False
+p8: 3 s later: client._proc is None = True | old proc exited = True
+p8: server log: ['start']
+---
+shape: out_of_scope ['<unattributed>'] answer_kept False citations 0
+p8: caller got TIMEOUT after 1.00s
+p8: right after TIMEOUT: proc alive = False
+p8: 3 s later: client._proc is None = True | old proc exited = True
+p8: server log: ['start']
+---
+shape: out_of_scope ['<unattributed>'] answer_kept False citations 0
+p8: caller got TIMEOUT after 1.00s
+p8: right after TIMEOUT: proc alive = False
+p8: 3 s later: client._proc is None = True | old proc exited = True
+p8: server log: ['start']
+---

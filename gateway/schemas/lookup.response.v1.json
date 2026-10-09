@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "lookup.response.v1.json",
+  "title": "standards_lookup response v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "request_id",
+    "status",
+    "results",
+    "missing_inputs",
+    "excluded",
+    "error",
+    "index",
+    "notebooklm_calls",
+    "disclaimer",
+    "timing_ms"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tvxd.gateway.lookup.response/v1",
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "FOUND",
+        "CANDIDATES",
+        "UNKNOWN",
+        "ERROR"
+      ]
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "$ref": "evidence.v1.json"
+      }
+    },
+    "missing_inputs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "document_id",
+          "reason"
+        ],
+        "properties": {
+          "document_id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "notebooklm_calls": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^req_[0-9a-f]{16}$"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/error"
+        }
+      ]
+    },
+    "index": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/index_ref"
+        }
+      ]
+    },
+    "disclaimer": {
+      "type": "string"
+    },
+    "timing_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "status.response.v2.json",
+  "title": "standards_status response v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "request_id",
+    "status",
+    "checked_at",
+    "gateway_version",
+    "public_tools",
+    "components",
+    "error",
+    "index",
+    "disclaimer",
+    "timing_ms"
+  ],
+  "properties": {
+    "schema": {
+      "const": "tvxd.gateway.status.response/v2",
+      "type": "string"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "OK",
+        "DEGRADED",
+        "ERROR"
+      ]
+    },
+    "checked_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "gateway_version": {
+      "type": "string"
+    },
+    "public_tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "degraded",
+              "disabled",
+              "unavailable",
+              "error",
+              "not_checked",
+              "not_used"
+            ]
+          }
+        }
+      }
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^req_[0-9a-f]{16}$"
+    },
+    "error": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/error"
+        }
+      ]
+    },
+    "index": {
+      "anyOf": [
+        {
+          "type": "null"
+        },
+        {
+          "$ref": "common.v1.json#/$defs/index_ref"
+        }
+      ]
+    },
+    "disclaimer": {
+      "type": "string"
+    },
+    "timing_ms": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

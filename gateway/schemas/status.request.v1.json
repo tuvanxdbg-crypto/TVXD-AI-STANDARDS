@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "status.request.v1.json",
+  "title": "standards_status request v1",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "scope": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "string",
+        "enum": [
+          "index",
+          "local",
+          "cache",
+          "notebooklm"
+        ]
+      }
+    },
+    "deep": {
+      "type": "boolean",
+      "description": "Accepted for compatibility; since contract v2 the Gateway reads no local files, so it changes nothing."
+    },
+    "probe_backend": {
+      "type": "boolean",
+      "description": "Call the NotebookLM backend (notebook_list) to check reachability. Default false."
+    }
+  }
+}
