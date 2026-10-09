@@ -219,9 +219,26 @@ Nếu sau này repo bật GitHub Advanced Security, hoặc `scan-history` dùng 
 | # | Tiêu chí | Evidence |
 |---|---|---|
 | A1-1 | Secret Protection và Push protection đang bật | Ảnh chụp Settings → Advanced Security |
-| A1-2 | Lần đọc alert thứ nhất, sau khi bật Secret Protection: 0 alert `open`; mọi alert `resolved` (nếu có) đã được rotate/thu hồi ở nhà cung cấp trước khi đóng, theo D4 | Ảnh trang Secret scanning (Open và Closed) **và** kết quả REST API `GET /repos/{owner}/{repo}/secret-scanning/alerts` với `state=open` và `state=resolved`, `hide_secret=true`, gọi bằng tài khoản chủ repo; chỉ ghi số đếm, hoặc loại secret, file, commit và cách xử lý, không ghi giá trị secret |
-| A1-3 | Lần đọc alert thứ hai, **ít nhất 24 giờ sau khi bật Secret Protection**, bằng cùng lệnh REST API như A1-2: vẫn 0 alert `open`, và mọi alert mới (nếu có) đã được xử lý theo D4 | Output nguyên văn kèm thời điểm chạy (UTC+7) và thời điểm bật Secret Protection |
+| A1-2 | Lần đọc alert thứ nhất, sau khi bật Secret Protection, **đọc hết mọi trang** theo "Cách đọc alert" bên dưới: 0 alert `open`; mọi alert `resolved` (nếu có) có evidence theo từng alert như mục "Evidence theo từng alert" | Ảnh trang Secret scanning (Open và Closed) **và** output nguyên văn của lệnh REST API đọc hết mọi trang, gọi bằng tài khoản chủ repo |
+| A1-3 | Lần đọc thứ hai, **ít nhất 24 giờ sau khi bật Secret Protection**, bằng cùng cách đọc hết mọi trang như A1-2: vẫn 0 alert `open`; mọi alert `resolved` (gồm cả alert mới xuất hiện từ lần đọc thứ nhất) có evidence theo từng alert | Output nguyên văn, kèm thời điểm chạy (UTC+7) và thời điểm bật Secret Protection |
 | A1-4 | Lời gọi `scan-history` và lỗi trả về được ghi nguyên văn | Output nguyên văn |
+
+**Cách đọc alert (A1-2 và A1-3).** Endpoint `GET /repos/{owner}/{repo}/secret-scanning/alerts` có phân trang (tham số `page`, `per_page`, `before`, `after`). Một trang response không đủ để kết luận "mọi alert". Mỗi lần đọc phải:
+- gọi riêng `state=open` và `state=resolved`, luôn kèm `hide_secret=true`;
+- đọc hết mọi trang, ví dụ bằng GitHub CLI `gh api --paginate`, với `per_page=100`;
+- in một dòng cho mỗi alert, chỉ gồm các trường không nhạy cảm: `number`, `state`, `secret_type`, `resolution`, `resolved_at`. Ví dụ:
+  ```text
+  gh api --paginate "repos/tuvanxdbg-crypto/TVXD-AI-STANDARDS/secret-scanning/alerts?state=resolved&hide_secret=true&per_page=100" --jq ".[] | [.number, .state, .secret_type, .resolution, .resolved_at] | @tsv"
+  ```
+  Số alert là số dòng in ra. Output rỗng nghĩa là 0 alert ở trạng thái đó trên mọi trang. Không dùng `--jq "length"` không kèm `--paginate`, vì cách đó chỉ đếm một trang.
+
+**Evidence theo từng alert khi có alert `resolved`.** Nếu một lần đọc có ít nhất một alert `resolved`, thì với **từng** alert phải có evidence đã khử nhạy cảm:
+- số alert (`number`), loại secret (`secret_type`), `resolution` và `resolved_at`;
+- vị trí: `path` và `commit_sha`, lấy từ `GET /repos/{owner}/{repo}/secret-scanning/alerts/{alert_number}/locations` (cũng đọc hết mọi trang);
+- xác nhận của chủ repo rằng credential đã được rotate hoặc thu hồi ở nhà cung cấp **trước** thời điểm `resolved_at`: tên nhà cung cấp, cách làm (rotate hay thu hồi), thời điểm, và mã tham chiếu phía nhà cung cấp nếu có (ví dụ ID của khóa đã thu hồi). Nếu alert bị đóng là `false_positive` hoặc `used_in_tests`, ghi lý do kiểm chứng thay cho rotate;
+- **tuyệt đối không ghi giá trị secret**, cũng không ghi đoạn văn bản chứa secret.
+
+Thiếu evidence cho bất kỳ alert `resolved` nào thì tiêu chí đó không đạt. Số đếm một mình không đủ.
 
 Mốc 24 giờ là một biện pháp bù do LEAD đề xuất. Tài liệu GitHub không công bố thời gian một lần quét lịch sử. Mốc này chỉ để có thêm một lần đọc cách xa thời điểm bật, chứ không chứng minh lần quét đã xong.
 
