@@ -17,8 +17,10 @@
 Mọi thay đổi vào `main` đi đúng một đường:
 
 ```text
-branch -> commit -> PR -> CI xanh -> REVIEW_V1 tại HEAD của PR -> chủ repo duyệt -> merge
+branch -> commit -> PR -> cập nhật theo main -> CI xanh -> REVIEW_V1 tại HEAD của PR -> chủ repo duyệt -> merge
 ```
+
+HEAD của PR đổi vì bất kỳ lý do gì thì phải chạy lại cả 3 job CI và có REVIEW_V1 mới tại SHA mới. Lý do có thể là commit mới, hoặc merge/rebase theo `main`. Review ở SHA cũ là STALE, đúng quy tắc trong CLAUDE.md.
 
 Thêm vào đó:
 - CI tự chạy các kiểm tra offline đang chạy tay ở M01/M02, gồm cả các kiểm tra chỉ chạy được trên Windows.
@@ -35,7 +37,7 @@ Thêm vào đó:
 | PR template | Có (`.github/pull_request_template.md`), đã có khối `REVIEW_V1` |
 | Bộ test M02 | 185 test, chạy tay bằng `scripts/m02/m02-tests.ps1` hoặc `uv run ... python -m unittest discover -s tests/m02 -p "test_gateway_*.py"`. Trên Linux có 8 test bỏ qua vì chỉ chạy trên Windows: 4 test junction/reparse và 4 test F14 suspended-start |
 | Test M01 offline | `tests/m01/test_m01_10_llm_check.py` (12 test), `tests/m01/test_m01_console.py` (2 test) |
-| Quét secret | `tests/m01/check_no_secrets.py`, quét theo tên file và mẫu chuỗi trên các file đã track (323 file tại `6eb2aed`). Docstring của script ghi: "Full secret scanning stays in M03" |
+| Quét secret | `tests/m01/check_no_secrets.py`, quét theo tên file và mẫu chuỗi trên các file đã track (323 file tại `6eb2aed`). Script lấy danh sách bằng `git ls-files` rồi đọc file ở working tree, nên chỉ quét cây hiện tại. Nó không quét commit cũ hay file đã xóa trong lịch sử. Docstring của script ghi: "Minimal local check" và "Full secret scanning stays in M03" |
 | Kiểm tra metadata | Có hàm nhưng chưa có lệnh gom lại: `gateway.schema.check()`, `gateway.index.load_index()`, `pilot_stage_b_v2_preflight.committed_configs_disabled()`, `server_pin_problems()` |
 | Kiểm tra chạy thật với Claude Code (`m02_surface.py surface`/`llm`) | Cần đăng nhập Claude Code, chỉ chạy được trên máy chủ repo hoặc sandbox. Không đưa vào CI |
 
@@ -48,6 +50,11 @@ Chủ repo tự áp dụng trong Settings của repo. Claude chỉ soạn danh s
 Thông số đề xuất:
 - Bắt buộc mọi thay đổi qua PR. Không push thẳng vào `main`.
 - Bắt buộc các status check của D3 phải xanh: `ci / linux`, `ci / windows`, `ci / metadata`. Tên cuối cùng lấy theo tên job sau khi D3 đã merge.
+- **Status check ở chế độ strict:** bật "Require branches to be up to date before merging". Ở chế độ loose, nhánh PR không cần chứa commit mới nhất của `main`. Khi đó check xanh có thể đã chạy trên một base cũ, và không còn đại diện cho kết quả sau merge, nhất là khi một PR khác vừa merge trước. Ở chế độ strict, GitHub chặn merge cho đến khi nhánh PR đã cập nhật theo `main`.
+- **Sau mỗi lần cập nhật base:**
+  - nhánh PR merge `main` vào (repo này dùng merge commit; rebase chỉ trên nhánh do người đó tạo);
+  - chạy lại đủ 3 job trên HEAD mới;
+  - vì HEAD đã đổi, cần REVIEW_V1 mới tại SHA mới trước khi chủ repo merge.
 - Chặn force push và chặn xóa nhánh `main`.
 - Cho phép merge commit, vì repo đang dùng kiểu này cho PR #1, #5, #6, #7.
 - Bắt buộc giải quyết hết hội thoại review trước khi merge.
@@ -92,12 +99,23 @@ Job `windows` chạy ở mọi PR (quyết định §8, mục 3). Repo giờ là
 
 Repo public nên PR có thể đến từ fork của người khác. Với trigger `pull_request`, GitHub chạy workflow của fork bằng token chỉ đọc và không cấp secret. Spec giữ đúng mô hình này. Không dùng `pull_request_target`, vì trigger đó chạy code của fork với quyền của repo gốc.
 
+**Cổng phê duyệt workflow của fork.** Với PR từ fork của người đóng góp mới, GitHub có thể giữ workflow ở trạng thái chờ maintainer phê duyệt. Khi đó các job chưa chạy và các required check ở trạng thái pending. Câu "job `windows` chạy ở mọi PR" nghĩa là mọi PR đều phải có đủ 3 check xanh trước khi merge. Nó không có nghĩa là bỏ lớp phê duyệt này.
+- Chủ repo giữ cài đặt phê duyệt workflow của fork (Settings → Actions → General) ở mức mặc định hoặc chặt hơn. Không nới lỏng chỉ để mọi PR tự chạy.
+- Trước khi bấm phê duyệt cho một lần chạy, chủ repo đọc diff của PR. Đặc biệt xem các file trong `.github/`, script, test và mọi thay đổi có gọi mạng hoặc cài thêm gói. Nếu PR sửa `.github/workflows/` hoặc có thay đổi đáng ngờ thì không phê duyệt, mà ghi lý do vào PR.
+- Khi ghi nghiệm thu hay báo cáo CI, phân biệt 3 trạng thái:
+  - đang chờ maintainer phê duyệt (chưa chạy);
+  - đã chạy và đỏ (CI failure);
+  - không có check (thiếu check, ví dụ do sai tên job).
+  Chỉ trạng thái thứ hai được tính là CI failure.
+
 ### D4. Quét secret
 
 Hai lớp:
-1. **Trong CI:** chạy `check_no_secrets.py` ở job `linux`, như đã làm tay từ M01.
+1. **Trong CI:** chạy `check_no_secrets.py` ở job `linux`, như đã làm tay từ M01. Lớp này chỉ bảo vệ cây hiện tại của mỗi commit, không quét lịch sử.
 2. **Phía GitHub:**
    - Bật secret scanning và push protection trong Settings → Code security. Repo đã public nên hai tính năng này dùng được.
+   - Theo tài liệu GitHub, secret scanning quét toàn bộ lịch sử Git của repo. Đây là lớp duy nhất trong M03 phủ được lịch sử đã công khai.
+   - Mọi alert phải được chủ repo xử lý: thu hồi hoặc đổi (rotate) credential ở nhà cung cấp trước, rồi mới đóng alert. Đóng alert mà không rotate thì không tính là đã xử lý, vì lịch sử đã public.
    - Nếu trang Settings không hiện các tùy chọn này, ghi rõ trong tài liệu nghiệm thu là lớp 2 chưa có. Không thay bằng công cụ bên thứ ba khi chưa được duyệt riêng.
 
 Không thêm công cụ quét mới trong M03. Lý do: đó là một phụ thuộc mới và cần review riêng.
@@ -158,10 +176,16 @@ M03 chỉ thêm một tài liệu ngắn `docs/REVIEW_PROCESS.md`, viết lại 
    - Duyệt: REVIEW_V1 tại HEAD, chủ repo duyệt merge.
 2. **M03-B, chủ repo làm trên GitHub sau khi M03-A merge:**
    - Áp dụng ruleset D1 với tên status check đúng như CI đã chạy.
-   - Bật D4 lớp 2 nếu gói cho phép.
-   - Gửi lại cho Claude bản export JSON của ruleset (Settings → Rules → Export) hoặc ảnh chụp màn hình để ghi evidence.
+   - Bật D4 lớp 2.
+   - Xem trang Security → Secret scanning của repo sau khi bật. Xác nhận lần quét lịch sử đã xong, và xử lý mọi alert theo D4.
+   - Gửi lại cho Claude để ghi evidence:
+     - bản export JSON của ruleset (Settings → Rules → Export) hoặc ảnh chụp màn hình, trong đó thấy chế độ strict;
+     - ảnh chụp trang Code security và trang danh sách alert secret scanning (gồm cả alert đã đóng);
+     - ảnh chụp cài đặt phê duyệt workflow của fork.
+     Ảnh chụp không được để lộ giá trị secret. Nếu có alert, chỉ ghi loại secret, đường dẫn file, commit và cách đã xử lý.
 3. **M03-C, kiểm chứng:**
    - Một PR thử nhỏ, chỉ sửa tài liệu, để thấy check bắt buộc hiện ra và chặn merge khi đỏ.
+   - Chính PR thử đó, khi `main` đã có commit mới mà nhánh chưa cập nhật: phải bị chặn merge vì chế độ strict.
    - Thử push thẳng vào `main` và force push: phải bị từ chối. Chủ repo làm và gửi output.
    - Ghi evidence và chốt nghiệm thu M03.
 
@@ -172,8 +196,8 @@ Theo CLAUDE.md, mỗi mốc nghiệm thu phải ghi đủ: mục tiêu, evidence
 | Mốc | Mục tiêu | Evidence yêu cầu | Điều kiện đạt | Người duyệt |
 |---|---|---|---|---|
 | M03-A | CI, CODEOWNERS, script metadata, PR template, tài liệu quy trình | Link 3 lần chạy CI xanh trên HEAD của PR; link các lần chạy đỏ có chủ đích (mỗi job một lần); output test âm của D5 | 3 job xanh trên HEAD; mỗi job từng đỏ đúng một lần khi cố ý làm hỏng; D5 có đủ 6 test âm | REVIEW_V1 tại HEAD, chủ repo |
-| M03-B | Ruleset trên `main`, secret scanning nếu có | Export JSON hoặc ảnh chụp ruleset; ảnh chụp trang Code security | Đủ các thông số D1 đã chốt; lớp 2 của D4 bật, hoặc được ghi rõ là không khả dụng | Chủ repo |
-| M03-C | Ruleset thực sự chặn | Output của push thẳng và force push bị từ chối; PR thử bị chặn khi check đỏ | Cả 3 tình huống đều bị chặn | REVIEW_V1 tại HEAD evidence, chủ repo |
+| M03-B | Ruleset trên `main`, secret scanning, cổng phê duyệt fork | Export JSON hoặc ảnh chụp ruleset; ảnh chụp trang Code security; ảnh chụp danh sách alert secret scanning (mở và đã đóng); ảnh chụp cài đặt phê duyệt workflow của fork | Đủ các thông số D1 đã chốt, kể cả strict. Lớp 2 của D4 bật, lần quét lịch sử đã xong, và mọi alert đã được rotate/thu hồi rồi mới đóng. Nếu không xác nhận được lần quét lịch sử hoặc không đọc được alert, ghi trạng thái là `CHƯA KIỂM CHỨNG` và M03-B không được ghi PASS. Cài đặt fork ở mức mặc định hoặc chặt hơn | Chủ repo |
+| M03-C | Ruleset thực sự chặn | Output của push thẳng và force push bị từ chối; PR thử bị chặn khi check đỏ; PR thử bị chặn khi nhánh chậm hơn `main` | Cả 4 tình huống đều bị chặn | REVIEW_V1 tại HEAD evidence, chủ repo |
 
 ## 8. Quyết định của chủ repo
 
@@ -189,7 +213,7 @@ Chủ repo trả lời trong chat Claude ngày 2026-10-09, nguyên văn: "1. Kh�
 ### 8a. Hệ quả của việc chuyển sang public
 
 Lịch sử Git giờ ai cũng đọc được, gồm cả các commit cũ. Rà nhanh trên nhánh này tại `aa973cb`:
-- **Không phát hiện secret.** `tests/m01/check_no_secrets.py` PASS, và không có địa chỉ email trong file đã track. Các chuỗi "gmail" chỉ là tên plugin trong evidence.
+- **Secret: chỉ kiểm được cây hiện tại.** `tests/m01/check_no_secrets.py` PASS, nghĩa là không phát hiện secret trong cây file đã track tại `aa973cb`, theo các mẫu của M01-09. Không có địa chỉ email trong các file đó; các chuỗi "gmail" chỉ là tên plugin trong evidence. Kết quả này **không** chứng minh lịch sử Git không có secret: script không quét commit cũ hay file đã xóa. Lịch sử đã công khai vẫn ở trạng thái `CHƯA KIỂM CHỨNG` cho đến khi GitHub secret scanning quét xong toàn bộ lịch sử và chủ repo xử lý mọi alert (D4, M03-B).
 - **Email trong metadata commit.** Trường author/committer của 13 commit chứa email Gmail cá nhân của chủ repo, và 1 commit chứa một email máy cục bộ dạng `@tvxd.local`. Các commit còn lại dùng `noreply@anthropic.com` hoặc `noreply@github.com`. Đây là metadata Git, không nằm trong file nên lớp quét file không thấy. Với commit mới, chủ repo có thể bật "Keep my email addresses private" và "Block command line pushes that expose my email" trong cài đặt email của tài khoản GitHub, rồi đặt `git config user.email` thành địa chỉ noreply mà GitHub cấp. Đây là cài đặt tài khoản, nằm ngoài M03.
 - **Định danh hạ tầng công khai.** Đường dẫn có tên tài khoản Windows `ducdq.tvxdbg` xuất hiện trong 7 file evidence. Notebook ID `8ca84143-…` và các source ID xuất hiện trong 50 file đã track (35 file evidence M02, 15 file code, fixture và tài liệu). Những ID này không phải secret: muốn đọc notebook vẫn cần đăng nhập và quyền chia sẻ. Tuy vậy, chúng cho người ngoài biết cấu trúc hệ thống.
 - **Nội dung tài liệu không có trong repo.** Không có PDF tiêu chuẩn, không có văn bản nguồn hay transcript thô. Evidence chỉ ghi ID, mã trạng thái, số đếm và thời gian, đúng quy tắc từ M01.
