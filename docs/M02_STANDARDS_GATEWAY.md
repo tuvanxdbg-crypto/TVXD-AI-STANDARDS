@@ -1,7 +1,8 @@
 # M02 — Standards Gateway (offline-first)
 
 Status: **contract v2, OFFLINE_VALIDATED (Linux and the owner's Windows machine at `f9c1061`) and
-LIVE_STAGE_B_V2_PASS. The live run was bounded: notebook `8ca84143-…`, three sources, query Q-S1, at `6eb2aed`;
+LIVE_STAGE_B_V2_PASS. The live run was bounded: query Q-S1 with the scope notebook `8ca84143-…` and its three
+mapped sources, at `6eb2aed`. Evidence came only from TCVN-8794-2011;
 GPT_REVIEW_V1 PASS at `eb235d4`.** Closing M02 is proposed in [M02_CLOSEOUT_PROPOSAL.md](M02_CLOSEOUT_PROPOSAL.md).
 That proposal is a draft for review: M02 is not closed, and merge, further live runs, login, M03 and AutoCAD are
 not authorized.

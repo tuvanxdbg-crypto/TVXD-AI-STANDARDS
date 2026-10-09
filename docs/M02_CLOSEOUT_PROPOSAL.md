@@ -3,10 +3,11 @@
 **Status: PROPOSAL.** This document proposes how to close M02. It changes no code, config, INDEX, pin, policy or
 permission.
 
-Closing M02 needs three things in order:
-1. a GPT_REVIEW_V1 PASS of this proposal at its exact SHA;
-2. the owner's direct decision in the Claude chat;
-3. a merge that the owner performs, or explicitly authorizes for that exact SHA.
+Closing M02 follows the sequence in §8:
+1. review of this proposal;
+2. the owner's decision;
+3. a status-finalization commit and its review;
+4. the owner's merge decision for that exact SHA.
 
 Claude does not close M02, mark the PR ready, or merge.
 
@@ -29,8 +30,13 @@ Claude does not close M02, mark the PR ready, or merge.
 Proposed closing statement, if the review and the owner accept it:
 
 > **M02 CLOSED (bounded).** The Standards Gateway contract v2 is implemented, tested offline on Linux and Windows,
-> and passed one bounded live stage B against NotebookLM. It covered the three owner-confirmed sources in notebook
-> `8ca84143-…` with query Q-S1, under the owner policy `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE`.
+> and passed one bounded live stage B against NotebookLM, under the owner policy
+> `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE`.
+> - **Scope sent:** that run sent query Q-S1 with the approved scope of notebook `8ca84143-…` and its three
+>   owner-confirmed sources.
+> - **Evidence returned:** only from TCVN-8794-2011 (source `8ccb8115-…`).
+> - **Not covered:** LUAT-135-2025-QH15 and TCVN-5575-2024 were in the requested scope but were not cited, and they
+>   were not exercised by a query of their own.
 >
 > This closes the M02 implementation milestone. It is not a statement that any standard is applicable, legally
 > valid or correctly answered. It does not enable the Gateway for ordinary sessions.
@@ -82,16 +88,20 @@ Proposed closing statement, if the review and the owner accept it:
 
 ## 5. Evidence index (contract v2, current)
 
-| Folder | Commit | What | Result |
-|---|---|---|---|
-| `sandbox-linux-2026-10-09-contract-v2` | `68f924b` | contract v2 offline suite, fake and stand-in stage B | PASS |
-| `sandbox-linux-2026-10-08-contract-v2-surface` | `d026ec3` | model-visible data boundary through the fake NotebookLM | PASS |
-| `sandbox-linux-2026-10-08-contract-v2-tooltrace` | `fa1ab74` | no-extra-tool-attempt gate | PASS |
-| `windows-ducdq-2026-10-09-contract-v2` | `eec1680` | owner Windows offline acceptance | FAILED (containment race, fixed) |
-| `sandbox-linux-2026-10-09-f14-suspended-start` | `981f15d` | F14 Windows suspended start, Linux | PASS |
-| `windows-ducdq-2026-10-09-f14` | `f9c1061` | owner Windows offline acceptance | PASS |
-| `sandbox-linux-2026-10-09-stage-b-v2-plan` | `d007e4e` | stage B v2 plan, preflight, offline | PASS |
-| `windows-ducdq-2026-10-09-b2v2` | `6eb2aed` | **live stage B v2** (owner-approved, owner-run) | **PASS** |
+The tested commit is the code the run exercised. The evidence commit is the commit that first added the evidence
+folder to the branch, which is the SHA a later review looked at. The evidence files did not exist at the tested
+commit, except in the first row.
+
+| Folder | Tested commit | Evidence commit | What | Result |
+|---|---|---|---|---|
+| `sandbox-linux-2026-10-09-contract-v2` | `68f924b` (working tree, committed with its evidence) | `68f924b` | contract v2 offline suite, fake and stand-in stage B | PASS |
+| `sandbox-linux-2026-10-08-contract-v2-surface` | `d026ec3` | `62a3828` | model-visible data boundary through the fake NotebookLM | PASS |
+| `sandbox-linux-2026-10-08-contract-v2-tooltrace` | `fa1ab74` | `eec1680` | no-extra-tool-attempt gate | PASS |
+| `windows-ducdq-2026-10-09-contract-v2` | `eec1680` (code `fa1ab74`) | `b869e79` | owner Windows offline acceptance | FAILED (containment race, fixed) |
+| `sandbox-linux-2026-10-09-f14-suspended-start` | `981f15d` | `f9c1061` | F14 Windows suspended start, Linux | PASS |
+| `windows-ducdq-2026-10-09-f14` | `f9c1061` (code `981f15d`) | `727ae61` | owner Windows offline acceptance | PASS |
+| `sandbox-linux-2026-10-09-stage-b-v2-plan` | `d007e4e` | `6eb2aed` | stage B v2 plan, preflight, offline | PASS |
+| `windows-ducdq-2026-10-09-b2v2` | `6eb2aed` | `eb235d4` | **live stage B v2** (owner-approved, owner-run) | **PASS** |
 
 The other evidence folders certify contract v1 at their own commits and are history:
 - stage A;
@@ -133,21 +143,34 @@ The other evidence folders certify contract v1 at their own commits and are hist
 
    M03 (governance), M04/M05/M06 (AutoCAD) are not started.
 
-## 8. Proposed merge conditions (for the owner and the reviewer to decide)
+## 8. Proposed closeout and merge sequence (for the owner and the reviewer to decide)
 
-1. GPT_REVIEW_V1 PASS of this proposal at its exact SHA.
-2. The owner's direct decision in the Claude chat to close M02 and merge PR #5, naming the exact head SHA.
-3. The PR moves from draft to ready, and is merged into `main`. The owner does this, or explicitly authorizes it for
-   that SHA. Claude does not merge on its own.
-4. After the merge, a status-only follow-up on a new branch and PR:
-   - the CLAUDE.md "Current milestone" text set to "M02 closed (bounded), see docs/M02_CLOSEOUT_PROPOSAL.md";
-   - the README M02 status line.
+The repository status must be final **before** the merge, so `main` never carries outdated status text. Today
+CLAUDE.md calls M02 an offline-first implementation milestone. The README says M02 is "in progress, offline-first"
+and "built and tested on fixture data and fake backends only".
 
-   It changes no rule or permission.
-5. Unchanged by closing: every M01 rule; the M02 rules on tool isolation, the three tools, committed `mode:
-   disabled`, untrusted content, and no PDFs or raw transcripts in git.
+1. **Proposal review.** GPT_REVIEW_V1 PASS of this proposal at its exact SHA.
+2. **Owner closeout decision.** The owner decides directly in the Claude chat to close M02 as bounded, naming that
+   reviewed SHA. Without it the steps below do not start.
+3. **Status finalization commit (pre-merge, mandatory).** It is a status-only commit on this branch. It changes no
+   rule, permission, config, pin, policy, scope or code.
+   - CLAUDE.md "Current milestone" / "M02 scope": M02 closed (bounded), with a pointer to this document. Every M01
+     and M02 rule is kept, including tool isolation, the three tools, committed `mode: disabled`, untrusted
+     content, and no live run without a reviewed plan and the owner's approval of an exact SHA.
+   - README: the M02 section and the architecture status are updated in the same way.
+   - This document and the design doc/pilot plan status lines: `CLOSEOUT_PROPOSED` becomes `CLOSED (bounded)`.
+4. **Status review.** GPT_REVIEW_V1 PASS of that finalization commit at its exact HEAD.
+5. **Owner merge decision.** The owner approves the merge of PR #5 directly in the Claude chat, naming that exact
+   HEAD. The owner then moves the PR from draft to ready and merges it into `main`, or explicitly authorizes that
+   for that SHA. Claude does not mark the PR ready or merge on its own.
+6. **Unchanged by closing:**
+   - every M01 rule;
+   - the M02 rules on tool isolation and the three tools;
+   - committed `mode: disabled`;
+   - untrusted content;
+   - no PDFs or raw transcripts in git.
 
 ## 9. Not authorized by this proposal
 
-Merge, marking the PR ready, any live run, login, any change to sources, notebook, scope, mapping, configs, pin,
+Merge, marking the PR ready, the status finalization commit (step 3 needs the owner's decision first), any live run, login, any change to sources, notebook, scope, mapping, configs, pin,
 ACL, credentials or permissions, M03, and AutoCAD.
