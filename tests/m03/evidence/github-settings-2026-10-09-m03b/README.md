@@ -19,6 +19,7 @@
 | `advanced-security-secret-protection.png` | Settings → Advanced Security: **Secret Protection** và **Push protection** đang bật (nút "Disable" hiện ở cả hai dòng) | Chủ repo gửi khoảng 12:22 +07:00 |
 | `secret-scanning-alerts.png` | Security and quality → Secret scanning: **0 Open, 0 Closed**, "No secrets found." | Chủ repo gửi khoảng 12:20 +07:00 |
 | `actions-fork-approval.png` | Settings → Actions → General: **Require approval for all external contributors** được chọn | Chủ repo gửi khoảng 12:22 +07:00 |
+| `gh-api-secret-scanning-console.txt` | Chủ repo chạy GitHub CLI (đã đăng nhập) gọi REST API secret scanning: `scan-history` trả 404 "Advanced Security is disabled on this repository"; danh sách alert `state=open` và `state=resolved` đều có 0 phần tử | Chủ repo gửi chiều 2026-10-09, sau REVIEW_V1 5466929709 |
 
 Các ảnh chụp 1 và 2 được chụp trước khi chủ repo thêm Merge vào "Allowed merge methods" và bật required status checks. Trạng thái cuối cùng của ruleset lấy theo `ruleset-24768629.api.json` và ảnh 3.
 
@@ -31,7 +32,8 @@ Các ảnh chụp 1 và 2 được chụp trước khi chủ repo thêm Merge v�
 | D1 ruleset | Đạt theo evidence | JSON từ API và ảnh 1 |
 | D3 phê duyệt fork | Đạt theo evidence | Ảnh và xác nhận "đã Save" của chủ repo |
 | D4 lớp 2: Secret Protection và Push protection đang bật | Đạt theo evidence | Ảnh |
-| D4 lớp 2: lần quét lịch sử đã xong và alert liệt kê được đầy đủ | **`CHƯA KIỂM CHỨNG`** | Không có evidence chính thức nào của GitHub cho biết lần quét lịch sử đã xong. Xem giới hạn 2 |
+| D4 lớp 2: danh sách alert qua API có xác thực | Đạt theo evidence | REST API `secret-scanning/alerts`, gọi bằng tài khoản chủ repo: 0 alert `open`, 0 alert `resolved` |
+| D4 lớp 2: lần quét lịch sử đã xong | **`CHƯA KIỂM CHỨNG`** | Endpoint chính thức `secret-scanning/scan-history` trả 404 "Advanced Security is disabled on this repository", nên không đọc được trạng thái quét. Không có evidence chính thức nào khác. Vì chưa biết lần quét đã xong hay chưa, danh sách 0 alert cũng chưa được coi là đầy đủ. Xem giới hạn 2 |
 
 Spec §7 hàng M03-B quy định: nếu không xác nhận được lần quét lịch sử, trạng thái là `CHƯA KIỂM CHỨNG` và M03-B không được ghi PASS. Theo REVIEW_V1 5466884315 tại `eadf54e`, tài liệu này áp dụng đúng quy định đó.
 
@@ -63,7 +65,11 @@ Ngoài spec:
 - Secret Protection (secret scanning) và Push protection đang bật: ảnh `advanced-security-secret-protection.png`.
 - Danh sách alert: 0 open, 0 closed, "No secrets found.": ảnh `secret-scanning-alerts.png`. Không có alert nào nên không có credential nào phải thu hồi.
 - Theo tài liệu GitHub ("secret scanning scans your entire Git history on all branches"), secret scanning quét toàn bộ lịch sử Git trên mọi nhánh. Câu này mô tả tính năng. Nó không phải evidence rằng lần quét trên repo này đã xong.
-- **Lần quét lịch sử và độ đầy đủ của danh sách alert: `CHƯA KIỂM CHỨNG`.** Ảnh 0 alert được chụp sau khi bật, nhưng không có gì cho biết lúc đó lần quét lịch sử đã xong. Vì vậy danh sách 0 alert chưa được coi là đầy đủ.
+- **REST API, gọi bằng tài khoản chủ repo** (`gh-api-secret-scanning-console.txt`):
+  - `GET /repos/{owner}/{repo}/secret-scanning/alerts?state=open&hide_secret=true` → 0 phần tử;
+  - `GET /repos/{owner}/{repo}/secret-scanning/alerts?state=resolved&hide_secret=true` → 0 phần tử;
+  - `GET /repos/{owner}/{repo}/secret-scanning/scan-history` → HTTP 404, "Advanced Security is disabled on this repository". Theo tài liệu REST của GitHub (`github/docs` commit `9f65179`, file `src/rest/data/fpt-2022-11-28/secret-scanning.json`), endpoint này "requires GitHub Advanced Security". Repo này dùng Secret Protection miễn phí cho repo public, không có GitHub Advanced Security, nên không gọi được endpoint.
+- **Lần quét lịch sử: `CHƯA KIỂM CHỨNG`.** Cả giao diện lẫn API đều không cho biết lần quét lịch sử đã xong. Danh sách alert trên API khớp với ảnh (0 và 0), nhưng chưa được coi là đầy đủ, vì có thể lần quét chưa xong.
 
 ### D3: cổng phê duyệt workflow từ fork
 
@@ -73,7 +79,10 @@ Ngoài spec:
 ## Giới hạn
 
 1. API công khai không xác thực có thể không trả về `bypass_actors` cho người không có quyền admin. Vì vậy bằng chứng chính cho việc "không bypass" là ảnh 1 ("Bypass list is empty"). Trường `current_user_can_bypass: "never"` chỉ nói về người gọi API ẩn danh.
-2. **Lần quét lịch sử.** Tài liệu GitHub mà Claude đọc không mô tả dấu hiệu nào trên giao diện báo lần quét lịch sử đã xong. Ảnh alert không có thông báo đang quét và cho 0 alert, nhưng evidence không chứng minh được lần quét đã xong. Vì vậy hạng mục này là `CHƯA KIỂM CHỨNG` và M03-B chưa PASS. Muốn đổi trạng thái, cần evidence chính thức của GitHub cho thấy lần quét lịch sử đã xong và alert liệt kê được đầy đủ, rồi có REVIEW_V1 mới.
+2. **Lần quét lịch sử.** Tài liệu GitHub mà Claude đọc không mô tả dấu hiệu nào trên giao diện báo lần quét lịch sử đã xong. Endpoint API duy nhất trả về trạng thái quét (`scan-history`) cần GitHub Advanced Security, nên trả 404 trên repo này. Vì vậy, với cấu hình hiện tại, không có cách chính thức nào để kiểm chứng lần quét đã xong. Hạng mục này là `CHƯA KIỂM CHỨNG` và M03-B chưa PASS. Muốn đổi trạng thái, cần một trong hai:
+   - evidence chính thức của GitHub về lần quét, rồi có REVIEW_V1 mới;
+   - chủ repo quyết định riêng cách xử lý điều kiện này của §7 (ví dụ chấp nhận ngoại lệ, có ghi lý do), rồi có review riêng.
+   Claude không tự chọn hướng nào.
 3. Trạng thái bật Secret Protection, Push protection và cài đặt fork chỉ có trong ảnh chụp. Claude không đọc được các cài đặt này qua API, vì chúng cần quyền admin.
 4. Evidence này chưa chứng minh ruleset thật sự chặn. Việc đó là M03-C: thử push thẳng, force push, merge khi check đỏ, merge khi nhánh chậm hơn `main`.
 
