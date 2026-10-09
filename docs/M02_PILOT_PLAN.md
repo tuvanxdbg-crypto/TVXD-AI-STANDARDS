@@ -1,9 +1,9 @@
 # M02 — Bounded live pilot plan
 
 Status: **ARCHITECTURE CHANGED (contract v2, 2026-10-09): NotebookLM primary, trusted by owner policy. Stage A/B0/B2
-and the F13/F14 work below are history of contract v1. The contract-v2 stage B plan is §6c: a DRAFT for review,
-for the owner-confirmed bounded source set. It does not run until a GPT_REVIEW_V1 PASS of it and the owner's
-direct approval of the exact SHA.**
+and the F13/F14 work below are history of contract v1. The contract-v2 stage B (§6c) ran once, at `6eb2aed`,
+under the owner's direct approval, and PASSed (GPT_REVIEW_V1 PASS at `eb235d4`). Any further live run needs a new
+reviewed plan and a new direct approval.**
 
 Contract v2 (OWNER_ARCHITECTURE_CHANGE_V1, `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE`; docs/M02_STANDARDS_GATEWAY.md §0):
 - The Gateway no longer reads `C:\Vanban_XDCB` or checks file hashes, sync identity or mappings to local files.
@@ -498,7 +498,17 @@ Stop conditions:
 
 Rollback: delete the temporary config/INDEX copies; the committed configs are already `disabled`.
 
-## 6c. Stage B under contract v2 (DRAFT for review; NOT approved to run)
+## 6c. Stage B under contract v2 (B2v2: ran once, 2026-10-09, PASS)
+
+**Result.** GPT_REVIEW_V1 PASSed the plan at `6eb2aed`, and the owner approved that exact SHA directly in the
+Claude chat (PR #5 comment 6073241422). The owner then ran it on ducdq.
+- Preflight v2 before and after: PASS.
+- P5, P10-A, P6, P7, P11 and P8: all PASS.
+- 4 `notebook_query` attempts, 3 sent, each with exactly the three mapped sources.
+- Evidence: `tests/m02/evidence/windows-ducdq-2026-10-09-b2v2/`. GPT_REVIEW_V1 PASSed the result at `eb235d4`.
+- Bounded: Q-S1 only, and only TCVN 8794 was cited.
+- The plan text below is kept as approved.
+
 
 **Authority.** GPT_REVIEW_V1 PASS at `727ae61` set NEXT_ALLOWED_STEP
 `OWNER_PROVIDE_BOUNDED_LIVE_SOURCE_SET_AND_AUTHORIZE_CONTRACT_V2_STAGE_B_PLAN_DRAFT_ONLY`. The owner answered in the
