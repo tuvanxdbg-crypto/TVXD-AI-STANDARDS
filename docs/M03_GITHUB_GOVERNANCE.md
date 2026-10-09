@@ -1,6 +1,6 @@
 # M03 GitHub governance: đặc tả (BẢN NHÁP chờ REVIEW_V1, chưa triển khai)
 
-**Trạng thái: SPEC DRAFT.** Tài liệu này chỉ đặc tả M03. Commit chứa nó không thêm workflow, không thêm CODEOWNERS, không đổi cài đặt repo, không đổi code, config, pin hay quyền. Chỉ triển khai sau khi có REVIEW_V1 PASS cho đúng SHA của bản đặc tả và chủ repo phê duyệt trực tiếp trong chat.
+**Trạng thái: SPEC DRAFT, đã có quyết định của chủ repo cho §8.** Tài liệu này chỉ đặc tả M03. Commit chứa nó không thêm workflow, không thêm CODEOWNERS, không đổi cài đặt repo, không đổi code, config, pin hay quyền. Chỉ triển khai sau khi có REVIEW_V1 PASS cho đúng SHA của bản đặc tả và chủ repo phê duyệt trực tiếp trong chat.
 
 ## 1. Thẩm quyền
 
@@ -31,7 +31,7 @@ Thêm vào đó:
 |---|---|
 | Workflow CI (`.github/workflows/`) | Chưa có |
 | `CODEOWNERS` | Chưa có |
-| Ruleset / branch protection cho `main` | Chưa xác định được từ phía Claude: cài đặt repo không đọc được bằng công cụ hiện có. Repo đang `private` |
+| Ruleset / branch protection cho `main` | Chưa xác định được từ phía Claude: cài đặt repo không đọc được bằng công cụ hiện có. Repo `private` tại `cee197f`; chủ repo chuyển sang `public` ngày 2026-10-09 (§8) |
 | PR template | Có (`.github/pull_request_template.md`), đã có khối `REVIEW_V1` |
 | Bộ test M02 | 185 test, chạy tay bằng `scripts/m02/m02-tests.ps1` hoặc `uv run ... python -m unittest discover -s tests/m02 -p "test_gateway_*.py"`. Trên Linux có 8 test bỏ qua vì chỉ chạy trên Windows: 4 test junction/reparse và 4 test F14 suspended-start |
 | Test M01 offline | `tests/m01/test_m01_10_llm_check.py` (12 test), `tests/m01/test_m01_console.py` (2 test) |
@@ -51,10 +51,9 @@ Thông số đề xuất:
 - Chặn force push và chặn xóa nhánh `main`.
 - Cho phép merge commit, vì repo đang dùng kiểu này cho PR #1, #5, #6, #7.
 - Bắt buộc giải quyết hết hội thoại review trước khi merge.
-
-**Điểm phải quyết (xem §8, mục 1):**
-- Các PR hiện mở bằng chính tài khoản chủ repo (`tuvanxdbg-crypto`). GitHub không cho tác giả PR tự approve PR của mình. Nếu bật "Require approvals ≥ 1" thì mọi PR sẽ bị khóa, trừ khi có tài khoản thứ hai.
-- Ruleset và branch protection cho repo private có thể đòi gói trả phí của GitHub `[cần kiểm tra trên trang Settings → Rules của repo]`.
+- **Không bắt buộc approval** (quyết định §8, mục 1). Lý do: các PR mở bằng chính tài khoản chủ repo (`tuvanxdbg-crypto`), mà GitHub không cho tác giả PR tự approve. Việc chủ repo tự bấm merge, sau REVIEW_V1 PASS tại HEAD, được coi là bước duyệt.
+- **Không có bypass, kể cả admin** (quyết định §8, mục 4). Tài khoản chủ repo cũng không push thẳng hay force push vào `main` được.
+- Repo đã chuyển sang public (quyết định §8, mục 2), nên ruleset dùng được mà không cần gói trả phí.
 
 ### D2. `CODEOWNERS`
 
@@ -69,7 +68,7 @@ File `.github/CODEOWNERS` gán `@tuvanxdbg-crypto` cho toàn repo. Các đườn
 - `tests/m02/fixtures/`
 - `tests/m01/fixtures/`
 
-CODEOWNERS chỉ có tác dụng chặn khi ruleset bật "Require review from Code Owners". Điều này lại vướng đúng điểm tự approve ở D1. Khi đó CODEOWNERS vẫn có ích ở chỗ GitHub tự gắn người review và hiện rõ vùng nhạy cảm, nhưng không khóa được merge.
+CODEOWNERS chỉ có tác dụng chặn khi ruleset bật "Require review from Code Owners". Theo quyết định không bắt buộc approval ở D1, ruleset sẽ không bật mục này. CODEOWNERS vẫn có ích ở chỗ GitHub tự gắn người review và hiện rõ vùng nhạy cảm, nhưng không khóa được merge.
 
 ### D3. CI: `.github/workflows/ci.yml`
 
@@ -89,15 +88,17 @@ Ràng buộc cho mọi job:
 - `timeout-minutes: 15` cho mỗi job.
 - `concurrency` theo nhánh, hủy lần chạy cũ khi có push mới.
 
-Repo private dùng phút Actions có giới hạn theo gói, và runner Windows tính phút cao hơn Linux `[cần kiểm tra hạn mức trên trang Billing]`. Ước tính từ các lần chạy đã ghi ở M02 (185 test mất khoảng 50 giây trên Linux, 85 giây trên Windows): mỗi lần chạy khoảng 3-6 phút thực, chưa tính thời gian cài `uv` và Python.
+Job `windows` chạy ở mọi PR (quyết định §8, mục 3). Repo giờ là public, nên phút runner chuẩn của GitHub không còn là ràng buộc chính. Ước tính từ các lần chạy đã ghi ở M02 (185 test mất khoảng 50 giây trên Linux, 85 giây trên Windows): mỗi lần chạy khoảng 3-6 phút thực, chưa tính thời gian cài `uv` và Python.
+
+Repo public nên PR có thể đến từ fork của người khác. Với trigger `pull_request`, GitHub chạy workflow của fork bằng token chỉ đọc và không cấp secret. Spec giữ đúng mô hình này. Không dùng `pull_request_target`, vì trigger đó chạy code của fork với quyền của repo gốc.
 
 ### D4. Quét secret
 
 Hai lớp:
 1. **Trong CI:** chạy `check_no_secrets.py` ở job `linux`, như đã làm tay từ M01.
 2. **Phía GitHub:**
-   - Bật secret scanning và push protection nếu gói tài khoản cho phép với repo private `[cần kiểm tra trên trang Settings → Code security]`.
-   - Nếu gói không cho phép, ghi rõ trong tài liệu nghiệm thu là lớp 2 chưa có. Không thay bằng công cụ bên thứ ba khi chưa được duyệt riêng.
+   - Bật secret scanning và push protection trong Settings → Code security. Repo đã public nên hai tính năng này dùng được.
+   - Nếu trang Settings không hiện các tùy chọn này, ghi rõ trong tài liệu nghiệm thu là lớp 2 chưa có. Không thay bằng công cụ bên thứ ba khi chưa được duyệt riêng.
 
 Không thêm công cụ quét mới trong M03. Lý do: đó là một phụ thuộc mới và cần review riêng.
 
@@ -174,16 +175,26 @@ Theo CLAUDE.md, mỗi mốc nghiệm thu phải ghi đủ: mục tiêu, evidence
 | M03-B | Ruleset trên `main`, secret scanning nếu có | Export JSON hoặc ảnh chụp ruleset; ảnh chụp trang Code security | Đủ các thông số D1 đã chốt; lớp 2 của D4 bật, hoặc được ghi rõ là không khả dụng | Chủ repo |
 | M03-C | Ruleset thực sự chặn | Output của push thẳng và force push bị từ chối; PR thử bị chặn khi check đỏ | Cả 3 tình huống đều bị chặn | REVIEW_V1 tại HEAD evidence, chủ repo |
 
-## 8. Thông tin cần chủ repo quyết định (MISSING_OWNER_INPUTS)
+## 8. Quyết định của chủ repo
 
-1. **Approval bắt buộc trên PR.** Chọn một:
-   - (a) Không bắt buộc approval. Merge do chính chủ repo bấm được coi là duyệt. Check CI vẫn bắt buộc.
-   - (b) Thêm một tài khoản thứ hai làm reviewer trên GitHub.
+Chủ repo trả lời trong chat Claude ngày 2026-10-09, nguyên văn: "1. Không bắt buộc approval. 2. tôi đã chuyển sang public. 3 có chạy. 4 có".
 
-   Claude đề xuất (a) cho quy mô hiện tại.
-2. **Gói tài khoản GitHub.** Ruleset và secret scanning cho repo private có khả dụng không? Kiểm tra trên trang Settings của repo.
-3. **Runner Windows.** Có chấp nhận dùng phút Actions cho job `windows` ở mọi PR không? Hay chỉ chạy khi PR sửa `gateway/` hoặc `tests/m02/`?
-4. **Áp dụng cho admin.** Ruleset có áp dụng cả với tài khoản chủ repo không (không có bypass)? Claude đề xuất có áp dụng, để không ai push thẳng vào `main`.
+| # | Câu hỏi | Quyết định | Ảnh hưởng tới spec |
+|---|---|---|---|
+| 1 | Có bắt buộc approval trên PR không | Không | D1 không bật "Require approvals" và không bật "Require review from Code Owners". CI vẫn bắt buộc |
+| 2 | Gói GitHub có hỗ trợ ruleset và secret scanning cho repo private không | Repo đã chuyển sang public | D1 và D4 lớp 2 dùng được. D3 không còn bị giới hạn phút. Có thêm rủi ro, ghi ở §8a |
+| 3 | Có chạy runner Windows ở mọi PR không | Có | Job `windows` chạy ở mọi PR vào `main` |
+| 4 | Ruleset có áp dụng cả với tài khoản admin không | Có | Không có danh sách bypass |
+
+### 8a. Hệ quả của việc chuyển sang public
+
+Lịch sử Git giờ ai cũng đọc được, gồm cả các commit cũ. Rà nhanh trên nhánh này tại `aa973cb`:
+- **Không phát hiện secret.** `tests/m01/check_no_secrets.py` PASS, và không có địa chỉ email trong file đã track. Các chuỗi "gmail" chỉ là tên plugin trong evidence.
+- **Email trong metadata commit.** Trường author/committer của 13 commit chứa email Gmail cá nhân của chủ repo, và 1 commit chứa một email máy cục bộ dạng `@tvxd.local`. Các commit còn lại dùng `noreply@anthropic.com` hoặc `noreply@github.com`. Đây là metadata Git, không nằm trong file nên lớp quét file không thấy. Với commit mới, chủ repo có thể bật "Keep my email addresses private" và "Block command line pushes that expose my email" trong cài đặt email của tài khoản GitHub, rồi đặt `git config user.email` thành địa chỉ noreply mà GitHub cấp. Đây là cài đặt tài khoản, nằm ngoài M03.
+- **Định danh hạ tầng công khai.** Đường dẫn có tên tài khoản Windows `ducdq.tvxdbg` xuất hiện trong 7 file evidence. Notebook ID `8ca84143-…` và các source ID xuất hiện trong 50 file đã track (35 file evidence M02, 15 file code, fixture và tài liệu). Những ID này không phải secret: muốn đọc notebook vẫn cần đăng nhập và quyền chia sẻ. Tuy vậy, chúng cho người ngoài biết cấu trúc hệ thống.
+- **Nội dung tài liệu không có trong repo.** Không có PDF tiêu chuẩn, không có văn bản nguồn hay transcript thô. Evidence chỉ ghi ID, mã trạng thái, số đếm và thời gian, đúng quy tắc từ M01.
+
+Spec không đề xuất viết lại lịch sử Git để xóa các định danh trên. Nếu chủ repo muốn ẩn chúng, đó là một quyết định riêng, cần review riêng.
 
 ## 9. Chưa được phép theo spec này
 
