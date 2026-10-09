@@ -467,6 +467,10 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
         r8 = service(tight, rec8).call("standards_lookup", {"query": Q_S1 + " (P8)", **copy.deepcopy(CTX)})
         run.keep("P8 tight", r8)
         if (r8.get("error") or {}).get("code") != "TIMEOUT":
+            refused = containment_refused(state, before)
+            if refused is not None:      # the server could not be started inside its containment: BLOCKED
+                run.case("P8", P8_CASE, refused[0], P8_EXPECTED, {"tight": resp_summary(r8), **refused[1]})
+                return
             run.case("P8", "1 s budget: structured TIMEOUT", "NOT_OBSERVED" if lookup_ok(r8) else "FAIL",
                      "TIMEOUT (the backend answered within 1 s, so the timeout path did not occur)", resp_summary(r8))
             return
@@ -496,7 +500,11 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
         client8.close()
         result, rec_obs = p8_judge_recovery_teardown(state, mid)
         obs.update(rec_obs)
-        run.case("P8", P8_CASE, result if ok else "FAIL", P8_EXPECTED, obs)
+        # every recovery start refused at the containment step (never resumed): containment cannot be established,
+        # BLOCKED, unless a teardown itself failed (GPT_REVIEW_V1 at b869e79)
+        refused = bool(rec_obs["recover_spawned"]) and all(x.get("resumed") is False for x in rec_obs["recover_spawned"])
+        run.case("P8", P8_CASE, result if ok else ("BLOCKED" if refused and result != "FAIL" else "FAIL"),
+                 P8_EXPECTED, obs)
     finally:
         close = getattr(client8, "close", None)
         if close:
@@ -524,6 +532,23 @@ def teardown_verdict(spawned: list[dict], teardowns: dict[int, dict]) -> str:
            for s in spawned):
         return "BLOCKED" if all(teardowns[s["pid"]]["tree_empty"] is not False for s in spawned) else "FAIL"
     return "PASS" if all(teardowns[s["pid"]]["verified"] for s in spawned) else "FAIL"
+
+
+def containment_refused(state, before: dict | None) -> tuple[str, dict] | None:
+    """When every server process started since `before` was refused at the containment step (never resumed: job
+    assignment or resume failed, F14 GPT_REVIEW_V1 at b869e79): BLOCKED, or FAIL if one of them was not torn
+    down cleanly. None when no such refusal happened."""
+    if not state or before is None:
+        return None
+    now = state()
+    spawned = now["spawned"][len(before["spawned"]):]
+    if not spawned or not all(x.get("resumed") is False for x in spawned):
+        return None
+    teardowns = {x["pid"]: x for x in now["teardowns"][len(before["teardowns"]):]}
+    obs = {"containment_refused": True, "process_alive": now["alive"], "spawned": spawned,
+           "teardowns": list(teardowns.values())}
+    verdict = teardown_verdict(spawned, teardowns)
+    return ("FAIL" if now["alive"] or verdict == "FAIL" else "BLOCKED"), obs
 
 
 def p8_judge_recovery_teardown(state, mid: dict) -> tuple[str, dict]:

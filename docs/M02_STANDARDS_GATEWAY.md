@@ -665,6 +665,67 @@ F8/F14, source/notebook scope, committed configs, pin, policy and permissions ar
   - On the owner's machine the same checks, and the M01 lock surface check, fail closed if any Claude Code plugin
     adds tools.
 
+## 20. F14 Windows suspended start (GPT_REVIEW_V1 at `b869e79`)
+
+**Finding.** The owner's Windows offline run at `eec1680` failed twice with the same start refusal: "a NotebookLM
+MCP server process is outside its containment".
+- The client assigned the job object only after `subprocess.Popen` had returned.
+- A launcher that starts its interpreter as a child at once could create that child before the assignment, so the
+  child was outside the job. Two such launchers are the venv `python.exe` and the real `uvx.exe`.
+- The refusal was fail closed, but startup on Windows was nondeterministic.
+- The review also found a second gap: when `_win_job_assign` failed, the containment was `none` and `escaped()`
+  returned `None`. An uncontained server could then be marked ready.
+
+**Fix.** Only in the Windows F14 process start and its containment. Lookup, verify, status, citations, retry
+policy, scope and configs are unchanged.
+- **Windows start sequence:**
+  1. Create the server with `CREATE_SUSPENDED`.
+  2. Assign the kill-on-close, no-breakaway job while no code of the server has run.
+  3. Only then call `_ProcessTree.resume()`. It resumes every thread of the process, found through a Toolhelp32
+     thread snapshot, then `OpenThread(THREAD_SUSPEND_RESUME)` and `ResumeThread`.
+- **POSIX:** unchanged. The `start_new_session` process group exists before `exec`.
+- **Refusal.** The client refuses the start with `BACKEND_UNAVAILABLE` (`details.containment`, `phase: startup`,
+  `sent: false`) when:
+  - the containment is `none` (job creation or assignment failed, or raised): `containment_unavailable`;
+  - the resume fails: `resume_failed`.
+- **What a refusal does:**
+  - no stdin writer or reader is started;
+  - no `initialize`, `tools/list` or business call is sent;
+  - the root is terminated (still suspended on Windows), and the teardown is recorded with that reason;
+  - each `spawned` entry records `resumed`.
+- **Escape check.** `escaped()` is still checked after `tools/list`.
+- **Stage-B runner P8.** If every server start of the timed-out phase or of the recovery was refused at the
+  containment step, P8 is `BLOCKED`. It is `FAIL` instead if one of those teardowns failed or a process is still
+  alive. Containment that cannot be established never gives PASS.
+
+**Regressions:** `test_gateway_f13_f14.F14SuspendedStart`, and P8 in `F14RunnerEndToEnd`.
+- **Cross-platform:**
+  - `popen_kwargs` and the `resume` rules;
+  - an uncontained start is refused before any request: no request, not ready, root dead, teardown
+    `containment_unavailable`;
+  - 12 repeated starts through the launcher chain, each with `escaped_processes == 0` and a verified close;
+  - `test_containment_unavailable_is_blocked_not_pass` now goes through the refusal;
+  - `test_tight_start_containment_unavailable_is_blocked` is new; the recovery-phase BLOCKED case is kept.
+- **Windows only:**
+  - The job assignment is delayed by 1.5 s. During the delay the root is alive but no wrapper child exists and the
+    server has not logged `start`. The start is then accepted with containment `job` and
+    `escaped_processes == 0`, and the close is verified.
+  - Negative control: the same delay without suspension lets a child escape, and the start is refused.
+  - An assignment failure terminates the suspended root before it runs: no request, no child, no server log.
+  - A resume failure kills the contained root through the job: teardown `job`, tree empty, verified, no child.
+- **Retained:** all F7–F14, strict four-tool, contract-v2 and model-visible negative controls.
+- **Revert check:** with the previous `gateway/adapters/notebooklm.py`, 2 failures and 3 errors among the 32
+  F13/F14 tests on Linux. These are:
+  - `test_containment_unavailable_is_blocked_not_pass`
+  - `test_uncontained_start_is_refused_before_any_request`
+  - `test_popen_kwargs_and_resume_rules`
+  - `test_repeated_starts_never_escape_and_always_close_verified`
+  - `test_tight_start_containment_unavailable_is_blocked`
+
+  The Windows-only tests run on the owner's machine.
+- **Count.** The M02 suite has 176 tests (168 + 8). 8 are skipped off Windows: the 4 earlier junction/reparse
+  controls and the 4 new suspended-start tests.
+
 ## Appendix — Issue #4 specification (verbatim)
 
 CLAUDE_EXECUTION_V1

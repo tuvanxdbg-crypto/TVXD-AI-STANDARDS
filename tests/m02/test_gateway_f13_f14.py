@@ -18,6 +18,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -355,18 +356,27 @@ class F14ProcessTree(StandIn):
         self.assertEqual(result, "FAIL")
 
     def test_containment_unavailable_is_blocked_not_pass(self):
+        # GPT_REVIEW_V1 at b869e79: an uncontained server is refused at startup, before any request; P8 is BLOCKED
         orig = nlm._ProcessTree.__init__
         nlm._ProcessTree.__init__ = no_containment_init
         try:
             c = self.client("--call-delay", "3")
             before = c.process_state()
-            audit, e = self.tight_query(c)
-            result, obs = sb.p8_judge_teardown(audit, [e], c.process_state, before)
+            audit = sb.Audit(sorted([A, B, C]))
+            adapter = NotebookLMAdapter(sb.Recorder(c, audit, "p8"), timeout_s=1, max_attempts=1, total_budget_s=1)
+            with self.assertRaises(GatewayError) as cm:
+                adapter.query(sb.NOTEBOOK, "q", [A, B, C])
+            self.assertTrue(audit.wait_terminal([1], 15))
+            result, obs = sb.p8_judge_teardown(audit, [audit.entries[0]], c.process_state, before)
         finally:
             nlm._ProcessTree.__init__ = orig
+        self.assertEqual((cm.exception.code, cm.exception.details.get("containment")),
+                         ("BACKEND_UNAVAILABLE", "containment_unavailable"))
         (teardown,) = obs["teardowns"]
-        self.assertEqual((teardown["containment"], teardown["tree_empty"], teardown["verified"]), ("none", None, False))
+        self.assertEqual((teardown["containment"], teardown["tree_empty"], teardown["verified"], teardown["reason"]),
+                         ("none", None, False, "containment_unavailable"))
         self.assertEqual(result, "BLOCKED")
+        self.assertNotIn("call notebook_query", self.log_lines())
 
     @unittest.skipUnless(sys.platform.startswith("linux"), "POSIX session escape check reads /proc")
     def test_a_descendant_outside_the_containment_refuses_the_start(self):
@@ -375,6 +385,140 @@ class F14ProcessTree(StandIn):
             c.notebook_list()
         self.assertEqual((cm.exception.code, cm.exception.details.get("escaped_processes")), ("BACKEND_UNAVAILABLE", 1))
         self.assertEqual((c.process_state()["validated_starts"], c.process_state()["alive"]), ([], False))
+
+
+class F14SuspendedStart(StandIn):
+    """GPT_REVIEW_V1 at b869e79: on Windows the server is created suspended, put into its job, and resumed only after
+    the assignment; any server that cannot be contained is refused before initialize, tools/list or a business call,
+    and its root is terminated."""
+
+    def direct_config(self) -> Path:
+        """The fake server alone (no wrapper), so a POSIX run of a refused start leaves no descendant either."""
+        cfg = self.dir / "direct.json"
+        cfg.write_text(json.dumps({"mcpServers": {"gemini-notebook-mcp": {"command": sys.executable, "args": [
+            str(HERE / "fake_mcp_server.py"), "--log", str(self.log), "--answer-file", str(self.answer)]}}}),
+            encoding="utf-8")
+        return cfg
+
+    def requests_of(self, client) -> list[str]:
+        """Record every JSON-RPC request and notification the client sends from now on."""
+        sent, orig_request, orig_send = [], client._request, client._send
+        client._request = lambda method, *a, **k: (sent.append(method), orig_request(method, *a, **k))[1]
+        client._send = lambda msg, *a, **k: (sent.append(msg.get("method")), orig_send(msg, *a, **k))[1]
+        return sent
+
+    def query(self, client):
+        return NotebookLMAdapter(client, timeout_s=10, max_attempts=1, total_budget_s=10).query(
+            sb.NOTEBOOK, "q", sorted(sb.fake_answer("clean")["sources_used"]))
+
+    def assert_refused(self, client, sent, reason):
+        with self.assertRaises(GatewayError) as cm:
+            client.notebook_list()
+        st = client.process_state()
+        self.assertEqual((cm.exception.code, cm.exception.details.get("containment"),
+                          cm.exception.details.get("phase"), cm.exception.details.get("sent")),
+                         ("BACKEND_UNAVAILABLE", reason, "startup", False))
+        self.assertEqual((sent, st["ready"], st["alive"], st["validated_starts"]), ([], False, False, []))
+        (spawned,), (teardown,) = st["spawned"], st["teardowns"]
+        self.assertEqual((spawned["resumed"], teardown["pid"], teardown["reason"], teardown["wrapper_exited"]),
+                         (False, spawned["pid"], reason, True))
+        self.assertFalse(pid_alive(spawned["pid"]))
+        if os.name == "nt":            # the root was created suspended and never resumed: the server never ran
+            self.assertEqual(self.log_lines(), [])
+        return teardown
+
+    def test_popen_kwargs_and_resume_rules(self):
+        if os.name == "nt":
+            self.assertEqual(nlm._ProcessTree.popen_kwargs(), {"creationflags": nlm.CREATE_SUSPENDED})
+        else:
+            self.assertEqual(nlm._ProcessTree.popen_kwargs(), {"start_new_session": True})
+        tree = object.__new__(nlm._ProcessTree)
+        no_containment_init(tree, None)
+        self.assertFalse(tree.resume())
+
+    def test_uncontained_start_is_refused_before_any_request(self):
+        orig = nlm._ProcessTree.__init__
+        nlm._ProcessTree.__init__ = no_containment_init
+        self.addCleanup(setattr, nlm._ProcessTree, "__init__", orig)
+        c = McpStdioNotebookLMClient(self.direct_config(), start_timeout_s=10)
+        self.addCleanup(c.close)
+        sent = self.requests_of(c)
+        self.assert_refused(c, sent, "containment_unavailable")
+        self.assertNotIn("call notebook_list", self.log_lines())
+
+    def test_repeated_starts_never_escape_and_always_close_verified(self):
+        for i in range(12):
+            c = self.client()
+            self.query(c)
+            c.close()
+            st = c.process_state()
+            (start,), (teardown,) = st["validated_starts"], st["teardowns"]
+            if os.name == "nt" or os.path.isdir("/proc"):
+                self.assertEqual(start["escaped_processes"], 0, i)
+            self.assertEqual((st["spawned"][0]["resumed"], teardown["reason"], teardown["verified"]),
+                             (True, "close", True), i)
+        self.assertFalse(any(pid_alive(p) for p in self.pids()))
+
+    @unittest.skipUnless(os.name == "nt", "CREATE_SUSPENDED and job objects are Windows-only")
+    def test_delayed_assignment_lets_no_child_start_before_resume(self):
+        orig, probe = nlm._win_job_assign, {}
+
+        def slow_assign(proc):
+            time.sleep(1.5)            # far longer than the launcher needs to create its child when not suspended
+            probe.update(root_alive=proc.poll() is None, wrapper_children=self.pids(), log=self.log_lines())
+            return orig(proc)
+        nlm._win_job_assign = slow_assign
+        self.addCleanup(setattr, nlm, "_win_job_assign", orig)
+        c = self.client()
+        self.query(c)
+        self.assertEqual(probe, {"root_alive": True, "wrapper_children": [], "log": []})
+        (start,) = c.process_state()["validated_starts"]
+        self.assertEqual((start["containment"], start["escaped_processes"]), ("job", 0))
+        c.close()
+        (teardown,) = c.process_state()["teardowns"]
+        self.assertTrue(teardown["verified"])
+        self.assertFalse(any(pid_alive(p) for p in self.pids()))
+
+    @unittest.skipUnless(os.name == "nt", "CREATE_SUSPENDED and job objects are Windows-only")
+    def test_negative_control_without_suspension_a_delayed_assignment_lets_a_child_escape(self):
+        orig_assign, orig_kwargs, orig_resume = nlm._win_job_assign, nlm._ProcessTree.popen_kwargs, nlm._win_resume
+
+        def slow_assign(proc):
+            time.sleep(1.5)
+            return orig_assign(proc)
+        nlm._win_job_assign = slow_assign
+        nlm._ProcessTree.popen_kwargs = staticmethod(lambda: {})      # the pre-fix start: running at once
+        nlm._win_resume = lambda pid: True
+        self.addCleanup(setattr, nlm, "_win_job_assign", orig_assign)
+        self.addCleanup(setattr, nlm._ProcessTree, "popen_kwargs", staticmethod(orig_kwargs))
+        self.addCleanup(setattr, nlm, "_win_resume", orig_resume)
+        c = self.client()
+        with self.assertRaises(GatewayError) as cm:
+            c.notebook_list()
+        self.assertEqual(cm.exception.code, "BACKEND_UNAVAILABLE")
+        self.assertGreaterEqual(cm.exception.details.get("escaped_processes") or 0, 1)
+        self.assertEqual(c.process_state()["validated_starts"], [])
+
+    @unittest.skipUnless(os.name == "nt", "CREATE_SUSPENDED and job objects are Windows-only")
+    def test_assignment_failure_terminates_the_suspended_root_before_it_runs(self):
+        orig = nlm._win_job_assign
+        nlm._win_job_assign = lambda proc: None
+        self.addCleanup(setattr, nlm, "_win_job_assign", orig)
+        c = self.client()
+        sent = self.requests_of(c)
+        teardown = self.assert_refused(c, sent, "containment_unavailable")
+        self.assertEqual((teardown["containment"], self.pids(), self.log_lines()), ("none", [], []))
+
+    @unittest.skipUnless(os.name == "nt", "CREATE_SUSPENDED and job objects are Windows-only")
+    def test_resume_failure_kills_the_contained_root_before_it_runs(self):
+        orig = nlm._win_resume
+        nlm._win_resume = lambda pid: False
+        self.addCleanup(setattr, nlm, "_win_resume", orig)
+        c = self.client()
+        sent = self.requests_of(c)
+        teardown = self.assert_refused(c, sent, "resume_failed")
+        self.assertEqual((teardown["containment"], teardown["tree_empty"], teardown["verified"]), ("job", True, True))
+        self.assertEqual((self.pids(), self.log_lines()), ([], []))
 
 
 class F14RunnerEndToEnd(StandIn):
@@ -462,6 +606,16 @@ class F14RunnerEndToEnd(StandIn):
         rec = [x for x in p8["observed"]["recover_teardowns"] if x["pid"] == hit[0]]
         self.assertEqual(len(rec), 1)
         self.assertEqual((rec[0]["containment"], rec[0]["tree_empty"], rec[0]["verified"]), ("none", None, False))
+
+    def test_tight_start_containment_unavailable_is_blocked(self):
+        hit = self.patch_nth_tree(2, unavailable=True)
+        code, s, _ = self.run_runner(("--init-delay", "2.5", "--delay-once", str(self.dir / "once")))
+        self.assertEqual((code, s["status"], s["stopped_after"]), (3, "BLOCKED", "P8"))
+        p8 = next(c for c in s["cases"] if c["id"] == "P8")
+        self.assertEqual((p8["result"], p8["observed"]["containment_refused"]), ("BLOCKED", True))
+        (spawned,), (teardown,) = p8["observed"]["spawned"], p8["observed"]["teardowns"]
+        self.assertEqual((spawned["pid"], spawned["resumed"], teardown["reason"]),
+                         (hit[0], False, "containment_unavailable"))
 
     def test_recovery_wrapper_exits_but_descendant_survives_is_fail(self):
         nlm._ProcessTree.VERIFY_S = 1.0

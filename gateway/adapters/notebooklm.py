@@ -42,6 +42,7 @@ from ..errors import GatewayError
 from ..retry import Deadline, call_with_retry, current_deadline
 
 M01_READ_TOOLS = ("notebook_list", "notebook_get", "source_get_content", "notebook_query")
+CREATE_SUSPENDED = 0x00000004   # Windows process creation flag: the server runs only after its job assignment
 
 
 class NotebookLMClient(Protocol):
@@ -338,28 +339,45 @@ class NotebookLMAdapter:
 class _ProcessTree:
     """Containment of one server process and all its descendants, so teardown can kill and verify the whole tree.
 
-    Windows: a job object (KILL_ON_JOB_CLOSE, no breakaway) assigned right after start; descendants created later
-    are in it, and escaped() finds any descendant created before the assignment outside it. POSIX: the server is
-    started in a new session, so it and its descendants share one process group, killed as a group. `kind` is
-    "job", "process_group" or "none" (containment unavailable: tree_empty() is None, teardown is unverified).
+    Windows: the server is created suspended (CREATE_SUSPENDED) and put into a job object (KILL_ON_JOB_CLOSE, no
+    breakaway) before resume() lets it run, so every descendant is created inside the job; escaped() still checks.
+    Assigning after a normal start left a window in which a launcher (venv python.exe, uvx.exe) could create its
+    child outside the job (owner Windows run at eec1680, GPT_REVIEW_V1 at b869e79). POSIX: the server is started
+    in a new session, so it and its descendants share one process group, killed as a group. `kind` is "job",
+    "process_group" or "none" (containment unavailable: the client refuses the start; tree_empty() is None).
     """
 
     VERIFY_S = 5.0
 
     @staticmethod
     def popen_kwargs() -> dict:
-        return {} if os.name == "nt" else {"start_new_session": True}
+        return {"creationflags": CREATE_SUSPENDED} if os.name == "nt" else {"start_new_session": True}
 
     def __init__(self, proc: subprocess.Popen):
         self.proc = proc
         self.kind = "none"
         self._job = None
         if os.name == "nt":
-            self._job = _win_job_assign(proc)
+            try:
+                self._job = _win_job_assign(proc)
+            except Exception:  # noqa: BLE001 - any failure leaves the process uncontained, and the start is refused
+                self._job = None
             if self._job is not None:
                 self.kind = "job"
         else:
             self.kind = "process_group"
+
+    def resume(self) -> bool:
+        """Let the server run, only once it is contained. Windows: resume the suspended threads of a process that
+        is in the job; False if it is not in a job or a thread cannot be resumed. POSIX: already running."""
+        if os.name != "nt":
+            return self.kind != "none"
+        if self.kind != "job":
+            return False
+        try:
+            return _win_resume(self.proc.pid)
+        except Exception:  # noqa: BLE001
+            return False
 
     def escaped(self) -> int | None:
         """Live descendants outside the containment (None: cannot be checked on this platform)."""
@@ -473,6 +491,10 @@ def _win_k32():
            "CreateToolhelp32Snapshot": (H, [D, D]),
            "Process32FirstW": (B, [H, ctypes.c_void_p]),
            "Process32NextW": (B, [H, ctypes.c_void_p]),
+           "Thread32First": (B, [H, ctypes.c_void_p]),
+           "Thread32Next": (B, [H, ctypes.c_void_p]),
+           "OpenThread": (H, [D, B, D]),
+           "ResumeThread": (D, [H]),
            "CloseHandle": (B, [H])}
     for name, (res, args) in sig.items():
         fn = getattr(k, name)
@@ -510,6 +532,52 @@ def _win_structs():
                     ("pcPriClassBase", ctypes.c_long), ("dwFlags", wintypes.DWORD),
                     ("szExeFile", ctypes.c_wchar * 260)]
     return BASIC_LIMIT, EXTENDED_LIMIT, BASIC_ACCOUNTING, PROCESSENTRY32W
+
+
+def _win_thread_entry():
+    import ctypes
+    from ctypes import wintypes
+
+    class THREADENTRY32(ctypes.Structure):
+        _fields_ = [("dwSize", wintypes.DWORD), ("cntUsage", wintypes.DWORD), ("th32ThreadID", wintypes.DWORD),
+                    ("th32OwnerProcessID", wintypes.DWORD), ("tpBasePri", ctypes.c_long),
+                    ("tpDeltaPri", ctypes.c_long), ("dwFlags", wintypes.DWORD)]
+    return THREADENTRY32
+
+
+def _win_resume(pid: int) -> bool:
+    """Resume every thread of a process created with CREATE_SUSPENDED (Popen closes the primary thread handle, so
+    the threads are found by a Toolhelp32 snapshot). True only if at least one thread was found and each one was
+    resumed."""
+    import ctypes
+    from ctypes import wintypes
+    k = _win_k32()
+    snap = k.CreateToolhelp32Snapshot(0x4, 0)   # TH32CS_SNAPTHREAD
+    if not snap or snap == wintypes.HANDLE(-1).value:
+        return False
+    tids = []
+    try:
+        entry = _win_thread_entry()()
+        entry.dwSize = ctypes.sizeof(entry)
+        ok = k.Thread32First(snap, ctypes.byref(entry))
+        while ok:
+            if int(entry.th32OwnerProcessID) == pid:
+                tids.append(int(entry.th32ThreadID))
+            ok = k.Thread32Next(snap, ctypes.byref(entry))
+    finally:
+        k.CloseHandle(snap)
+    if not tids:
+        return False
+    for tid in tids:
+        h = k.OpenThread(0x0002, False, tid)   # THREAD_SUSPEND_RESUME
+        if not h:
+            return False
+        try:
+            if k.ResumeThread(h) == 0xFFFFFFFF:
+                return False
+        finally:
+            k.CloseHandle(h)
+    return True
 
 
 def _win_job_assign(proc: subprocess.Popen):
@@ -699,7 +767,18 @@ class McpStdioNotebookLMClient:
         self._tree = _ProcessTree(proc)
         self._generation += 1
         self.spawned.append({"generation": self._generation, "pid": proc.pid, "containment": self._tree.kind})
-        self._proc, self._q = proc, queue.Queue()
+        self._proc = proc
+        # F14 (GPT_REVIEW_V1 at b869e79): never run or use a server outside its containment. On Windows the
+        # process is still suspended here; it is resumed only after the job assignment succeeded.
+        failure = "containment_unavailable" if self._tree.kind == "none" else (
+            None if self._tree.resume() else "resume_failed")
+        self.spawned[-1]["resumed"] = failure is None
+        if failure:
+            self._terminate(failure)
+            raise GatewayError("BACKEND_UNAVAILABLE", "the NotebookLM MCP server could not be started inside its "
+                               "process containment; refusing to use it",
+                               details={"phase": "startup", "method": None, "sent": False, "containment": failure})
+        self._q = queue.Queue()
         self._writer = _StdinWriter(proc.stdin)
         threading.Thread(target=self._reader, args=(proc, self._q), daemon=True).start()
         try:
