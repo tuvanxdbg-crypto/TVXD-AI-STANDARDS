@@ -1,6 +1,6 @@
-# M03 GitHub governance: đặc tả (BẢN NHÁP chờ REVIEW_V1, chưa triển khai)
+# M03 GitHub governance: đặc tả
 
-**Trạng thái: SPEC DRAFT, đã có quyết định của chủ repo cho §8.** Tài liệu này chỉ đặc tả M03. Commit chứa nó không thêm workflow, không thêm CODEOWNERS, không đổi cài đặt repo, không đổi code, config, pin hay quyền. Chỉ triển khai sau khi có REVIEW_V1 PASS cho đúng SHA của bản đặc tả và chủ repo phê duyệt trực tiếp trong chat.
+**Trạng thái: ĐÃ DUYỆT.** REVIEW_V1 PASS và chủ repo phê duyệt trực tiếp tại `a2e8362` ngày 2026-10-09. M03-A đã triển khai và merge vào `main` tại `d1b65aa` (PR #8). M03-B và M03-C theo §6 và §7. Mọi sửa đổi spec về sau phải có REVIEW_V1 tại đúng SHA và chủ repo phê duyệt.
 
 ## 1. Thẩm quyền
 

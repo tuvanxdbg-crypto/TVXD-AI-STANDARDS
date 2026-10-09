@@ -26,6 +26,15 @@ Nextcloud may keep the original documents, but they are no longer a mandatory ve
 
 M01 covers only one leg of this design, the NotebookLM read path, as a pilot. Nothing in M01 implements the Gateway, the INDEX or local retrieval.
 
+## M03 — GitHub governance (đang thực hiện)
+
+Spec: [docs/M03_GITHUB_GOVERNANCE.md](docs/M03_GITHUB_GOVERNANCE.md). Quy trình review: [docs/REVIEW_PROCESS.md](docs/REVIEW_PROCESS.md).
+
+Trạng thái ngày 2026-10-09:
+- **M03-A đã merge** (PR #8). Workflow `ci` chạy 3 job offline `linux`, `windows`, `metadata` cho mọi PR vào `main`: token chỉ đọc, không secret, không NotebookLM.
+- **M03-B: cài đặt đã áp, evidence chờ review** (PR #9). Ruleset `main` bắt buộc PR và 3 check ở chế độ strict, chặn force push và xóa nhánh, không bypass. Secret Protection và Push protection đã bật.
+- **M03-C chưa bắt đầu.** M03 chưa PASS.
+
 ## M02 — Standards Gateway (closed, bounded, 2026-10-09)
 
 The Gateway (`gateway/`) exposes exactly three MCP tools to Claude Code: `standards_lookup`, `standards_verify` and `standards_status`.
