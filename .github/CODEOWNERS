@@ -1,0 +1,15 @@
+# M03 D2 (docs/M03_GITHUB_GOVERNANCE.md §4). The owner is the code owner of the whole repository.
+# The ruleset does not require Code Owner review (owner decision, §8 item 1), so this file assigns the reviewer
+# and marks the sensitive paths; it does not block a merge by itself.
+*                       @tuvanxdbg-crypto
+
+# Paths with safety rules (CLAUDE.md, M01/M02), listed separately so they are easy to see.
+/CLAUDE.md              @tuvanxdbg-crypto
+/.mcp.json              @tuvanxdbg-crypto
+/.claude/               @tuvanxdbg-crypto
+/config/                @tuvanxdbg-crypto
+/.github/               @tuvanxdbg-crypto
+/gateway/               @tuvanxdbg-crypto
+/docs/m02-pilot/        @tuvanxdbg-crypto
+/tests/m02/fixtures/    @tuvanxdbg-crypto
+/tests/m01/fixtures/    @tuvanxdbg-crypto

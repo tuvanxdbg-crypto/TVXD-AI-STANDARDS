@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from helpers import CANARY, FIXTURES, REPO, TODAY
 
@@ -88,6 +89,14 @@ class TemporaryFakeBackend(unittest.TestCase):
     def test_refuses_a_directory_inside_the_repository(self):
         with self.assertRaises(ValueError):
             ms.build_fake_backend(REPO / "tests" / "m02" / "evidence" / "local")
+
+    def test_other_drive_counts_as_outside(self):
+        # A temp directory on another Windows drive than the checkout (C: vs D: on a CI runner) is outside the
+        # repository; commonpath raises ValueError for such paths and must not crash the check.
+        with mock.patch.object(ms.os.path, "commonpath", side_effect=ValueError("Paths don't have the same drive")):
+            self.assertFalse(ms.inside(Path(self.tmp.name), REPO))
+        self.assertTrue(ms.inside(REPO / "tests" / "m02", REPO))
+        self.assertFalse(ms.inside(Path(self.tmp.name).resolve(), REPO))
 
     def test_lookup_through_the_generated_command_returns_v2_evidence_from_the_fake(self):
         gw = StdioGateway(self.gateway_command())

@@ -1,0 +1,79 @@
+# M03 D3 (docs/M03_GITHUB_GOVERNANCE.md §4). Offline checks only: fixture data, fake NotebookLM, no login,
+# no repository secret, no NotebookLM call, no m02_surface.py, no AutoCAD. Read-only token.
+# Actions are pinned to full commit SHAs (tag in the comment, verified with git ls-remote on 2026-10-09).
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONIOENCODING: utf-8
+  # uv run arguments used by scripts/m02/m02-tests.ps1: Python 3.11, PyYAML 6.0.2, dependency cutoff.
+  GW: --no-project --python 3.11 --with pyyaml==6.0.2 --exclude-newer 2026-10-03T00:00:00Z
+
+jobs:
+  linux:
+    name: linux
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.17"
+          enable-cache: false
+      - name: M02 unit/contract tests (fixture, fake NotebookLM)
+        run: uv run $GW python -m unittest discover -s tests/m02 -p "test_gateway_*.py"
+      - name: "M01 regression: M01-10 checker controls"
+        run: uv run --no-project --python 3.11 tests/m01/test_m01_10_llm_check.py
+      - name: "M01 regression: console encoding"
+        run: uv run --no-project --python 3.11 tests/m01/test_m01_console.py
+      - name: M01-09 secret scan (current tracked tree only)
+        run: uv run --no-project --python 3.11 tests/m01/check_no_secrets.py
+
+  windows:
+    name: windows
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.17"
+          enable-cache: false
+      - name: M02 unit/contract tests incl. Windows-only (job object, CREATE_SUSPENDED, junction)
+        shell: pwsh
+        run: |
+          uv run --no-project --python 3.11 --with pyyaml==6.0.2 --exclude-newer 2026-10-03T00:00:00Z python -m unittest discover -s tests/m02 -p "test_gateway_*.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  metadata:
+    name: metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.8.17"
+          enable-cache: false
+      - name: Repository metadata checks (D5)
+        run: uv run $GW python tests/m03/validate_repo_metadata.py
+      - name: D5 negative controls
+        run: uv run $GW python -m unittest discover -s tests/m03 -p "test_*.py" -v
