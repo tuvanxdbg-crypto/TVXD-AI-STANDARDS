@@ -54,7 +54,7 @@ Ngoài spec:
 ### D3: cổng phê duyệt workflow từ fork
 
 - Đang chọn "Require approval for all external contributors", mức chặt nhất trong 3 lựa chọn: ảnh `actions-fork-approval.png`.
-- Ảnh chụp vẫn còn nút Save. Việc chủ repo đã bấm Save được ghi theo xác nhận của chủ repo trong chat: **[chờ xác nhận]**.
+- Ảnh chụp vẫn còn nút Save. Chủ repo xác nhận trong chat Claude ngày 2026-10-09, nguyên văn: "đã Save".
 
 ## Giới hạn
 
