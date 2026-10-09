@@ -91,7 +91,7 @@ Mo hinh 3 vai, tach khoi nha cung cap cua tung model:
 
 ```text
 LEAD     = Claude Opus 5.5    (chia viec, viet spec, triage)
-EXECUTOR = Claude Haiku 5.5   (thuc hien theo spec; viec kho chuyen sang Opus 5.5)
+EXECUTOR = Claude Sonnet 5.5  (thuc hien theo spec; viec kho chuyen sang Opus 5.5)
 REVIEWER = GPT-6.1 Sol        (soat PR va evidence doc lap)
 USER     = HUMAN APPROVER     (nghiem thu mot moc, merge, chot trang thai)
 ```
