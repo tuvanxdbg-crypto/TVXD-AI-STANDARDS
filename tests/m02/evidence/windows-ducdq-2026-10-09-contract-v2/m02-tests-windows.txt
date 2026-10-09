@@ -1,0 +1,96 @@
+Console output pasted by the owner into the Claude chat on 2026-10-09 (PowerShell, owner machine ducdq).
+Verbatim apart from two omissions marked [omitted]: the `git pull` file list (76 files, 6ed225b..eec1680, identical
+to `git diff --stat 6ed225b eec1680`) and the paste's earlier part, which repeats the 2026-10-07 B2 console already
+recorded in ../windows-ducdq-2026-10-07-b2/.
+
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> git fetch origin claude/m02-standards-gateway
+remote: Enumerating objects: 173, done.
+remote: Counting objects: 100% (173/173), done.
+remote: Compressing objects: 100% (74/74), done.
+remote: Total 134 (delta 79), reused 113 (delta 58), pack-reused 0 (from 0)
+Receiving objects: 100% (134/134), 98.04 KiB | 974.00 KiB/s, done.
+Resolving deltas: 100% (79/79), completed with 31 local objects.
+From https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS
+ * branch            claude/m02-standards-gateway -> FETCH_HEAD
+   6ed225b..eec1680  claude/m02-standards-gateway -> origin/claude/m02-standards-gateway
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> git checkout claude/m02-standards-gateway
+Already on 'claude/m02-standards-gateway'
+Your branch is behind 'origin/claude/m02-standards-gateway' by 8 commits, and can be fast-forwarded.
+  (use "git pull" to update your local branch)
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> git pull --ff-only origin claude/m02-standards-gateway
+From https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS
+ * branch            claude/m02-standards-gateway -> FETCH_HEAD
+Updating 6ed225b..eec1680
+Fast-forward
+[omitted: file list]
+ 76 files changed, 8028 insertions(+), 1172 deletions(-)
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> git rev-parse HEAD
+eec1680632162f3af869cbe99bc4492df19d2f5e
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> git status --short
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> claude --version
+2.1.293 (Claude Code)
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS> powershell -ExecutionPolicy Bypass -File scripts\m02\m02-tests.ps1 -WithClaude 2>&1 | Tee-Object -FilePath $env:TEMP\m02-contract-v2-windows.txt
+
+==== M02 unit/contract tests (fixture, fake NotebookLM)
+powershell : .............s.................s.E........................................................................
+..................................................F........s..
+At line:1 char:1
++ powershell -ExecutionPolicy Bypass -File scripts\m02\m02-tests.ps1 -W ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (.............s.......F........s..:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+
+======================================================================
+ERROR: test_graceful_close_also_verifies_the_tree
+(test_gateway_f13_f14.F14ProcessTree.test_graceful_close_also_verifies_the_tree)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\tests\m02\test_gateway_f13_f14.py", line 333, in
+test_graceful_close_also_verifies_the_tree
+    NotebookLMAdapter(c, timeout_s=10, max_attempts=1, total_budget_s=10).query(
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\adapters\notebooklm.py", line 320, in query
+    result = self._call(lambda: self.client.notebook_query(notebook_id, query, list(source_ids)))
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\adapters\notebooklm.py", line 302, in _call
+    result = call_with_retry(attempt, timeout_s=self.timeout_s, max_attempts=self.max_attempts,
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\retry.py", line 88, in call_with_retry
+    return run_with_timeout(fn, min(timeout_s, remaining))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\retry.py", line 71, in run_with_timeout
+    raise value
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\retry.py", line 56, in target
+    box.put((True, fn()))
+                   ^^^^
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\adapters\notebooklm.py", line 295, in attempt
+    result = fn()
+             ^^^^
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\adapters\notebooklm.py", line 320, in <lambda>
+    result = self._call(lambda: self.client.notebook_query(notebook_id, query, list(source_ids)))
+                                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\adapters\notebooklm.py", line 843, in notebook_query
+    return self._tool("notebook_query", {"notebook_id": notebook_id, "query": query,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\adapters\notebooklm.py", line 811, in _tool
+    self._start(dl)
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\gateway\adapters\notebooklm.py", line 720, in _start
+    raise GatewayError("BACKEND_UNAVAILABLE", "a NotebookLM MCP server process is outside its "
+gateway.errors.GatewayError: a NotebookLM MCP server process is outside its containment; refusing to use it
+======================================================================
+FAIL: test_lookup_through_the_generated_command_returns_v2_evidence_from_the_fake (test_gateway_surface_harness.Tempora
+ryFakeBackend.test_lookup_through_the_generated_command_returns_v2_evidence_from_the_fake)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS\tests\m02\test_gateway_surface_harness.py", line 99, in
+test_lookup_through_the_generated_command_returns_v2_evidence_from_the_fake
+    self.assertFalse(res.get("isError"), res["content"][0]["text"][:300])
+AssertionError: True is not false : {"schema": "tvxd.gateway.lookup.response/v2", "request_id":
+"req_03d9c31bb26ce39e", "status": "ERROR", "results": [], "missing_inputs": [], "excluded": [], "error": {"code":
+"BACKEND_UNAVAILABLE", "message": "a NotebookLM MCP server process is outside its containment; refusing to use it",
+"retryable
+----------------------------------------------------------------------
+Ran 168 tests in 71.609s
+FAILED (failures=1, errors=1, skipped=3)
+
+FAILED STEP: M02 unit/contract tests (fixture, fake NotebookLM) (exit code 1). Stopped; later steps were not run.
+PS C:\Users\ducdq.tvxdbg\TVXD-AI-STANDARDS>
