@@ -1,0 +1,22 @@
+=== phase before, --expect-head d007e4e8e13839d1d96c92e236e0c41c9dbf411f (committed-stage-b-config)
+PASS           HEAD_IS_APPROVED               head=d007e4e8e13839d1d96c92e236e0c41c9dbf411f expected=d007e4e8e13839d1d96c92e236e0c41c9dbf411f
+PASS           TREE_CLEAN                     clean
+PASS           COMMITTED_CONFIGS_DISABLED     every committed Gateway config: mode disabled
+PASS           STAGE_B_SCOPE                  3 documents, notebook 8ca84143-c240-4fcb-98fe-e1f8c6cca02d
+PASS           M01_SERVER_PIN                 uvx notebooklm-mcp-cli==0.15.1, four read tools
+NOT_APPLICABLE TOKEN_NOT_ELEVATED             not Windows
+NOT_APPLICABLE TOKEN_INTEGRITY_AT_MOST_MEDIUM not Windows
+NOT_APPLICABLE NO_ACL_BYPASS_PRIVILEGES       not Windows
+STAGE B v2 PREFLIGHT BEFORE: NOT_A_LIVE_HOST
+exit 3
+=== phase before, --expect-head 0000000000000000000000000000000000000000 (wrong-expect-head)
+FAIL           HEAD_IS_APPROVED               head=d007e4e8e13839d1d96c92e236e0c41c9dbf411f expected=0000000000000000000000000000000000000000
+PASS           TREE_CLEAN                     clean
+PASS           COMMITTED_CONFIGS_DISABLED     every committed Gateway config: mode disabled
+PASS           STAGE_B_SCOPE                  3 documents, notebook 8ca84143-c240-4fcb-98fe-e1f8c6cca02d
+PASS           M01_SERVER_PIN                 uvx notebooklm-mcp-cli==0.15.1, four read tools
+NOT_APPLICABLE TOKEN_NOT_ELEVATED             not Windows
+NOT_APPLICABLE TOKEN_INTEGRITY_AT_MOST_MEDIUM not Windows
+NOT_APPLICABLE NO_ACL_BYPASS_PRIVILEGES       not Windows
+STAGE B v2 PREFLIGHT BEFORE: FAIL
+exit 1
