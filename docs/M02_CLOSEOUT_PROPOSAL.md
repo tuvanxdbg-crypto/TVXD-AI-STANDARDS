@@ -1,7 +1,11 @@
-# M02 — Closeout proposal (DRAFT for GPT review; M02 is NOT closed and NOT merged)
+# M02 — Closeout (CLOSED, bounded; PR #5 not merged)
 
-**Status: PROPOSAL.** This document proposes how to close M02. It changes no code, config, INDEX, pin, policy or
-permission.
+**Status: CLOSED (bounded).**
+- The proposal below received GPT_REVIEW_V1 PASS at `dd21083170060eb7dc2d32631efac9eae5dd4fe5`.
+- The owner then decided in the Claude chat on 2026-10-09: "Tôi quyết định đóng M02 ở phạm vi giới hạn (bounded) theo đề xuất docs/M02_CLOSEOUT_PROPOSAL.md tại commit dd21083170060eb7dc2d32631efac9eae5dd4fe5, và cho phép tạo commit chỉ cập nhật trạng thái (CLAUDE.md, README, các tài liệu M02) theo bước 3 của §8. Chưa cho phép merge."
+- This status-finalization commit is step 3 of §8. The merge still needs step 4 (review of this commit) and step 5
+  (the owner's merge approval of its exact HEAD).
+- The proposal text below is kept as reviewed. It changes no code, config, INDEX, pin, policy or permission.
 
 Closing M02 follows the sequence in §8:
 1. review of this proposal;

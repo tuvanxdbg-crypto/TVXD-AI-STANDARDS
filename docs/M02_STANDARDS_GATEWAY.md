@@ -1,11 +1,11 @@
-# M02 — Standards Gateway (offline-first)
+# M02 — Standards Gateway (contract v2; closed, bounded)
 
 Status: **contract v2, OFFLINE_VALIDATED (Linux and the owner's Windows machine at `f9c1061`) and
 LIVE_STAGE_B_V2_PASS. The live run was bounded: query Q-S1 with the scope notebook `8ca84143-…` and its three
 mapped sources, at `6eb2aed`. Evidence came only from TCVN-8794-2011;
-GPT_REVIEW_V1 PASS at `eb235d4`.** Closing M02 is proposed in [M02_CLOSEOUT_PROPOSAL.md](M02_CLOSEOUT_PROPOSAL.md).
-That proposal is a draft for review: M02 is not closed, and merge, further live runs, login, M03 and AutoCAD are
-not authorized.
+GPT_REVIEW_V1 PASS at `eb235d4`.** **M02 is CLOSED (bounded)**: the owner decided this on 2026-10-09 on the
+proposal reviewed at `dd21083` ([M02_CLOSEOUT_PROPOSAL.md](M02_CLOSEOUT_PROPOSAL.md)). PR #5 is not merged. Merge,
+further live runs, login, M03 and AutoCAD are not authorized without new reviews and the owner's approvals.
 
 ## 0. Contract v2 — NotebookLM primary, trusted by owner policy (current)
 

@@ -3,7 +3,8 @@
 Status: **ARCHITECTURE CHANGED (contract v2, 2026-10-09): NotebookLM primary, trusted by owner policy. Stage A/B0/B2
 and the F13/F14 work below are history of contract v1. The contract-v2 stage B (§6c) ran once, at `6eb2aed`,
 under the owner's direct approval, and PASSed (GPT_REVIEW_V1 PASS at `eb235d4`). Any further live run needs a new
-reviewed plan and a new direct approval.**
+reviewed plan and a new direct approval. M02 is CLOSED (bounded) by the owner's decision on 2026-10-09
+(docs/M02_CLOSEOUT_PROPOSAL.md).**
 
 Contract v2 (OWNER_ARCHITECTURE_CHANGE_V1, `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE`; docs/M02_STANDARDS_GATEWAY.md §0):
 - The Gateway no longer reads `C:\Vanban_XDCB` or checks file hashes, sync identity or mappings to local files.

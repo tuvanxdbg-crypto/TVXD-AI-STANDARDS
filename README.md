@@ -26,7 +26,7 @@ Nextcloud may keep the original documents, but they are no longer a mandatory ve
 
 M01 covers only one leg of this design, the NotebookLM read path, as a pilot. Nothing in M01 implements the Gateway, the INDEX or local retrieval.
 
-## M02 — Standards Gateway (in progress, offline-first)
+## M02 — Standards Gateway (closed, bounded, 2026-10-09)
 
 The Gateway (`gateway/`) exposes exactly three MCP tools to Claude Code: `standards_lookup`, `standards_verify` and `standards_status`.
 
@@ -35,7 +35,15 @@ Contract v2 follows the owner's architecture change `M02_NOTEBOOKLM_PRIMARY_TRUS
 - NotebookLM is the primary source: it is used through the four M01 read tools only, limited to the whitelisted notebook/sources, and disabled in every committed config.
 - NotebookLM sources are trusted by owner policy. The Gateway checks no file hash, local mapping or sync identity, and evidence says so (`TRUSTED_BY_POLICY`, `TRUST.checks_not_performed`).
 
-The Gateway is built and tested on fixture data and fake backends only. See [docs/M02_STANDARDS_GATEWAY.md](docs/M02_STANDARDS_GATEWAY.md) §0 and [Issue #4](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/4).
+Status: **closed (bounded)**, by the owner's decision on 2026-10-09. See [docs/M02_CLOSEOUT_PROPOSAL.md](docs/M02_CLOSEOUT_PROPOSAL.md).
+- Tested offline on fixture data and fake backends, on Linux and on the owner's Windows machine.
+- One bounded live stage B passed, owner-approved and owner-run.
+  - Query Q-S1 was sent with the scope of notebook `8ca84143-…` and its three mapped sources.
+  - Evidence came only from TCVN-8794-2011. LUAT-135-2025-QH15 and TCVN-5575-2024 were not cited.
+- This says nothing about legal validity, applicability or design compliance.
+- The Gateway is not enabled for ordinary sessions. Every committed config keeps NotebookLM `disabled`, and any further live run needs a reviewed plan and the owner's approval of an exact SHA.
+
+See [docs/M02_STANDARDS_GATEWAY.md](docs/M02_STANDARDS_GATEWAY.md) §0 and [Issue #4](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/issues/4).
 
 ## M01 — NotebookLM content-read-only pilot (closed 2026-10-05)
 

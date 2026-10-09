@@ -1,10 +1,15 @@
 # CLAUDE.md — TVXD-AI-STANDARDS
 
 ## Current milestone
-M02 — Standards Gateway, offline-first implementation (Issue #4). M01 (NotebookLM content-read-only pilot) is closed; every M01 rule below stays in force.
+M02 — Standards Gateway: **CLOSED (bounded)**. The owner decided this in the Claude chat on 2026-10-09, on the proposal reviewed at `dd21083` (docs/M02_CLOSEOUT_PROPOSAL.md).
+- The closure covers the contract-v2 offline validation on Linux and Windows.
+- It also covers one bounded live stage B: Q-S1, sent with the scope of notebook `8ca84143-…` and its three mapped sources, which returned evidence only from TCVN-8794-2011.
+- PR #5 is merged only on the owner's separate approval of an exact SHA.
+- No next milestone is authorized; M03 has not started.
+- M01 (NotebookLM content-read-only pilot) is closed. Every M01 and M02 rule below stays in force.
 
-## M02 scope (offline-first)
-Authorized now (Issue #4): build and test the Gateway (`gateway/`) with fixture data only (`tests/m02/fixtures/`), on an M02 branch, then a draft PR and an exact-HEAD GPT review.
+## M02 rules (closed milestone; still in force)
+Completed under Issue #4: the Gateway (`gateway/`), built and tested with fixture data (`tests/m02/fixtures/`), plus the one approved bounded live stage B (B2v2 at `6eb2aed`). Any further M02 work, live run or source set needs a new reviewed request, plan or both, and the owner's direct approval of an exact SHA.
 - Claude sees only the three Gateway tools: `standards_lookup`, `standards_verify`, `standards_status`. Raw NotebookLM tools are never exposed through the Gateway.
 - The Gateway's NotebookLM adapter stays `notebooklm.mode: "disabled"`. Do not enable `mcp_stdio`, call NotebookLM through the Gateway, point the Gateway at the real Nextcloud library, or bulk-ingest documents until a GPT_REVIEW_V1 and the owner authorize the live pilot with a bounded source set.
 - Do not add the Gateway to the project `.mcp.json`; locked Gateway sessions use `tests/m02/fixtures/gateway.mcp.json` with `--tools= --strict-mcp-config`.
