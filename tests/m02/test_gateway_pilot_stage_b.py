@@ -222,3 +222,31 @@ class StageBRunner(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class V2EvidenceCheck(unittest.TestCase):
+    """§6c: P5 accepts only contract-v2 evidence on a mapped source of the pilot notebook."""
+
+    MAPPED = ["src-a", "src-b", "src-c"]
+
+    def item(self, **over):
+        from gateway import EVIDENCE_CONTRACT, TRUST_POLICY
+        e = {"CONTRACT": EVIDENCE_CONTRACT, "STATUS": "TRUSTED_BY_POLICY", "TRUST": {"policy": TRUST_POLICY},
+             "UNCERTAINTY": [{"code": "SOURCE_IDENTITY_NOT_CHECKED", "detail": "x"}],
+             "SOURCE_LOCATION": {"kind": "notebooklm", "notebook_id": sb.NOTEBOOK, "source_id": "src-b",
+                                 "citation_numbers": [1]}}
+        e.update(over)
+        return e
+
+    def test_good_and_empty_pass(self):
+        self.assertTrue(sb.v2_evidence_ok({"results": [self.item()]}, self.MAPPED))
+        self.assertTrue(sb.v2_evidence_ok({"status": "UNKNOWN", "results": []}, self.MAPPED))
+
+    def test_each_deviation_fails(self):
+        loc = self.item()["SOURCE_LOCATION"]
+        for over in ({"CONTRACT": "tvxd.gateway.evidence/v1"}, {"STATUS": "VERIFIED"}, {"TRUST": {"policy": "x"}},
+                     {"UNCERTAINTY": []}, {"SOURCE_LOCATION": None},
+                     {"SOURCE_LOCATION": {**loc, "kind": "local"}},
+                     {"SOURCE_LOCATION": {**loc, "notebook_id": "nb-other"}},
+                     {"SOURCE_LOCATION": {**loc, "source_id": sb.INJECTION_SOURCE}}):
+            self.assertFalse(sb.v2_evidence_ok({"results": [self.item(), self.item(**over)]}, self.MAPPED), over)

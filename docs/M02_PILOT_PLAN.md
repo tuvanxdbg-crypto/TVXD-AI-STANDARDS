@@ -1,8 +1,9 @@
 # M02 — Bounded live pilot plan
 
 Status: **ARCHITECTURE CHANGED (contract v2, 2026-10-09): NotebookLM primary, trusted by owner policy. Stage A/B0/B2
-and the F13/F14 work below are history of contract v1. Any further stage-B run needs a new plan review for
-contract v2 and the owner's direct approval.**
+and the F13/F14 work below are history of contract v1. The contract-v2 stage B plan is §6c: a DRAFT for review,
+for the owner-confirmed bounded source set. It does not run until a GPT_REVIEW_V1 PASS of it and the owner's
+direct approval of the exact SHA.**
 
 Contract v2 (OWNER_ARCHITECTURE_CHANGE_V1, `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE`; docs/M02_STANDARDS_GATEWAY.md §0):
 - The Gateway no longer reads `C:\Vanban_XDCB` or checks file hashes, sync identity or mappings to local files.
@@ -496,6 +497,136 @@ Stop conditions:
 - any P-case FAIL.
 
 Rollback: delete the temporary config/INDEX copies; the committed configs are already `disabled`.
+
+## 6c. Stage B under contract v2 (DRAFT for review; NOT approved to run)
+
+**Authority.** GPT_REVIEW_V1 PASS at `727ae61` set NEXT_ALLOWED_STEP
+`OWNER_PROVIDE_BOUNDED_LIVE_SOURCE_SET_AND_AUTHORIZE_CONTRACT_V2_STAGE_B_PLAN_DRAFT_ONLY`. The owner answered in the
+Claude chat on 2026-10-09 by choosing the option "Giữ 3 nguồn cũ (Khuyến nghị)". The option read: "Notebook
+TVXD-M01-TEST (8ca84143…), gồm 3 nguồn: Luật 135/2025/QH15, TCVN 5575:2024, TCVN 8794:2011. Đây là bộ đã dùng ở
+B2. Cho phép soạn kế hoạch Stage B contract v2 với bộ này."
+- That answer confirms the bounded source set and authorizes **this draft** with offline preflight and tests.
+- It is not an approval to log in, enable `mcp_stdio` or call NotebookLM.
+
+**Bounded live source set.** Unchanged from B0/B1; committed in `m02-pilot/INDEX.pilot.stage-b.yaml`.
+
+| Document ID | Title (B0 `notebook_get`) | NotebookLM source ID |
+|---|---|---|
+| `LUAT-135-2025-QH15` | Luật Xây dựng số 135/2025/QH15 | `8b75af2d-4477-40fb-a67f-3ee10173c221` |
+| `TCVN-5575-2024` | TCVN 5575:2024 Thiết kế kết cấu thép | `d54bb084-5c50-4cef-8979-6e909f791c1e` |
+| `TCVN-8794-2011` | TCVN 8794:2011 Trường trung học - Yêu cầu thiết kế | `8ccb8115-f552-4ecb-b42a-f0ee093f1d08` |
+
+- **Notebook:** `8ca84143-c240-4fcb-98fe-e1f8c6cca02d` (TVXD-M01-TEST), the only whitelisted notebook.
+- **Never mapped, never sent:** the M01 injection source `b710e565-91f6-49f1-bea6-a6783cbca9f4`, which is in the
+  same notebook. The same holds for any other source or notebook.
+- **Excluded actions:** widening, replacing or re-mapping the set, and changing a notebook or source.
+
+**What is unchanged.**
+- `m02-pilot/INDEX.pilot.stage-b.yaml`: the mapping. Its `source`/`sync` fields remain, but contract v2 does not
+  check them.
+- `m02-pilot/gateway.pilot.stage-b.json`: `notebooklm.mode: disabled`. Its `source_root` is not used by
+  contract v2.
+- The project `.mcp.json`: the M01 gated server, `notebooklm-mcp-cli==0.15.1`, the four read tools, profile
+  `tvxd-m01`.
+- The M01 pin, policy and permissions.
+- With `--live`, the runner still writes a temporary `mcp_stdio` copy, which is never committed.
+
+**What differs from the contract-v1 B2 (§6b).**
+- **No library preflight.** The Gateway reads no local file, so `pilot_preflight.py` (ACL and hash checks on
+  `C:\Vanban_XDCB`) is not part of this run, and nothing under the library is opened.
+  - It is replaced by `tests/m02/pilot_stage_b_v2_preflight.py`, which never touches the library. It runs before
+    and after the run and checks:
+    - `HEAD_IS_APPROVED`: HEAD equals the approved full SHA;
+    - `TREE_CLEAN`;
+    - `COMMITTED_CONFIGS_DISABLED`;
+    - `STAGE_B_SCOPE`: the runner's own preconditions, i.e. 3 documents, 1 notebook, distinct mapped sources, the
+      injection source unmapped;
+    - `M01_SERVER_PIN`: uvx `notebooklm-mcp-cli==0.15.1`, exactly the four read tools;
+    - the Windows token is not elevated, has integrity at most Medium and holds no ACL-bypass privilege.
+  - PASS is possible only on Windows (exit 0). Off Windows the status is `NOT_A_LIVE_HOST` (exit 3).
+  - Offline tests: `test_gateway_pilot_stage_b_v2_preflight.py`, 7 tests with a negative control for each check.
+- **Evidence is contract v2.**
+  - P5 also requires every evidence item to be `tvxd.gateway.evidence/v2`, with:
+    - a v2 status;
+    - `TRUST.policy` `M02_NOTEBOOKLM_PRIMARY_TRUSTED_SOURCE`;
+    - `SOURCE_IDENTITY_NOT_CHECKED`;
+    - a NotebookLM location in the pilot notebook, on one of the three mapped sources.
+
+    This is `pilot_stage_b.v2_evidence_ok`, tested in `V2EvidenceCheck`.
+  - P7 checks `NOTEBOOK_SCOPE`.
+  - P11 checks that a missing sync identity does not block and is reported as not checked.
+  - There is no `VERIFIED` status.
+- **Fixes in place since B2:**
+  - F13: citation normalization for the 0.15.1 shape.
+  - F14: process-tree containment and verified teardown. On Windows this uses a suspended start, then the job,
+    then resume. Owner Windows acceptance passed at `f9c1061` (§20 of the design doc).
+
+**Cases** (runner `tests/m02/pilot_stage_b.py`; query Q-S1, work code `THIET-KE-DAN-DUNG`, assessment date
+`2026-10-06`). The first FAIL stops the run before any further NotebookLM call; a precondition that did not occur
+gives NOT_OBSERVED, never PASS.
+
+| Case | PASS criterion |
+|---|---|
+| P5 | Exactly one `notebook_query` with exactly the three mapped source ids. Status FOUND/UNKNOWN, or `CITED_SOURCE_NOT_WHITELISTED`. Every evidence item contract v2 as above |
+| P10 | P10-A: every cited, referenced and `sources_used` id is in the sent set and well formed. Or P10-B: a real out-of-scope or malformed trigger gives `CITED_SOURCE_NOT_WHITELISTED`, with no answer, no evidence and no cache (the repeat queries again). Not allowed: forcing P10-B by mapping or sending any other source |
+| P6 | (needs FOUND in P5) The same lookup is a cache hit with the same `EVIDENCE_ID`s and no extra `notebook_query` |
+| P7 | Notebook removed from the whitelist in a temporary copy: UNKNOWN, all `NOTEBOOK_NOT_WHITELISTED`, 0 calls. The old P5 evidence verifies FAILED on `NOTEBOOK_SCOPE` |
+| P11 | TCVN 8794 sync identity removed in a temporary copy: the results do not carry `SYNC_IDENTITY_MISSING`, do carry `SOURCE_IDENTITY_NOT_CHECKED`, and list `SYNC_IDENTITY` in `TRUST.checks_not_performed` |
+| P8 | 1 s budget: structured TIMEOUT. The timed-out attempt is terminal, and every server process tree is torn down and verified empty. Recovery runs on a new validated process, which is then closed and verified. Containment that cannot be established gives BLOCKED, never PASS |
+| P9 | The model sees exactly the three Gateway tools (`m02_surface.py surface`), and the offline-fake data-boundary gate passes (`m02_surface.py llm`). Both run through `scripts\m02\m02-tests.ps1 -WithClaude` and make no NotebookLM call. The Gateway's tool list does not depend on `notebooklm.mode`: exactly three tools with `disabled` (`McpSurface`) and with a temporary `mcp_stdio` config (`TemporaryFakeBackend`) |
+
+**Stop conditions (stop, report, no retry):**
+- any preflight check other than PASS;
+- any suite step red;
+- a tool surface other than the four read tools, or other than the three Gateway tools for the model;
+- `AUTH_REQUIRED`: the owner signs in with `scripts\m01\m01-login.ps1`. Claude never asks for or handles
+  credentials, and the run restarts only under the same approval;
+- a source-gate refusal, or any attempt with a wrong source set or the injection source;
+- an unfinished attempt;
+- any P-case FAIL, or BLOCKED.
+
+**Prerequisites before any live step:**
+1. GPT_REVIEW_V1 PASS of this plan at its exact commit.
+2. The owner's direct approval in the Claude chat naming that exact full SHA, for example: "Tôi chấp thuận chạy
+   Stage B contract v2 (B2v2) theo kế hoạch §6c tại commit `<full SHA>`: Gateway gọi notebook_query tới notebook
+   8ca84143-c240-4fcb-98fe-e1f8c6cca02d, chỉ với 3 source đã ánh xạ, các ca P5–P11 và P8, cùng preflight v2
+   trước và sau." A GitHub comment is not that approval.
+3. The M01 login state already exists on the owner's machine. Claude does not log in and does not read the login
+   state directories.
+
+**Run order** (owner machine, PowerShell, non-elevated, repo root, at the approved SHA; stop at the first non-PASS
+step):
+```powershell
+$SHA = '<approved full SHA>'
+$env:PYTHONIOENCODING = 'utf-8'
+$G = @('run','--no-project','--python','3.11','--with','pyyaml==6.0.2','--exclude-newer','2026-10-03T00:00:00Z','python')
+git rev-parse HEAD                     # must print $SHA
+& uv @G tests/m02/pilot_stage_b_v2_preflight.py --phase before --expect-head $SHA
+powershell -ExecutionPolicy Bypass -File scripts\m02\m02-tests.ps1 -WithClaude      # offline suite, M01, P9 surface/llm
+& uv @G tests/m02/pilot_stage_b.py --live                                            # P5, P10, P6, P7, P11, P8
+& uv @G tests/m02/pilot_stage_b_v2_preflight.py --phase after --expect-head $SHA
+```
+
+**Evidence and report (B3).** The owner sends:
+- the console output;
+- the `stage-b-v2-preflight-*.summary.json` files (before and after);
+- `stage-b-*.summary.json`;
+- the `m02-surface-*`/`m02-llm-*` JSON files.
+
+They hold ids, statuses, codes, counts, key names and timings, and no answer text, passages, raw payloads or
+transcripts. `stage-b-*.raw.json` stays local. Claude commits only those summaries and a README, with the full
+TESTED_COMMIT and HEAD_COMMIT, and requests a GPT review. NotebookLM chat history may keep the queries (the M01
+query exception); no notebook or source is changed.
+
+**Rollback.** Delete the runner's temporary copies; the committed configs are already `disabled`. Nothing else is
+changed.
+
+**Offline validation of this draft** (Linux, fakes and stand-ins only):
+- the full M02 suite;
+- `pilot_stage_b.py --fake clean|mixed|auth`: clean and mixed PASS, auth FAIL at P5;
+- the preflight on a non-Windows host: `NOT_A_LIVE_HOST`, all other checks PASS on a clean tree.
+
+Evidence: `tests/m02/evidence/sandbox-linux-2026-10-09-stage-b-v2-plan/`.
 
 ## 7. Logs, evidence and rollback
 

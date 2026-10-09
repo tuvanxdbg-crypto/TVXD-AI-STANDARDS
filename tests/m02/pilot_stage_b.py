@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""M02 bounded pilot, stage B (B2): the Gateway's semantic route against NotebookLM. docs/M02_PILOT_PLAN.md §6b.
+"""M02 bounded pilot, stage B (B2): the Gateway's semantic route against NotebookLM. docs/M02_PILOT_PLAN.md §6b, §6c.
 
 NOT AUTHORIZED TO RUN LIVE until GPT review of this script and the owner's direct approval of B2.
 
@@ -337,6 +337,24 @@ def preconditions(config: Path) -> dict:
                          "total_budget_s": cfg.notebooklm.total_budget_s}}
 
 
+V2_STATUSES = ("TRUSTED_BY_POLICY", "NOT_APPLICABLE", "UNKNOWN")
+
+
+def v2_evidence_ok(r: dict, mapped_ids) -> bool:
+    """Contract v2 (§6c): every evidence item is tvxd.gateway.evidence/v2 with a v2 status, the owner trust policy,
+    SOURCE_IDENTITY_NOT_CHECKED, and a NotebookLM location in the pilot notebook on one of the mapped sources."""
+    from gateway import EVIDENCE_CONTRACT, TRUST_POLICY
+    for e in r.get("results") or []:
+        loc = e.get("SOURCE_LOCATION") or {}
+        if (e.get("CONTRACT") != EVIDENCE_CONTRACT or e.get("STATUS") not in V2_STATUSES
+                or (e.get("TRUST") or {}).get("policy") != TRUST_POLICY
+                or "SOURCE_IDENTITY_NOT_CHECKED" not in [u.get("code") for u in e.get("UNCERTAINTY") or []]
+                or loc.get("kind") != "notebooklm" or loc.get("notebook_id") != NOTEBOOK
+                or loc.get("source_id") not in set(mapped_ids)):
+            return False
+    return True
+
+
 def lookup_ok(r: dict) -> bool:
     return r["status"] in ("FOUND", "UNKNOWN") or (r.get("error") or {}).get("code") == "CITED_SOURCE_NOT_WHITELISTED"
 
@@ -354,11 +372,14 @@ def run_cases(run: Run, config: Path, tmp: Path, make_client, mode: str, audit_o
         r = svc.call("standards_lookup", {"query": Q_S1, **copy.deepcopy(CTX)})
         run.keep("P5", r)
         mine = audit[n0:]
+        v2_ok = v2_evidence_ok(r, expected_sent)
         ok = (lookup_ok(r) and len(mine) == 1 and mine[0]["requested_source_ids"] == expected_sent
-              and mine[0]["outcome"] == "returned")
+              and mine[0]["outcome"] == "returned" and v2_ok)
         run.case("P5", "citation shape of a live semantic lookup (Q-S1)", "PASS" if ok else "FAIL",
                  "exactly one notebook_query sending exactly the 3 mapped source ids; status FOUND/UNKNOWN or "
-                 "CITED_SOURCE_NOT_WHITELISTED", {**resp_summary(r), "attempts": [e["attempt"] for e in mine]})
+                 "CITED_SOURCE_NOT_WHITELISTED; every evidence item contract v2 (status, trust policy, identity not "
+                 "checked, location on a mapped source)",
+                 {**resp_summary(r), "attempts": [e["attempt"] for e in mine], "v2_evidence_ok": v2_ok})
         p5 = r
 
         # P10: out-of-scope boundary, from the P5 attempt
