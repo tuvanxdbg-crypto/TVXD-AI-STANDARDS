@@ -11,7 +11,15 @@ Outside _report_writer.py:
   - no attribute or call named in BANNED_ATTRS (whatever the object), no attribute ACCESS named in BANNED_ACCESS
     (open, os, _os, sys, _sys, modules, FileType, ...), a module name is never used as a bare value;
   - no subscript with a module name as the key (`x["shutil"]`, `sys.modules["os"]`), and `sys.modules` itself is banned;
-  - open() only with a literal "r" or "rb" mode, at most two positional arguments, no `opener=` and no `**kwargs`.
+  - open() only with a literal "r" or "rb" mode, at most two positional arguments, no `opener=` and no `**kwargs`;
+  - FILE_HANDLE (REVIEW_V1 5489507435), positive: open() only as `with open(path, mode) as <name>:`, and that name is
+    used only as `<name>.read(...)`. The file object never escapes, so its class (`f.raw.__class__`, `type(f.raw)`),
+    its `.raw`/`.buffer` and its methods other than read cannot be reached; the name is never rebound elsewhere.
+Everywhere (writer included):
+  - no dunder attribute (`x.__class__`, `x.__init__`, ...) except `__name__` and `super().__init__`, and no getattr
+    with a dunder literal;
+  - `type` only as `type(x).__name__`, `type(None)` or an operand of `is`/`is not`: a class taken with type() is never
+    called, stored or passed on (no alias constructor); `.raw`, `.buffer` and `.detach` are banned attribute names.
 Inside _report_writer.py: only the enumerated attribute chains (explicit os.O_* flags too), calls and getattr names in
 WRITER_* below.
 Everywhere: no __import__/eval/exec/compile/globals/vars/setattr/delattr/__dict__/__builtins__, getattr only with a
@@ -66,7 +74,8 @@ BANNED_NAMES = {"__import__", "eval", "exec", "compile", "globals", "vars", "set
 BANNED_DYNAMIC_ATTRS = {"__dict__", "__builtins__", "__globals__", "__subclasses__", "__getattribute__"}
 # Attribute ACCESS (not only calls) with these names is banned: they reach another module's `os`/`sys` or the opener.
 BANNED_ACCESS = {"os", "_os", "sys", "_sys", "modules", "FileType", "open", "builtins", "io", "genericpath",
-                 "posixpath", "ntpath"}
+                 "posixpath", "ntpath", "raw", "buffer", "detach"}
+DUNDER_ALLOWED = {"__name__"}
 GETATTR_FORBIDDEN = BANNED_ATTRS | BANNED_ATTRS_EXTRA | BANNED_NAMES | BANNED_DYNAMIC_ATTRS | BANNED_ACCESS
 OS_ATTRS_OUTSIDE_WRITER = MODULE_ATTRS["os"]
 FORBIDDEN_STRING = "autocad.application"
@@ -150,6 +159,41 @@ def scan_source(source: str, is_writer: bool = False, filename: str = "") -> lis
                 return f"{base}.{expr.attr}"
         return None
 
+    # ---- FILE_HANDLE: every open() is `with open(...) as <name>:` and <name> is only ever `<name>.read(...)`
+    handles = set()
+    if not is_writer:
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "open":
+                item = parents.get(node)
+                if not (isinstance(item, ast.withitem) and item.context_expr is node
+                        and isinstance(item.optional_vars, ast.Name)):
+                    add("FILE_HANDLE", node, "open() only as `with open(path, mode) as <name>:`")
+                else:
+                    handles.add(item.optional_vars.id)
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Name) and node.id in handles:
+                parent = parents.get(node)
+                if isinstance(node.ctx, ast.Store):
+                    ok = (isinstance(parent, ast.withitem) and parent.optional_vars is node
+                          and isinstance(parent.context_expr, ast.Call) and _chain(parent.context_expr.func) == "open")
+                else:
+                    ok = (isinstance(parent, ast.Attribute) and parent.value is node and parent.attr == "read"
+                          and isinstance(parents.get(parent), ast.Call) and parents[parent].func is parent)
+                if not ok:
+                    add("FILE_HANDLE", node, f"file object {node.id!r} may only be used as {node.id}.read(...)")
+
+    def type_use_ok(call):
+        """type(x) is fine only as type(x).__name__, type(None), or an operand of `is` / `is not`."""
+        if len(call.args) != 1 or call.keywords:
+            return False
+        parent = parents.get(call)
+        if isinstance(parent, ast.Attribute) and parent.value is call and parent.attr == "__name__":
+            return True
+        if isinstance(call.args[0], ast.Constant) and call.args[0].value is None:
+            return True
+        return (isinstance(parent, ast.Compare) and all(isinstance(o, (ast.Is, ast.IsNot)) for o in parent.ops)
+                and (parent.left is call or call in parent.comparators))
+
     for node in ast.walk(tree):
         # ---- imports
         if isinstance(node, ast.Import):
@@ -207,6 +251,9 @@ def scan_source(source: str, is_writer: bool = False, filename: str = "") -> lis
                     add("BARE_MODULE", node, f"{node.id} used as a value")
             if node.id == "open" and not (isinstance(parent, ast.Call) and parent.func is node):
                 add("OPEN_MODE", node, "open referenced without being called")
+            if node.id == "type" and isinstance(node.ctx, ast.Load):
+                if not (isinstance(parent, ast.Call) and parent.func is node and type_use_ok(parent)):
+                    add("TYPE_USE", node, "type only as type(x).__name__, type(None) or `type(a) is type(b)`")
         elif isinstance(node, ast.Constant) and isinstance(node.value, str):
             if FORBIDDEN_STRING in node.value.lower():
                 add("STRING", node, "AutoCAD.Application")
@@ -223,6 +270,10 @@ def scan_source(source: str, is_writer: bool = False, filename: str = "") -> lis
         if isinstance(node, ast.Attribute):
             if node.attr in BANNED_DYNAMIC_ATTRS:
                 add("DYNAMIC", node, node.attr)
+            elif (node.attr.startswith("__") and node.attr.endswith("__") and node.attr not in DUNDER_ALLOWED
+                  and not (node.attr == "__init__" and isinstance(node.value, ast.Call)
+                           and _chain(node.value.func) == "super" and not node.value.args and not node.value.keywords)):
+                add("DUNDER", node, f".{node.attr} (dunder attributes other than __name__ are banned)")
             if node.attr in BANNED_ACCESS and not (is_writer and node.attr == "open"):
                 add("BANNED_ATTR", node, f".{node.attr} (access to this attribute name is banned)")
             chain = _chain(node)
@@ -266,7 +317,7 @@ def scan_source(source: str, is_writer: bool = False, filename: str = "") -> lis
                 name_arg = node.args[1] if len(node.args) > 1 else None
                 if not (isinstance(name_arg, ast.Constant) and isinstance(name_arg.value, str)):
                     add("GETATTR", node, "getattr needs a literal attribute name")
-                elif name_arg.value in GETATTR_FORBIDDEN:
+                elif name_arg.value in GETATTR_FORBIDDEN or (name_arg.value.startswith("__") and name_arg.value.endswith("__")):
                     add("GETATTR", node, f"getattr(..., {name_arg.value!r}) names a banned attribute")
                 elif is_writer and name_arg.value not in WRITER_GETATTR_NAMES:
                     add("GETATTR", node, f"getattr(..., {name_arg.value!r}) is not in the writer's allowed names")

@@ -119,6 +119,12 @@ test_sys_modules_gives_back_os (test_static_write_controls.BypassSamples.test_sy
 test_sys_modules_subscript_and_traversal_to_banned_modules (test_static_write_controls.BypassSamples.test_sys_modules_subscript_and_traversal_to_banned_modules)
 Looking a module up by name must never work, whichever way sys.modules is reached. ... ok
 test_yaml_safeloader_only_in_rules_py (test_static_write_controls.BypassSamples.test_yaml_safeloader_only_in_rules_py) ... ok
+test_dunder_attributes_and_getattr (test_static_write_controls.FileObjectClassBypass.test_dunder_attributes_and_getattr) ... ok
+test_file_object_is_only_ever_read (test_static_write_controls.FileObjectClassBypass.test_file_object_is_only_ever_read) ... ok
+test_review_sample_raw_class_called_with_wb (test_static_write_controls.FileObjectClassBypass.test_review_sample_raw_class_called_with_wb) ... ok
+test_review_sample_type_of_raw_called_with_wb (test_static_write_controls.FileObjectClassBypass.test_review_sample_type_of_raw_called_with_wb) ... ok
+test_type_never_yields_a_callable_class (test_static_write_controls.FileObjectClassBypass.test_type_never_yields_a_callable_class) ... ok
+test_what_the_package_needs_stays_clean (test_static_write_controls.FileObjectClassBypass.test_what_the_package_needs_stays_clean) ... ok
 test_alias_rules (test_static_write_controls.NegativeSamples.test_alias_rules) ... ok
 test_autocad_string (test_static_write_controls.NegativeSamples.test_autocad_string) ... ok
 test_clean_read_only_code_passes (test_static_write_controls.NegativeSamples.test_clean_read_only_code_passes) ... ok
@@ -211,6 +217,6 @@ test_verify_step_deletes_nothing_when_the_file_is_not_the_expected_one (test_wri
 test_windows_reserved_names_and_streams (test_writer_guards.RefusalCases.test_windows_reserved_names_and_streams) ... skipped 'Windows file-name rules'
 
 ----------------------------------------------------------------------
-Ran 204 tests in 3.624s
+Ran 210 tests in 2.679s
 
 OK (skipped=1)

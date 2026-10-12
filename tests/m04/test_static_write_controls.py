@@ -125,7 +125,8 @@ class NegativeSamples(unittest.TestCase):
                     "f = open", "g(open)", "open(p, mode='w')"):
             with self.subTest(src):
                 self.assert_flagged(src, "OPEN_MODE")
-        for src in ("open(p, 'r')", "open(p, 'rb')", "open(p, mode='rb')", "open(p, 'r', encoding='utf-8')"):
+        for mode in ("'r'", "'rb'", "mode='rb'", "'r', encoding='utf-8'"):
+            src = f"with open(p, {mode}) as f:\n    data = f.read()"
             with self.subTest(src):
                 self.assertEqual(rules_of(src), set())
 
@@ -371,6 +372,82 @@ class BypassSamples(unittest.TestCase):
                     "import yaml\nyaml.SafeLoader(s, Loader=L)", "import yaml\nyaml.constructor"):
             with self.subTest(src):
                 self.assert_flagged(src, "YAML", filename="rules.py")
+
+
+class FileObjectClassBypass(unittest.TestCase):
+    """REVIEW_V1 5489507435 (HIGH): the class of a file opened for reading (FileIO, via `.raw.__class__` or `type(f.raw)`)
+    can be called again with another path and mode "wb". Both review samples, and their variants, must be flagged,
+    outside the writer and (for the class and dunder rules) inside it too."""
+
+    def assert_flagged(self, source, *rules, is_writer=False):
+        got = rules_of(source, is_writer)
+        self.assertTrue(got & set(rules), f"{source!r}: wanted one of {rules}, got {got}")
+
+    def test_review_sample_raw_class_called_with_wb(self):
+        src = "open(p, 'rb').raw.__class__(q, 'wb').close()"
+        got = rules_of(src)
+        self.assertTrue({"FILE_HANDLE", "DUNDER", "BANNED_ATTR"} <= got, got)
+
+    def test_review_sample_type_of_raw_called_with_wb(self):
+        src = """
+            with open(p, 'rb') as f:
+                ctor = type(f.raw)
+                ctor(q, 'wb').close()
+        """
+        got = rules_of(src)
+        self.assertTrue({"FILE_HANDLE", "TYPE_USE", "BANNED_ATTR"} <= got, got)
+
+    def test_file_object_is_only_ever_read(self):
+        for body in ("g(f)", "x = f", "c = type(f)", "c = getattr(f, 'raw')", "c = f.raw", "c = f.buffer",
+                     "f.detach()", "m = f.read", "f.seek(0)", "f.fileno()", "f = other", "return [f]",
+                     "c = f.__class__"):
+            src = f"def h(p):\n    with open(p, 'rb') as f:\n        {body}"
+            with self.subTest(body):
+                self.assert_flagged(src, "FILE_HANDLE")
+        for src in ("x = open(p, 'rb')", "x = [open(p, 'rb')]", "g(open(p, 'rb'))", "open(p, 'rb').read()",
+                    "with open(p, 'rb'):\n    pass", "with open(p, 'rb') as (a, b):\n    pass",
+                    "with open(p, 'rb') as f:\n    pass\nf.raw", "with open(p, 'rb') as x.y:\n    pass"):
+            with self.subTest(src):
+                self.assert_flagged(src, "FILE_HANDLE")
+
+    def test_type_never_yields_a_callable_class(self):
+        for src in ("t = type", "g(type)", "type(x)(q, 'wb')", "ctor = type(x)", "g(type(x))", "type(x).mro()",
+                    "type('C', (), {})", "type(x) == y", "[type(x)][0](q)"):
+            for is_writer in (False, True):
+                with self.subTest(src=src, is_writer=is_writer):
+                    self.assert_flagged(src, "TYPE_USE", is_writer=is_writer)
+
+    def test_dunder_attributes_and_getattr(self):
+        for src in ("x.__class__(q, 'wb')", "x.__class__", "x.__init__(q)", "x.__new__(c)", "x.__call__(q)",
+                    "x.__mro__", "x.__reduce_ex__(2)", "super(C, self).__init__()", "y().__init__()"):
+            for is_writer in (False, True):
+                with self.subTest(src=src, is_writer=is_writer):
+                    self.assert_flagged(src, "DUNDER", is_writer=is_writer)
+        for src in ("getattr(x, '__class__')", "getattr(x, '__init__')", "getattr(x, 'raw')", "getattr(x, 'buffer')",
+                    "getattr(x, 'detach')"):
+            with self.subTest(src):
+                self.assert_flagged(src, "GETATTR")
+
+    def test_what_the_package_needs_stays_clean(self):
+        src = """
+            def read(path):
+                with open(path, "rb") as f:
+                    data = f.read(10)
+                return data
+
+            def name(e):
+                return type(e).__name__
+
+            def same(a, b):
+                return type(a) is type(b) and type(a) is not type(None)
+
+            NONE = type(None)
+
+            class E(Exception):
+                def __init__(self, m):
+                    super().__init__(m)
+        """
+        self.assertEqual(rules_of(src), set())
 
 
 class WriterFlagList(unittest.TestCase):
