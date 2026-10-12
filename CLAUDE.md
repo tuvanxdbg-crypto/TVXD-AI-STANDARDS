@@ -1,11 +1,12 @@
 # CLAUDE.md — TVXD-AI-STANDARDS
 
 ## Current milestone
-M03 — GitHub governance: **ĐANG THỰC HIỆN, chưa PASS** (trạng thái ngày 2026-10-12).
+M03 — GitHub governance: **ĐANG THỰC HIỆN, chưa PASS; chờ chủ repo chốt** (trạng thái ngày 2026-10-12).
 - Spec `docs/M03_GITHUB_GOVERNANCE.md`: REVIEW_V1 PASS và chủ repo phê duyệt tại `a2e8362`.
 - M03-A (CI 3 job `linux`, `windows`, `metadata`; CODEOWNERS; `tests/m03/validate_repo_metadata.py`; PR template; `docs/REVIEW_PROCESS.md`) đã merge vào `main` tại `d1b65aa` (PR #8).
 - M03-B: **PASS**. Chủ repo nghiệm thu ngày 2026-10-12 tại `60fba2f` (PR #9, merge `4db1f77`). Ruleset cho `main` (bắt buộc PR, 3 check ở chế độ strict, không bypass), Secret Protection, Push protection và phê duyệt workflow fork đã áp. Hạng mục quét lịch sử secret đạt theo tiêu chí thay thế A1 (spec §7a), không theo điều kiện gốc; A1 không chứng minh GitHub đã quét xong toàn bộ lịch sử.
-- M03-C (kiểm chứng ruleset thật sự chặn) chưa bắt đầu. Kế hoạch ở PR #12, chờ review và chủ repo phê duyệt.
+- M03-C: **PASS**. Chủ repo nghiệm thu ngày 2026-10-12 tại `fa3ed98` (PR #15, merge `c4e3190`), theo kế hoạch `docs/M03_C_VERIFICATION_PLAN.md` (PR #12). Push thẳng, force push, merge khi check đỏ và merge khi nhánh chậm hơn `main` đều bị ruleset chặn; `main` không đổi. T1/T2 chạy trên máy IT (không phải ducdq), tài khoản `tuvanxdbg-crypto` theo xác nhận của chủ repo.
+- M03-A, M03-B, M03-C đều PASS. M03 tổng thể chờ chủ repo chốt.
 - Mọi thay đổi vào `main` đi qua PR và cần 3 check xanh trên nhánh đã cập nhật theo `main`.
 
 M02 — Standards Gateway: **CLOSED (bounded)**. The owner decided this in the Claude chat on 2026-10-09, on the proposal reviewed at `dd21083` (docs/M02_CLOSEOUT_PROPOSAL.md).
