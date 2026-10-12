@@ -90,7 +90,7 @@ Không tình huống nào cho kết quả INVALID ở lần chạy được tín
 ### Dọn dẹp
 
 - PR #14 đã đóng, không merge: `state: closed`, `merged: false`, `closed_at: 2026-10-12T03:47:09Z` (10:47 +07:00).
-- Nhánh `claude/m03c-probe`: Claude không xóa được, vì proxy của phiên Claude trả HTTP 403 cho lệnh xóa nhánh. Chủ repo xóa trên giao diện GitHub. **Trạng thái xóa nhánh: CHỜ CHỦ REPO** (sẽ cập nhật khi đã xóa).
+- Nhánh `claude/m03c-probe`: Claude không xóa được, vì proxy của phiên Claude trả HTTP 403 cho lệnh xóa nhánh. Chủ repo xóa trên giao diện GitHub (nút "Delete branch" của PR #14) và báo trong chat "Đã xóa 14". Claude kiểm lại lúc 2026-10-12T03:52:11Z (10:52 +07:00): `git ls-remote` không còn `refs/heads/claude/m03c-probe`, `GET /repos/{owner}/{repo}/branches/claude/m03c-probe` trả 404, `main` vẫn `MAIN_BEFORE`.
 - Không có gì từ nhánh thử đi vào `main`.
 
 ## Các lần chạy không tính
