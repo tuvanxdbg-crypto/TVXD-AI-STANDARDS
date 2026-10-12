@@ -20,6 +20,7 @@
   2. "Tách: hợp đồng ở đây (Khuyến nghị)". Phần hợp đồng nằm ở TVXD-AI-STANDARDS: CAD_READ contract, bộ phân loại và đầu ra PASS/FAIL/UNKNOWN. Phần này chỉ đọc file JSON trích xuất sẵn. Việc đọc AutoCAD thật vẫn do CHUAN-HOA-CAD làm theo quy trình riêng của repo đó.
   3. "Quy tắc nội bộ + cờ tra cứu (Khuyến nghị)". Vòng đầu kiểm quy tắc nội bộ không cần tiêu chuẩn. Mục cần tiêu chuẩn chỉ gắn cờ `STANDARD_REQUIRED` và trả UNKNOWN, không gọi NotebookLM.
   4. "Fixture giả trước (Khuyến nghị)". Vòng đầu dùng dữ liệu trích xuất giả lập, chạy được trên CI. Bản vẽ thật để sang bước sau, có phê duyệt riêng.
+  5. Bốn câu hỏi ở §8 của bản nháp đầu (`ee688c4`). Nguyên văn: "Tôi đồng ý 4 đề xuất cho §8 spec M04." Nội dung các đề xuất ghi ở §8.
 - **Phân vai** theo `CLAUDE.md`:
   - LEAD (Claude Opus 5.5) soạn spec;
   - EXECUTOR (Claude Sonnet 5.5) triển khai sau khi spec được duyệt;
@@ -74,7 +75,14 @@ M04 không sửa gì trong CHUAN-HOA-CAD. Nếu sau này CHUAN-HOA-CAD cần th�
 
 ## 5. Sản phẩm M04-A (offline, fixture)
 
-Code đặt trong package mới `cadaudit/`, test trong `tests/m04/`. Dùng Python 3.11 và `uv` như Gateway. Không thêm dependency mới ngoài `pyyaml==6.0.2` đã dùng. Không sửa `gateway/`.
+Code đặt trong package mới `cadaudit/` ở gốc repo, test trong `tests/m04/` (§8, quyết định 1).
+- Dùng Python 3.11 và `uv` như Gateway.
+- Không thêm dependency mới ngoài `pyyaml==6.0.2` đã dùng.
+- Không sửa `gateway/`, không import từ `gateway/`.
+- **Validator schema** (§8, quyết định 3): `cadaudit/` có bản chép riêng của `gateway/schema.py`, ghi rõ nguồn là commit `d35b574` trong đầu file.
+  - Thư mục schema trỏ tới `cadaudit/schemas/`.
+  - Giữ nguyên tập từ khóa hỗ trợ và cơ chế từ chối từ khóa lạ khi nạp schema.
+  - Test trong `tests/m04/` chạy các ca hợp lệ và không hợp lệ, gồm ca từ khóa lạ bị từ chối, để bản chép không âm thầm lỏng hơn bản gốc.
 
 ### D1. CAD_READ contract: `cadaudit/schemas/cad_read.v1.json`
 
@@ -124,6 +132,8 @@ Mỗi quy tắc có các trường:
 - `check`: một trong các kiểu đóng dưới đây;
 - `standard_required`: true/false;
 - `standard_hint`: tùy chọn, mã tài liệu gợi ý, không phải trích dẫn.
+
+Quy tắc viết bằng YAML (§8, quyết định 2). Chỉ đọc bằng `yaml.safe_load`, rồi kiểm bằng schema JSON trước khi dùng.
 
 Các kiểu `check` được phép, danh sách đóng, không có biểu thức tự do hay `eval`:
 - `name_pattern`: tên khớp regex, có giới hạn độ dài;
@@ -212,7 +222,11 @@ Ba lớp:
 | M04-B | Chạy bộ kiểm trên một bản trích xuất **thật** do CHUAN-HOA-CAD xuất theo contract D1, từ một file bản vẽ được chọn, với quy tắc đã `APPROVED` bên CHUAN-HOA-CAD | **Không.** Cần kế hoạch riêng. CHUAN-HOA-CAD có bộ xuất theo quy trình của repo đó; có ít nhất một quy tắc được duyệt bên đó; quyết định dữ liệu thật nào được đưa vào repo (mặc định chỉ báo cáo đã lọc, không đưa bản trích xuất đầy đủ); REVIEW_V1 và chủ repo phê duyệt |
 | M04-C | Với kết quả `STANDARD_REQUIRED`, gọi Gateway để lấy evidence tiêu chuẩn | **Không.** Phụ thuộc vào việc mở lại NotebookLM live theo quy tắc M02: kế hoạch có review, nguồn giới hạn, chủ repo phê duyệt. Trước đó M04 chỉ ghi `STANDARD_LOOKUP_NOT_ENABLED` |
 
-Điều kiện thoát của Issue #2 chỉ đạt đầy đủ khi có M04-C. M04-A tự nó không làm M04 PASS. Việc M04 có cần đủ cả ba bước mới đóng, hay đóng có giới hạn sau M04-A/M04-B như M02, là quyết định của chủ repo (§8).
+**Cách đóng M04** (§8, quyết định 4):
+- M04 được **đóng có giới hạn** sau khi M04-A và M04-B đều được chủ repo nghiệm thu, giống cách M02 đã đóng.
+- Bản ghi đóng phải nói rõ phần chưa làm: mục `STANDARD_REQUIRED` vẫn trả UNKNOWN với lý do `STANDARD_LOOKUP_NOT_ENABLED`. Vì vậy điều kiện thoát của Issue #2 ("retrieve evidence") mới đạt một phần.
+- M04-C tách thành mốc riêng, có spec hoặc kế hoạch riêng, làm khi NotebookLM live được mở lại theo quy tắc M02.
+- M04-A tự nó không làm M04 đóng. M04-B phụ thuộc vào việc CHUAN-HOA-CAD có ít nhất một quy tắc kiểm bản vẽ được duyệt; trong lúc chờ, M04 vẫn ở trạng thái đang thực hiện.
 
 ## 7. Nghiệm thu
 
@@ -223,15 +237,20 @@ Theo `CLAUDE.md`, mỗi mốc nghiệm thu ghi đủ: mục tiêu, evidence yêu
 | M04-A | Contract, bộ quy tắc, bộ phân loại, bộ kiểm, báo cáo, bảo vệ ghi; chạy bằng fixture | Link CI xanh của 3 job trên HEAD của PR; output `tests/m04` trên Linux và Windows; báo cáo mẫu cho từng nhóm fixture (PASS, FAIL, UNKNOWN, lỗi input); output test âm của D4 và D6; kiểm truy vết và kiểm tất định | Mọi ca fixture cho đúng verdict và lý do. Không ca `STANDARD_REQUIRED` nào ra PASS/FAIL. Mọi test âm D6 bắt đúng mẫu. Mọi evidence ID truy được về input. Báo cáo tất định. Không có code LISP/COM/DWG trong repo | REVIEW_V1 tại HEAD, chủ repo |
 | M04-B | Chạy trên dữ liệu thật | Theo kế hoạch riêng (§6) | Theo kế hoạch riêng | REVIEW_V1, chủ repo |
 | M04-C | Tra tiêu chuẩn cho mục `STANDARD_REQUIRED` | Theo kế hoạch riêng (§6) | Theo kế hoạch riêng | REVIEW_V1, chủ repo |
+| M04 (đóng có giới hạn) | Đóng M04 sau M04-A và M04-B | Nghiệm thu M04-A và M04-B; bản ghi đóng nêu rõ phần chưa làm (M04-C) | M04-A và M04-B đều PASS; bản ghi đóng có REVIEW_V1 | Chủ repo |
 
-## 8. Câu hỏi để chủ repo quyết định khi duyệt spec
+## 8. Quyết định của chủ repo
 
-1. **Vị trí và tên:** package `cadaudit/` ở gốc repo, test ở `tests/m04/`. Đồng ý, hay muốn tên khác?
-2. **Định dạng quy tắc:** YAML (giống INDEX của M02), có schema JSON kiểm. Hay muốn JSON thuần?
-3. **Validator:** M04-A dùng lại validator của `gateway/schema.py` bằng cách import (không sửa `gateway/`), hay chép một bản riêng vào `cadaudit/`? Spec đề xuất import để không có hai bản cần giữ đồng bộ. Điều kiện là việc import không làm Gateway đổi hành vi.
-4. **Cách đóng M04:** cần đủ M04-A, B, C mới đóng, hay cho phép đóng có giới hạn như M02?
+Ngày 2026-10-12, trong chat Claude, chủ repo đồng ý cả bốn đề xuất Claude đưa ra cho các câu hỏi ở §8 của bản nháp đầu. Nguyên văn: "Tôi đồng ý 4 đề xuất cho §8 spec M04."
 
-Các câu trả lời được ghi vào spec trước khi chủ repo phê duyệt SHA cuối.
+| # | Câu hỏi | Quyết định | Lý do (theo đề xuất đã được đồng ý) |
+|---|---|---|---|
+| 1 | Vị trí và tên | Package `cadaudit/` ở gốc repo, test ở `tests/m04/` | Tách khỏi code M01/M02, dễ khoanh vùng cho CI và `CODEOWNERS` |
+| 2 | Định dạng quy tắc | YAML, kiểm bằng schema JSON, chỉ đọc bằng `yaml.safe_load` | Khớp INDEX của M02 và `rules/*.yaml` của CHUAN-HOA-CAD; không thêm dependency; `safe_load` không dựng object tùy ý |
+| 3 | Validator | Chép một bản riêng vào `cadaudit/`, ghi nguồn `gateway/schema.py` tại `d35b574`, có test riêng. Không import từ `gateway/` | `gateway/schema.py` đọc schema từ thư mục cố định `gateway/schemas/`, và bước chặn từ khóa lạ nằm trong hàm nội bộ. Import sẽ ràng M04 vào chi tiết nội bộ của Gateway (M02 đã đóng, vùng nhạy cảm) |
+| 4 | Cách đóng M04 | Đóng có giới hạn sau M04-A + M04-B; M04-C thành mốc riêng | M04-C phụ thuộc việc mở lại NotebookLM live, chưa có thời điểm. Chi tiết ở §6 |
+
+Bản nháp đầu `ee688c4` đề xuất import validator. Quyết định 3 thay đề xuất đó.
 
 ## 9. Chưa được phép theo spec này
 
