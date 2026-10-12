@@ -1,0 +1,27 @@
+(Lần chạy thêm, không được yêu cầu, sau khi T1/T2 đã bị chặn trên máy IT. Khối 0 dán nguyên văn theo plan; phần định nghĩa hàm lược bỏ ở đây vì trùng plan.)
+PS C:\Users\ducdq.tvxdbg> "WORK = $WORK"
+WORK = C:\Users\DUCDQ~1.TVX\AppData\Local\Temp\m03c-20261012-103843
+PS C:\Users\ducdq.tvxdbg> & { ...Khối 1 theo plan... }
+Cloning into 'm03c-probe'...
+remote: Enumerating objects: 1142, done.
+remote: Counting objects: 100% (63/63), done.
+remote: Compressing objects: 100% (38/38), done.
+remote: Total 1142 (delta 34), reused 38 (delta 24), pack-reused 1079 (from 1)
+Receiving objects: 100% (1142/1142), 1.08 MiB | 1.21 MiB/s, done.
+Resolving deltas: 100% (671/671), done.
+Khong o thu muc clone C:\Users\DUCDQ~1.TVX\AppData\Local\Temp\m03c-20261012-103843\m03c-probe. Dung lai.
+At line:2 char:41
++ ... .Path -ne $CLONE) { throw "Khong o thu muc clone $CLONE. Dung lai." }
++                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Khong o thu muc...robe. Dung lai.:String) [], RuntimeException
+    + FullyQualifiedErrorId : Khong o thu muc clone C:\Users\DUCDQ~1.TVX\AppData\Local\Temp\m03c-20261012-103843\m03c-
+   probe. Dung lai.
+
+PS C:\Users\ducdq.tvxdbg\AppData\Local\Temp\m03c-20261012-103843\m03c-probe> & { ...Khối T1 theo plan... }
+Khong o thu muc clone C:\Users\DUCDQ~1.TVX\AppData\Local\Temp\m03c-20261012-103843\m03c-probe. Dung lai.
+At line:2 char:41
++ ... .Path -ne $CLONE) { throw "Khong o thu muc clone $CLONE. Dung lai." }
++                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Khong o thu muc...robe. Dung lai.:String) [], RuntimeException
+    + FullyQualifiedErrorId : Khong o thu muc clone C:\Users\DUCDQ~1.TVX\AppData\Local\Temp\m03c-20261012-103843\m03c-
+   probe. Dung lai.
