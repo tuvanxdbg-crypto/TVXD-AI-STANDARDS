@@ -113,4 +113,4 @@ Không tình huống nào cho kết quả INVALID ở lần chạy được tín
 
 ## Trạng thái
 
-**M03-C: ĐẠT THEO EVIDENCE, chờ REVIEW_V1 và chủ repo nghiệm thu.** Cả 4 tình huống T1, T2, T3, T4 đều bị chặn, và `main` không đổi. Chỉ chủ repo mới chốt M03-C, và M03 tổng thể, là PASS.
+**M03-C: PASS.** REVIEW_V1 5486476609 PASS tại `fa3ed980e09db44e9642a4601c7adb08107ede47`. Chủ repo nghiệm thu trong chat Claude ngày 2026-10-12, nguyên văn: "Tôi nghiệm thu M03-C và phê duyệt merge PR #15 tại commit fa3ed980e09db44e9642a4601c7adb08107ede47." PR #15 merge bằng `c4e3190`. Cả 4 tình huống T1, T2, T3, T4 đều bị chặn, và `main` không đổi. M03 tổng thể chỉ PASS khi chủ repo chốt.

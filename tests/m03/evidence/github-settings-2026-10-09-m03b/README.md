@@ -25,7 +25,7 @@ Các ảnh chụp 1 và 2 được chụp trước khi chủ repo thêm Merge v�
 
 ## Trạng thái
 
-**M03-B: ĐẠT THEO EVIDENCE, chờ chủ repo nghiệm thu.** Hạng mục lần quét lịch sử đạt theo tiêu chí thay thế A1 (§7a), không phải theo điều kiện gốc. Chỉ chủ repo mới chốt M03-B là PASS.
+**M03-B: PASS.** Chủ repo nghiệm thu trong chat Claude ngày 2026-10-12, nguyên văn: "Tôi nghiệm thu M03-B và phê duyệt merge PR #9 tại commit 60fba2faaeea36c1ff3ebe60c1995e66581a50d2." (REVIEW_V1 5485952124 PASS tại SHA đó; merge `4db1f77`). Hạng mục lần quét lịch sử đạt theo tiêu chí thay thế A1 (§7a), không phải theo điều kiện gốc.
 
 | Hạng mục | Trạng thái | Lý do |
 |---|---|---|

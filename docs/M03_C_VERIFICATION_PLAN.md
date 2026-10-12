@@ -1,6 +1,6 @@
-# M03-C: kế hoạch kiểm chứng ruleset (bản nháp chờ REVIEW_V1, chưa chạy)
+# M03-C: kế hoạch kiểm chứng ruleset (đã duyệt, đã thực hiện 2026-10-12)
 
-**Trạng thái: KẾ HOẠCH, CHƯA THỰC HIỆN.** Tài liệu này chỉ mô tả cách kiểm chứng. Commit chứa nó không chạy thử, không tạo PR thử, không đổi cài đặt repo hay ruleset.
+**Trạng thái: ĐÃ THỰC HIỆN NGÀY 2026-10-12, M03-C PASS.** REVIEW_V1 PASS và chủ repo phê duyệt chạy tại `37e2463`. Evidence: `tests/m03/evidence/github-ruleset-2026-10-12-m03c/` (PR #15), chủ repo nghiệm thu tại `fa3ed98`. Phần dưới giữ nguyên như bản đã duyệt. Giới hạn đã biết khi chạy: `Assert-Repo` báo sai khi `$env:TEMP` là đường dẫn 8.3; muốn dùng lại các khối này phải sửa qua review riêng.
 
 ## 1. Thẩm quyền và điều kiện bắt đầu
 
