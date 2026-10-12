@@ -1,0 +1,86 @@
+# FIXTURE ONLY: fake audit rules for M04-A tests. They are not CHUAN-HOA-CAD rules, not approved by anyone, and say
+# nothing about real standards or real drawings. Every rule here is INTERNAL_ONLY (no standard needed).
+schema: tvxd.cadaudit.rules/v1
+rules_version: "fixture-internal.1"
+fixture_note: "FIXTURE ONLY: fake rules. Not a CHUAN-HOA-CAD rule set."
+rules:
+  - id: R-LAYER-NAME
+    title: "FIXTURE: layer name starts with A- and uses upper-case words"
+    status: FIXTURE
+    source: "FIXTURE (fake, no real source)"
+    applies_to: layers
+    selector: {}
+    check: {type: name_pattern, field: name, pattern: "A-[A-Z0-9]+(-[A-Z0-9]+)*", max_length: 40}
+    standard_required: false
+
+  - id: R-BLOCK-NAME
+    title: "FIXTURE: block definition names are upper-case words"
+    status: FIXTURE
+    source: "FIXTURE (fake, no real source)"
+    applies_to: blocks
+    selector: {}
+    check: {type: name_pattern, field: name, pattern: "[A-Z0-9-]+"}
+    standard_required: false
+
+  - id: R-TEXT-FONT
+    title: "FIXTURE: annotation text uses an allowed font"
+    status: FIXTURE
+    source: "FIXTURE (fake, no real source)"
+    applies_to: texts
+    selector: {layer: A-ANNO-TEXT}
+    check: {type: allowed_values, field: font, values: ["arial.ttf", "simplex.shx"]}
+    standard_required: false
+
+  - id: R-TEXT-HEIGHT
+    title: "FIXTURE: annotation text height between 2.5 and 3.5"
+    status: FIXTURE
+    source: "FIXTURE (fake, no real source)"
+    applies_to: texts
+    selector: {layer: A-ANNO-TEXT}
+    check: {type: numeric_range, field: height, min: 2.5, max: 3.5, tolerance: 0}
+    standard_required: false
+
+  - id: R-TITLE-ATTR
+    title: "FIXTURE: title block has a non-empty DRAWING_NO attribute"
+    status: FIXTURE
+    source: "FIXTURE (fake, no real source)"
+    applies_to: block_refs
+    selector: {block_name: TITLEBLOCK}
+    check: {type: required_field, attribute_tag: DRAWING_NO}
+    standard_required: false
+
+  - id: R-DIM-OVERRIDE
+    title: "FIXTURE: dimension display value equals the measured value"
+    status: FIXTURE
+    source: "FIXTURE (fake, no real source)"
+    applies_to: dimensions
+    selector: {}
+    check: {type: equals_field, field_a: measured_value, field_b: display_value, tolerance: 0}
+    standard_required: false
+
+  - id: R-DIM-SCALE
+    title: "FIXTURE: DIMSCALE is 1"
+    status: FIXTURE
+    source: "FIXTURE (fake internal source, so it stays INTERNAL_ONLY)"
+    applies_to: dimensions
+    selector: {}
+    check: {type: numeric_range, field: dimscale, min: 1, max: 1}
+    standard_required: false
+
+  - id: R-XREF-RESOLVED
+    title: "FIXTURE: every xref path is resolved"
+    status: FIXTURE
+    source: "FIXTURE (fake, no real source)"
+    applies_to: xrefs
+    selector: {}
+    check: {type: xref_resolved}
+    standard_required: false
+
+  - id: R-UNITS
+    title: "FIXTURE: INSUNITS is 4 (millimetres)"
+    status: FIXTURE
+    source: "FIXTURE (fake, no real source)"
+    applies_to: units
+    selector: {}
+    check: {type: allowed_values, field: insunits, values: [4]}
+    standard_required: false

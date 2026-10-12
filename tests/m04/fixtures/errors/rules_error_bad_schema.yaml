@@ -1,0 +1,9 @@
+# FIXTURE ONLY (negative): fake rule file that violates cad_rules.v1.json (unknown top-level key, missing fields).
+schema: tvxd.cadaudit.rules/v1
+rules_version: "fixture-error.1"
+surprise: true
+rules:
+  - id: R-INCOMPLETE
+    title: "FIXTURE: missing status, source, selector, check"
+    applies_to: layers
+    standard_required: false

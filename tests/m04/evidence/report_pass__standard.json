@@ -1,0 +1,279 @@
+{
+  "schema": "tvxd.cadaudit.report/v1",
+  "cadaudit_version": "0.1.0-m04a",
+  "generated_at": "2026-10-12T15:00:41+07:00",
+  "notice": "Báo cáo này không kết luận bản vẽ đạt tiêu chuẩn, tính hợp pháp hay sự phù hợp thiết kế.",
+  "input": {
+    "file_id": "F01",
+    "input_sha256": "0e2e99f8c31c1b1bb7bb106f13aa306482b4134f51e7111bb6c52f9bb8fc56f9",
+    "dwg_sha256": "3204bdd0167382886f61364664fc8462275235539994f782c959f31cab902a79"
+  },
+  "rules_file": {
+    "sha256": "4bf7ee4975a5013251a69718959d37ce86897b8bb191ce23fce09a4a2435ac03",
+    "rules_version": "fixture-standard.1"
+  },
+  "rules": [
+    {
+      "rule_id": "R-STD-LAYER-LW",
+      "title": "FIXTURE: layer lineweight depends on a standard (declared)",
+      "rule_status": "FIXTURE",
+      "classification": "STANDARD_REQUIRED",
+      "classification_reason": "DECLARED",
+      "standard_hint": "TCVN-FAKE-01",
+      "applies_to": "layers",
+      "reads_groups": [
+        "layers"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "STANDARD_LOOKUP_NOT_ENABLED"
+      ],
+      "coverage_complete": true,
+      "objects_in_scope": 4,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "UNKNOWN": 4
+      },
+      "evidence_ids": [
+        "CADEV:F01:10:lineweight",
+        "CADEV:F01:11:lineweight",
+        "CADEV:F01:12:lineweight",
+        "CADEV:F01:13:lineweight"
+      ]
+    },
+    {
+      "rule_id": "R-STD-TEXT-HEIGHT",
+      "title": "FIXTURE: text height that would FAIL on the fail fixture, but needs a standard",
+      "rule_status": "FIXTURE",
+      "classification": "STANDARD_REQUIRED",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "texts",
+      "reads_groups": [
+        "texts"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "STANDARD_LOOKUP_NOT_ENABLED"
+      ],
+      "coverage_complete": true,
+      "objects_in_scope": 2,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "UNKNOWN": 2
+      },
+      "evidence_ids": [
+        "CADEV:F01:50:height",
+        "CADEV:F01:51:height"
+      ]
+    },
+    {
+      "rule_id": "R-DIM-RANGE-NOSRC",
+      "title": "FIXTURE: dimension value range without internal source (raised to STANDARD_REQUIRED)",
+      "rule_status": "PROPOSED",
+      "classification": "STANDARD_REQUIRED",
+      "classification_reason": "UPGRADED_DIMENSION_RANGE_NO_INTERNAL_SOURCE",
+      "standard_hint": null,
+      "applies_to": "dimensions",
+      "reads_groups": [
+        "dimensions"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "STANDARD_LOOKUP_NOT_ENABLED"
+      ],
+      "coverage_complete": true,
+      "objects_in_scope": 1,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "UNKNOWN": 1
+      },
+      "evidence_ids": [
+        "CADEV:F01:60:measured_value"
+      ]
+    },
+    {
+      "rule_id": "R-DIM-RANGE-SRC",
+      "title": "FIXTURE: same range with an internal source (stays INTERNAL_ONLY)",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "dimensions",
+      "reads_groups": [
+        "dimensions"
+      ],
+      "verdict": "PASS",
+      "reasons": [],
+      "coverage_complete": true,
+      "objects_in_scope": 1,
+      "counts": {
+        "PASS": 1,
+        "FAIL": 0,
+        "UNKNOWN": 0
+      },
+      "evidence_ids": []
+    },
+    {
+      "rule_id": "R-EMPTY-SELECTOR",
+      "title": "FIXTURE: selector that selects no object",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "block_refs",
+      "reads_groups": [
+        "block_refs"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "NO_OBJECTS_IN_SCOPE"
+      ],
+      "coverage_complete": true,
+      "objects_in_scope": 0,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "UNKNOWN": 0
+      },
+      "evidence_ids": [
+        "CADEV:F01:FILE:coverage.block_refs.status"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "rule_id": "R-STD-LAYER-LW",
+      "rule_status": "FIXTURE",
+      "classification": "STANDARD_REQUIRED",
+      "handle": "10",
+      "verdict": "UNKNOWN",
+      "reason": "STANDARD_LOOKUP_NOT_ENABLED",
+      "evidence_ids": [
+        "CADEV:F01:10:lineweight"
+      ],
+      "actual": 25,
+      "expected": null,
+      "standard_hint": "TCVN-FAKE-01"
+    },
+    {
+      "rule_id": "R-STD-LAYER-LW",
+      "rule_status": "FIXTURE",
+      "classification": "STANDARD_REQUIRED",
+      "handle": "11",
+      "verdict": "UNKNOWN",
+      "reason": "STANDARD_LOOKUP_NOT_ENABLED",
+      "evidence_ids": [
+        "CADEV:F01:11:lineweight"
+      ],
+      "actual": 25,
+      "expected": null,
+      "standard_hint": "TCVN-FAKE-01"
+    },
+    {
+      "rule_id": "R-STD-LAYER-LW",
+      "rule_status": "FIXTURE",
+      "classification": "STANDARD_REQUIRED",
+      "handle": "12",
+      "verdict": "UNKNOWN",
+      "reason": "STANDARD_LOOKUP_NOT_ENABLED",
+      "evidence_ids": [
+        "CADEV:F01:12:lineweight"
+      ],
+      "actual": 25,
+      "expected": null,
+      "standard_hint": "TCVN-FAKE-01"
+    },
+    {
+      "rule_id": "R-STD-LAYER-LW",
+      "rule_status": "FIXTURE",
+      "classification": "STANDARD_REQUIRED",
+      "handle": "13",
+      "verdict": "UNKNOWN",
+      "reason": "STANDARD_LOOKUP_NOT_ENABLED",
+      "evidence_ids": [
+        "CADEV:F01:13:lineweight"
+      ],
+      "actual": 25,
+      "expected": null,
+      "standard_hint": "TCVN-FAKE-01"
+    },
+    {
+      "rule_id": "R-STD-TEXT-HEIGHT",
+      "rule_status": "FIXTURE",
+      "classification": "STANDARD_REQUIRED",
+      "handle": "50",
+      "verdict": "UNKNOWN",
+      "reason": "STANDARD_LOOKUP_NOT_ENABLED",
+      "evidence_ids": [
+        "CADEV:F01:50:height"
+      ],
+      "actual": 2.5,
+      "expected": null,
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-STD-TEXT-HEIGHT",
+      "rule_status": "FIXTURE",
+      "classification": "STANDARD_REQUIRED",
+      "handle": "51",
+      "verdict": "UNKNOWN",
+      "reason": "STANDARD_LOOKUP_NOT_ENABLED",
+      "evidence_ids": [
+        "CADEV:F01:51:height"
+      ],
+      "actual": 3.5,
+      "expected": null,
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-DIM-RANGE-NOSRC",
+      "rule_status": "PROPOSED",
+      "classification": "STANDARD_REQUIRED",
+      "handle": "60",
+      "verdict": "UNKNOWN",
+      "reason": "STANDARD_LOOKUP_NOT_ENABLED",
+      "evidence_ids": [
+        "CADEV:F01:60:measured_value"
+      ],
+      "actual": 2400.0,
+      "expected": null,
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-DIM-RANGE-SRC",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "60",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:60:measured_value"
+      ],
+      "actual": 2400.0,
+      "expected": "range min=600 max=6000 tolerance=0",
+      "standard_hint": null
+    }
+  ],
+  "summary": {
+    "rules_by_verdict": {
+      "PASS": 1,
+      "FAIL": 0,
+      "UNKNOWN": 4
+    },
+    "results_by_verdict": {
+      "PASS": 1,
+      "FAIL": 0,
+      "UNKNOWN": 7
+    },
+    "rules_by_status": {
+      "FIXTURE": 4,
+      "PROPOSED": 1,
+      "APPROVED": 0
+    },
+    "overall": "HAS_UNKNOWN"
+  }
+}

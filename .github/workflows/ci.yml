@@ -36,6 +36,8 @@ jobs:
           enable-cache: false
       - name: M02 unit/contract tests (fixture, fake NotebookLM)
         run: uv run $GW python -m unittest discover -s tests/m02 -p "test_gateway_*.py"
+      - name: M04-A tests (CAD audit read-only, fixture data, no AutoCAD)
+        run: uv run $GW python -m unittest discover -s tests/m04 -p "test_*.py" -v
       - name: "M01 regression: M01-10 checker controls"
         run: uv run --no-project --python 3.11 tests/m01/test_m01_10_llm_check.py
       - name: "M01 regression: console encoding"
@@ -59,6 +61,11 @@ jobs:
         shell: pwsh
         run: |
           uv run --no-project --python 3.11 --with pyyaml==6.0.2 --exclude-newer 2026-10-03T00:00:00Z python -m unittest discover -s tests/m02 -p "test_gateway_*.py"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: M04-A tests incl. Windows write guards (junction, hard link, temp file)
+        shell: pwsh
+        run: |
+          uv run --no-project --python 3.11 --with pyyaml==6.0.2 --exclude-newer 2026-10-03T00:00:00Z python -m unittest discover -s tests/m04 -p "test_*.py" -v
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   metadata:

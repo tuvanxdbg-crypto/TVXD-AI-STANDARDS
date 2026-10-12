@@ -1,0 +1,553 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cad_read.v1.json",
+  "title": "CAD_READ v1",
+  "description": "Extraction of ONE drawing file as JSON (docs/M04_CAD_AUDIT_READONLY.md D1). Every field is required; a field that could not be read is null and is explained in coverage. Coverage invariants and handle rules are checked after the schema (cadaudit/loader.py).",
+  "$defs": {
+    "handle": {
+      "type": "string",
+      "pattern": "^[0-9A-F]{1,16}$",
+      "description": "AutoCAD handle, upper-case hex, unique in the file."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255
+    },
+    "space": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 255,
+      "description": "MODEL or a layout name."
+    },
+    "no_path_name": {
+      "type": "string",
+      "pattern": "^[^/\\\\:]{1,255}$",
+      "description": "No path separators or drive colon: never a machine path."
+    },
+    "n_string": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4096
+    },
+    "n_number": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "n_integer": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "n_boolean": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "coverage_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "expected",
+        "enumerated",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "COMPLETE",
+            "INCOMPLETE",
+            "NOT_EXTRACTED"
+          ]
+        },
+        "expected": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "enumerated": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "reason": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "XREF_DEPENDENT",
+            "READ_ERROR",
+            "TIMEOUT",
+            "PARTIAL_ENUMERATION",
+            "NOT_REQUESTED",
+            null
+          ]
+        },
+        "note": {
+          "type": "string",
+          "maxLength": 500
+        }
+      }
+    },
+    "layer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "space",
+        "name",
+        "color",
+        "linetype",
+        "lineweight",
+        "plot",
+        "frozen",
+        "off",
+        "locked"
+      ],
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/handle"
+        },
+        "space": {
+          "$ref": "#/$defs/space"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "color": {
+          "$ref": "#/$defs/n_integer"
+        },
+        "linetype": {
+          "$ref": "#/$defs/n_string"
+        },
+        "lineweight": {
+          "$ref": "#/$defs/n_number"
+        },
+        "plot": {
+          "$ref": "#/$defs/n_boolean"
+        },
+        "frozen": {
+          "$ref": "#/$defs/n_boolean"
+        },
+        "off": {
+          "$ref": "#/$defs/n_boolean"
+        },
+        "locked": {
+          "$ref": "#/$defs/n_boolean"
+        }
+      }
+    },
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "space",
+        "name",
+        "is_xref_dependent",
+        "entity_count"
+      ],
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/handle"
+        },
+        "space": {
+          "$ref": "#/$defs/space"
+        },
+        "name": {
+          "$ref": "#/$defs/name"
+        },
+        "is_xref_dependent": {
+          "$ref": "#/$defs/n_boolean"
+        },
+        "entity_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "block_ref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "space",
+        "block_name",
+        "layer",
+        "insert_x",
+        "insert_y",
+        "insert_z",
+        "scale_x",
+        "scale_y",
+        "scale_z",
+        "rotation"
+      ],
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/handle"
+        },
+        "space": {
+          "$ref": "#/$defs/space"
+        },
+        "block_name": {
+          "$ref": "#/$defs/name"
+        },
+        "layer": {
+          "$ref": "#/$defs/name"
+        },
+        "insert_x": {
+          "$ref": "#/$defs/n_number"
+        },
+        "insert_y": {
+          "$ref": "#/$defs/n_number"
+        },
+        "insert_z": {
+          "$ref": "#/$defs/n_number"
+        },
+        "scale_x": {
+          "$ref": "#/$defs/n_number"
+        },
+        "scale_y": {
+          "$ref": "#/$defs/n_number"
+        },
+        "scale_z": {
+          "$ref": "#/$defs/n_number"
+        },
+        "rotation": {
+          "$ref": "#/$defs/n_number"
+        }
+      }
+    },
+    "attribute": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "space",
+        "parent_handle",
+        "tag",
+        "value"
+      ],
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/handle"
+        },
+        "space": {
+          "$ref": "#/$defs/space"
+        },
+        "parent_handle": {
+          "$ref": "#/$defs/handle"
+        },
+        "tag": {
+          "$ref": "#/$defs/name"
+        },
+        "value": {
+          "$ref": "#/$defs/n_string"
+        }
+      }
+    },
+    "text": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "space",
+        "text_type",
+        "value",
+        "style",
+        "font",
+        "height",
+        "layer"
+      ],
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/handle"
+        },
+        "space": {
+          "$ref": "#/$defs/space"
+        },
+        "text_type": {
+          "type": "string",
+          "enum": [
+            "TEXT",
+            "MTEXT"
+          ]
+        },
+        "value": {
+          "$ref": "#/$defs/n_string"
+        },
+        "style": {
+          "$ref": "#/$defs/n_string"
+        },
+        "font": {
+          "$ref": "#/$defs/n_string"
+        },
+        "height": {
+          "$ref": "#/$defs/n_number"
+        },
+        "layer": {
+          "$ref": "#/$defs/name"
+        }
+      }
+    },
+    "dimension": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "space",
+        "dim_type",
+        "measured_value",
+        "display_value",
+        "dimscale",
+        "layer"
+      ],
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/handle"
+        },
+        "space": {
+          "$ref": "#/$defs/space"
+        },
+        "dim_type": {
+          "$ref": "#/$defs/name"
+        },
+        "measured_value": {
+          "$ref": "#/$defs/n_number"
+        },
+        "display_value": {
+          "$ref": "#/$defs/n_number"
+        },
+        "dimscale": {
+          "$ref": "#/$defs/n_number"
+        },
+        "layer": {
+          "$ref": "#/$defs/name"
+        }
+      }
+    },
+    "xref": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "handle",
+        "space",
+        "name",
+        "path_status"
+      ],
+      "properties": {
+        "handle": {
+          "$ref": "#/$defs/handle"
+        },
+        "space": {
+          "$ref": "#/$defs/space"
+        },
+        "name": {
+          "$ref": "#/$defs/no_path_name"
+        },
+        "path_status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            "RESOLVED",
+            "NOT_FOUND",
+            "UNRESOLVED",
+            null
+          ]
+        }
+      }
+    },
+    "units_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "insunits",
+        "measurement"
+      ],
+      "properties": {
+        "insunits": {
+          "$ref": "#/$defs/n_integer"
+        },
+        "measurement": {
+          "$ref": "#/$defs/n_integer"
+        }
+      },
+      "description": "File-level units. No handle: evidence IDs use the FILE form."
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "drawing",
+    "coverage"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "tvxd.cadaudit.cad_read/v1"
+    },
+    "fixture_note": {
+      "type": "string",
+      "maxLength": 1000,
+      "description": "Optional. Fixture files state here that their data is fake."
+    },
+    "drawing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_id",
+        "file_name",
+        "sha256",
+        "size_bytes",
+        "source_tool",
+        "source_tool_version",
+        "extracted_at",
+        "read_mode",
+        "dwg_modified"
+      ],
+      "properties": {
+        "file_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,32}$"
+        },
+        "file_name": {
+          "$ref": "#/$defs/no_path_name"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "source_tool": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "source_tool_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        },
+        "extracted_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "read_mode": {
+          "type": "string",
+          "const": "READ_ONLY"
+        },
+        "dwg_modified": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "properties": {
+        "layers": {
+          "$ref": "#/$defs/coverage_entry"
+        },
+        "blocks": {
+          "$ref": "#/$defs/coverage_entry"
+        },
+        "block_refs": {
+          "$ref": "#/$defs/coverage_entry"
+        },
+        "attributes": {
+          "$ref": "#/$defs/coverage_entry"
+        },
+        "texts": {
+          "$ref": "#/$defs/coverage_entry"
+        },
+        "dimensions": {
+          "$ref": "#/$defs/coverage_entry"
+        },
+        "xrefs": {
+          "$ref": "#/$defs/coverage_entry"
+        },
+        "units": {
+          "$ref": "#/$defs/coverage_entry"
+        }
+      },
+      "description": "Per group. A missing entry is COVERAGE_INCONSISTENT (checked after the schema)."
+    },
+    "layers": {
+      "type": "array",
+      "maxItems": 500000,
+      "items": {
+        "$ref": "#/$defs/layer"
+      }
+    },
+    "blocks": {
+      "type": "array",
+      "maxItems": 500000,
+      "items": {
+        "$ref": "#/$defs/block"
+      }
+    },
+    "block_refs": {
+      "type": "array",
+      "maxItems": 500000,
+      "items": {
+        "$ref": "#/$defs/block_ref"
+      }
+    },
+    "attributes": {
+      "type": "array",
+      "maxItems": 500000,
+      "items": {
+        "$ref": "#/$defs/attribute"
+      }
+    },
+    "texts": {
+      "type": "array",
+      "maxItems": 500000,
+      "items": {
+        "$ref": "#/$defs/text"
+      }
+    },
+    "dimensions": {
+      "type": "array",
+      "maxItems": 500000,
+      "items": {
+        "$ref": "#/$defs/dimension"
+      }
+    },
+    "xrefs": {
+      "type": "array",
+      "maxItems": 500000,
+      "items": {
+        "$ref": "#/$defs/xref"
+      }
+    },
+    "units": {
+      "type": "array",
+      "maxItems": 1,
+      "items": {
+        "$ref": "#/$defs/units_entry"
+      }
+    }
+  }
+}

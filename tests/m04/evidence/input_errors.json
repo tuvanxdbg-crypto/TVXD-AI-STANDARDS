@@ -1,0 +1,59 @@
+{
+  "note": "FIXTURE data. An input or rules error stops the run and writes no report.",
+  "cases": [
+    {
+      "case": "error_bad_schema.json",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR INPUT_SCHEMA_INVALID: 1 problem(s), first: $.layers[0]: unexpected property 'unexpected_field'",
+      "report_created": false
+    },
+    {
+      "case": "error_read_mode_read_write.json",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR READ_MODE_NOT_READ_ONLY: drawing.read_mode must be 'READ_ONLY', got 'READ_WRITE'",
+      "report_created": false
+    },
+    {
+      "case": "error_duplicate_handle.json",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR DUPLICATE_HANDLE: handle 10 appears in layers and texts",
+      "report_created": false
+    },
+    {
+      "case": "error_coverage_inconsistent.json",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR COVERAGE_INCONSISTENT: group layers: COMPLETE but enumerated 4 != expected 5",
+      "report_created": false
+    },
+    {
+      "case": "error_dangling_reference.json",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR DANGLING_REFERENCE: attribute 40: parent FF is not in block_refs and block_refs is COMPLETE",
+      "report_created": false
+    },
+    {
+      "case": "rules_error_unknown_check.yaml",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR RULES_SCHEMA_INVALID: 1 problem(s), first: $.rules[0].check: does not match exactly one allowed form",
+      "report_created": false
+    },
+    {
+      "case": "rules_error_hint_not_required.yaml",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR RULE_CONFIG_CONTRADICTORY: rule R-BAD-HINT: standard_hint is set but standard_required is false",
+      "report_created": false
+    },
+    {
+      "case": "rules_error_bad_schema.yaml",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR RULES_SCHEMA_INVALID: 5 problem(s), first: $: unexpected property 'surprise'",
+      "report_created": false
+    },
+    {
+      "case": "rules_error_not_yaml_object.yaml",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR RULES_NOT_YAML: not valid YAML for safe_load: ConstructorError",
+      "report_created": false
+    }
+  ]
+}
