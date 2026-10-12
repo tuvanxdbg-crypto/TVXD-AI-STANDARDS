@@ -176,10 +176,15 @@ def _validate_rule(raw: dict) -> Rule:
 
 
 def _reject_duplicate_keys(text: str) -> None:
-    """yaml.safe_load keeps the LAST of two equal keys, so a second `standard_required: false` could silently undo the
-    first `true`. Compose the node graph with the safe loader class (no Loader= argument anywhere) and refuse any
-    mapping that repeats a key, or that has a key which is not a plain scalar. Iterative and visits every node once,
-    so aliases cannot make it loop or blow up. Nothing is constructed: no tag is interpreted here."""
+    """Fail closed on every YAML construct that lets a later or shared value silently decide a key (D4):
+    - a mapping that repeats a key (yaml.safe_load keeps the LAST one, so `standard_required: false` could undo `true`);
+    - a merge key `<<` (REVIEW_V1 5489351827: an inherited `standard_required: true` could be overridden, or two merged
+      anchors could conflict, without any key appearing twice in one mapping);
+    - any alias `*x` (the same node reached twice): rules must spell every value out where it applies;
+    - a key that is not a plain scalar.
+    The node graph is composed with the safe loader class (no Loader= argument anywhere); nothing is constructed and no
+    tag is interpreted. The walk is iterative and stops at the first node reached a second time, so aliases cannot
+    make it loop or blow up. Values used afterwards still come from yaml.safe_load."""
     loader = yaml.SafeLoader(text)
     try:
         root = loader.get_single_node()
@@ -189,17 +194,22 @@ def _reject_duplicate_keys(text: str) -> None:
     todo = [root]
     while todo:
         node = todo.pop()
-        if node is None or id(node) in seen:
+        if node is None:
             continue
+        if id(node) in seen:
+            raise CadAuditError("RULES_YAML_ALIAS_OR_MERGE", "YAML aliases (*name) are not allowed in rules")
         seen.add(id(node))
         if isinstance(node, yaml.MappingNode):
             keys = set()
             for key, value in node.value:
                 if not isinstance(key, yaml.ScalarNode):
                     raise CadAuditError("RULES_SCHEMA_INVALID", "a mapping key is not a plain scalar")
+                if key.tag == "tag:yaml.org,2002:merge" or key.value == "<<":
+                    raise CadAuditError("RULES_YAML_ALIAS_OR_MERGE", "YAML merge keys (<<) are not allowed in rules")
                 if key.value in keys:
                     raise CadAuditError("RULES_DUPLICATE_KEY", f"mapping key {key.value[:40]!r} appears twice in the same mapping")
                 keys.add(key.value)
+                todo.append(key)
                 todo.append(value)
         elif isinstance(node, yaml.SequenceNode):
             todo.extend(node.value)

@@ -668,17 +668,81 @@ class DuplicateYamlKeys(unittest.TestCase):
                                  [x["standard_required"] or (x["applies_to"] == "dimensions" and x["check"]["type"] == "numeric_range" and not x["source"])
                                   for x in expected])
 
-    def test_aliases_cannot_loop_or_explode(self):
+    def test_aliases_are_rejected_quickly_and_cannot_loop(self):
+        """REVIEW_V1 5489351827: aliases are now refused outright; a billion-laughs file fails at the first reuse."""
         lol = "a: &a [x, x, x, x, x, x, x, x, x]\n" + "".join(
             f"{chr(98 + i)}: &{chr(98 + i)} [{', '.join('*' + chr(97 + i) for _ in range(9))}]\n" for i in range(12))
-        rules_module._reject_duplicate_keys(lol)                                    # visits each node once: instant
-        rules_module._reject_duplicate_keys("a: &a [*a]\n")                         # a recursive node does not loop
+        for text in (lol, "a: &a [*a]\n", "a: &x 1\nb: *x\n"):
+            with self.subTest(text[:20]), self.assertRaises(CadAuditError) as cm:
+                rules_module._reject_duplicate_keys(text)
+            self.assertEqual(cm.exception.code, "RULES_YAML_ALIAS_OR_MERGE")
         rules_module._reject_duplicate_keys("")
         rules_module._reject_duplicate_keys("[]")
+        rules_module._reject_duplicate_keys("a: &unused 1\n")             # an anchor nobody refers to changes nothing
 
     def test_unsafe_tags_are_still_not_yaml(self):
         text = yaml_rule(extra="    note: !!python/object/apply:os.getcwd []\n")
         self.assert_rejected(text, "RULES_NOT_YAML")
+
+
+class YamlMergeAndAlias(unittest.TestCase):
+    """REVIEW_V1 5489351827: `<<` merges and aliases let a value come from somewhere else and be overridden without a
+    duplicate key in any single mapping. The rules loader stops before safe_load builds anything."""
+
+    def assert_stops(self, text):
+        with self.assertRaises(CadAuditError) as cm:
+            audit_yaml(text)
+        self.assertEqual(cm.exception.code, "RULES_YAML_ALIAS_OR_MERGE")
+
+    def test_inherited_standard_required_true_overridden_to_false_by_merge(self):
+        """The reviewer's case: without the guard this loads as INTERNAL_ONLY and can PASS."""
+        text = (YAML_HEAD + "  - &base\n    id: R-B\n    title: t\n    status: FIXTURE\n    source: null\n"
+                "    applies_to: dimensions\n    selector: {}\n    check: {type: numeric_range, field: dimscale, min: 1, max: 1}\n"
+                "    standard_required: true\n"
+                "  - <<: *base\n    id: R-M\n    standard_required: false\n")
+        self.assert_stops(text)
+
+    def test_two_merged_anchors_with_conflicting_values(self):
+        text = ("defaults_a: &a {standard_required: true}\ndefaults_b: &b {standard_required: false}\n" + YAML_HEAD
+                + "  - id: R-C\n    title: t\n    status: FIXTURE\n    source: null\n    applies_to: dimensions\n"
+                "    selector: {}\n    check: {type: numeric_range, field: dimscale, min: 1, max: 1}\n"
+                "    <<: [*a, *b]\n")
+        self.assert_stops(text)
+
+    def test_merge_key_without_alias_and_explicit_merge_tag(self):
+        self.assert_stops(yaml_rule(extra="    <<: {standard_required: false}\n"))
+        self.assert_stops(yaml_rule(extra="    !!merge \"x\": {standard_required: false}\n"))
+
+    def test_quoted_double_angle_key_is_also_refused(self):
+        self.assert_stops(yaml_rule(extra="    \"<<\": {standard_required: false}\n"))
+
+    def test_plain_alias_value_is_refused(self):
+        text = ("std: &s true\n" + YAML_HEAD + "  - id: R-A\n    title: t\n    status: FIXTURE\n    source: null\n"
+                "    applies_to: dimensions\n    selector: {}\n"
+                "    check: {type: numeric_range, field: dimscale, min: 1, max: 1}\n    standard_required: *s\n")
+        self.assert_stops(text)
+
+    def test_no_report_is_produced(self):
+        """End to end through the CLI: the rules error stops the run and no --out file exists afterwards."""
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            d = os.path.realpath(d)
+            rules_dir, out_dir = os.path.join(d, "rules"), os.path.join(d, "out")
+            os.mkdir(rules_dir)
+            os.mkdir(out_dir)
+            rp = os.path.join(rules_dir, "r.yaml")
+            with open(rp, "wb") as f:
+                f.write(yaml_rule(extra="    <<: {standard_required: false}\n").encode())
+            out = os.path.join(out_dir, "report.json")
+            code, err = run_cli(*check_args(fx("cad_read_pass.json"), rp, out))
+            self.assertNotEqual(code, 0)
+            self.assertIn("RULES_YAML_ALIAS_OR_MERGE", err)
+            self.assertFalse(os.path.lexists(out))
+            self.assertEqual(os.listdir(out_dir), [])
+
+    def test_shipped_fixture_rules_use_no_alias_or_merge(self):
+        for name in ("rules_internal.yaml", "rules_standard.yaml"):
+            rules_module._reject_duplicate_keys(read_bytes(fx(name)).decode("utf-8-sig"))
 
 
 class NonFiniteNumbers(unittest.TestCase):
