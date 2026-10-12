@@ -150,7 +150,12 @@ def _eval_object(rule: Rule, drawing: Drawing, obj: dict, parent_unknown: bool) 
         found = [a for a in drawing.attributes_by_parent.get(obj["handle"], []) if a["tag"] == tag]
         if not found:
             if drawing.coverage["attributes"]["status"] == COMPLETE:
-                return row("FAIL", None, [ev("block_name")], None, expected)  # the block reference lacks the tag
+                # The block reference lacks the tag. Absence is only a FAIL because attributes is COMPLETE, so the
+                # evidence carries that proof: the group's status and its enumerated/expected counts (equal when COMPLETE).
+                return row("FAIL", None, [ev("block_name"),
+                                          file_evidence_id(fid, "coverage.attributes.status"),
+                                          file_evidence_id(fid, "coverage.attributes.enumerated"),
+                                          file_evidence_id(fid, "coverage.attributes.expected")], None, expected)
             return row("UNKNOWN", "COVERAGE_INCOMPLETE",
                        [ev("block_name"), file_evidence_id(fid, "coverage.attributes.status")], None, expected)
         attr = found[0]

@@ -2,13 +2,16 @@
 
 COPIED from gateway/schema.py at commit d35b574 (docs/M04_CAD_AUDIT_READONLY.md section 5 and decision 3 of
 section 8). cadaudit never imports from gateway/. Changes against the original are mechanical and do not change
-what is accepted or rejected:
+what is accepted or rejected, except the last bullet, which is deliberate:
   - SCHEMA_DIR points to cadaudit/schemas/;
   - pathlib.Path is replaced by os.path and open(..., "rb"), because the static write controls (D6 layer 3) ban
     pathlib;
   - value.replace("Z", "+00:00") is replaced by re.sub(), because the static controls ban the attribute name
     `replace` outside _report_writer.py;
   - `from __future__ import annotations` is dropped (Python 3.11 evaluates the annotations natively).
+  - DELIBERATE TIGHTENING, not mechanical: _check_keywords checks EVERY dict in a schema position for unknown keywords
+    and unsupported formats. The original skips nodes that have none of type/properties/$ref/anyOf (a node holding only
+    `oneOf` or only `items` escapes). gateway/schema.py is not modified.
 tests/m04/test_validator_copy.py keeps the copy from becoming looser than the original.
 
 Supported keywords: type, enum, const, required, properties, additionalProperties,
@@ -40,22 +43,28 @@ def load(name: str) -> dict:
 
 
 def _check_keywords(node, where: str) -> None:
-    if isinstance(node, dict):
-        if "type" in node or "properties" in node or "$ref" in node or "anyOf" in node:
-            unknown = set(node) - KNOWN
-            if unknown:
-                raise ValueError(f"{where}: unsupported schema keywords {sorted(unknown)}")
-            if node.get("format") not in (None, "date", "date-time"):
-                raise ValueError(f"{where}: unsupported format {node['format']!r}")
-        for k, v in node.items():
-            if k in ("properties", "$defs"):
-                for name, sub in v.items():
-                    _check_keywords(sub, f"{where}/{k}/{name}")
-            elif k in ("items", "additionalProperties") and isinstance(v, dict):
-                _check_keywords(v, f"{where}/{k}")
-            elif k in ("anyOf", "oneOf"):
-                for i, sub in enumerate(v):
-                    _check_keywords(sub, f"{where}/{k}/{i}")
+    """Every dict that sits in a schema position is checked, whatever keywords it has (a node that only holds
+    `oneOf`, `items` or `enum` is checked too). Values of properties/$defs are schema positions; their containers are not."""
+    if not isinstance(node, dict):
+        return
+    unknown = set(node) - KNOWN
+    if unknown:
+        raise ValueError(f"{where}: unsupported schema keywords {sorted(unknown)}")
+    if node.get("format") not in (None, "date", "date-time"):
+        raise ValueError(f"{where}: unsupported format {node['format']!r}")
+    for k, v in node.items():
+        if k in ("properties", "$defs"):
+            if not isinstance(v, dict):
+                raise ValueError(f"{where}/{k}: must be an object")
+            for name, sub in v.items():
+                _check_keywords(sub, f"{where}/{k}/{name}")
+        elif k in ("items", "additionalProperties"):
+            _check_keywords(v, f"{where}/{k}")
+        elif k in ("anyOf", "oneOf"):
+            if not isinstance(v, list):
+                raise ValueError(f"{where}/{k}: must be a list")
+            for i, sub in enumerate(v):
+                _check_keywords(sub, f"{where}/{k}/{i}")
 
 
 def _resolve(ref: str, root: dict) -> tuple[dict, dict]:

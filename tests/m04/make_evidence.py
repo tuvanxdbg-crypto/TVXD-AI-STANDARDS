@@ -30,7 +30,7 @@ RULES = {"internal": "rules_internal.yaml", "standard": "rules_standard.yaml"}
 INPUT_ERRORS = ["error_bad_schema.json", "error_read_mode_read_write.json", "error_duplicate_handle.json",
                 "error_coverage_inconsistent.json", "error_dangling_reference.json"]
 RULE_ERRORS = ["rules_error_unknown_check.yaml", "rules_error_hint_not_required.yaml", "rules_error_bad_schema.yaml",
-               "rules_error_not_yaml_object.yaml"]
+               "rules_error_not_yaml_object.yaml", "rules_error_duplicate_key.yaml"]
 
 
 def run(args):

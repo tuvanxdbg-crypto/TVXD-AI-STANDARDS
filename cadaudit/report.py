@@ -40,6 +40,7 @@ def build_report(drawing: Drawing, ruleset: RuleSet, results: list, generated_at
         overall = "HAS_UNKNOWN"
     else:
         overall = "ALL_RULES_PASS"
+    all_approved = bool(rules_out) and by_status["APPROVED"] == len(rules_out)
     report = {
         "schema": "tvxd.cadaudit.report/v1",
         "cadaudit_version": __version__,
@@ -50,8 +51,10 @@ def build_report(drawing: Drawing, ruleset: RuleSet, results: list, generated_at
         "rules": rules_out,
         "results": rows_out,
         "summary": {"rules_by_verdict": by_rule, "results_by_verdict": by_result, "rules_by_status": by_status,
-                    "overall": overall},
+                    "overall": overall, "all_rules_approved": all_approved},
     }
+    if overall == "ALL_RULES_PASS" and not all_approved:
+        report["summary"]["overall_note"] = "RULES_NOT_APPROVED"   # a pass against FIXTURE/PROPOSED rules is not a pass
     problems = _self_check(report)
     if problems:
         raise CadAuditError("INTERNAL_REPORT_INVALID", problems[0], exit_code=70)

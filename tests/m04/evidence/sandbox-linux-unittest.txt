@@ -1,3 +1,9 @@
+test_all_approved_rules_have_no_note (test_audit_verdicts.ApprovalNote.test_all_approved_rules_have_no_note) ... ok
+test_fixture_rules_pass_is_flagged_not_approved (test_audit_verdicts.ApprovalNote.test_fixture_rules_pass_is_flagged_not_approved) ... ok
+test_note_only_goes_with_all_rules_pass (test_audit_verdicts.ApprovalNote.test_note_only_goes_with_all_rules_pass) ... ok
+test_one_proposed_rule_is_enough_for_the_note (test_audit_verdicts.ApprovalNote.test_one_proposed_rule_is_enough_for_the_note) ... ok
+test_schema_closes_the_note_and_requires_the_flag (test_audit_verdicts.ApprovalNote.test_schema_closes_the_note_and_requires_the_flag) ... ok
+test_the_three_overall_values_are_unchanged (test_audit_verdicts.ApprovalNote.test_the_three_overall_values_are_unchanged) ... ok
 test_allowed_values_does_not_confuse_types (test_audit_verdicts.CheckSemantics.test_allowed_values_does_not_confuse_types) ... ok
 test_equals_field_with_tolerance_and_strings (test_audit_verdicts.CheckSemantics.test_equals_field_with_tolerance_and_strings) ... ok
 test_name_pattern_uses_fullmatch_and_length_limit (test_audit_verdicts.CheckSemantics.test_name_pattern_uses_fullmatch_and_length_limit) ... ok
@@ -11,6 +17,16 @@ test_never_lowered (test_audit_verdicts.Classification.test_never_lowered) ... o
 test_only_dimension_numeric_range_is_raised (test_audit_verdicts.Classification.test_only_dimension_numeric_range_is_raised) ... ok
 test_standard_required_never_pass_or_fail (test_audit_verdicts.Classification.test_standard_required_never_pass_or_fail)
 Whatever the data: complete or not, good or bad, null fields, empty groups. ... ok
+test_a_key_that_is_not_a_scalar_is_rejected (test_audit_verdicts.DuplicateYamlKeys.test_a_key_that_is_not_a_scalar_is_rejected) ... ok
+test_aliases_cannot_loop_or_explode (test_audit_verdicts.DuplicateYamlKeys.test_aliases_cannot_loop_or_explode) ... ok
+test_duplicate_key_with_different_quoting_is_still_a_duplicate (test_audit_verdicts.DuplicateYamlKeys.test_duplicate_key_with_different_quoting_is_still_a_duplicate) ... ok
+test_duplicate_nested_key_is_rejected (test_audit_verdicts.DuplicateYamlKeys.test_duplicate_nested_key_is_rejected) ... ok
+test_duplicate_standard_required_false_then_true_is_rejected_too (test_audit_verdicts.DuplicateYamlKeys.test_duplicate_standard_required_false_then_true_is_rejected_too) ... ok
+test_duplicate_standard_required_true_then_false_is_rejected (test_audit_verdicts.DuplicateYamlKeys.test_duplicate_standard_required_true_then_false_is_rejected) ... ok
+test_duplicate_top_level_and_in_selector_are_rejected (test_audit_verdicts.DuplicateYamlKeys.test_duplicate_top_level_and_in_selector_are_rejected) ... ok
+test_normal_files_are_unchanged (test_audit_verdicts.DuplicateYamlKeys.test_normal_files_are_unchanged) ... ok
+test_the_same_key_in_different_mappings_is_fine (test_audit_verdicts.DuplicateYamlKeys.test_the_same_key_in_different_mappings_is_fine) ... ok
+test_unsafe_tags_are_still_not_yaml (test_audit_verdicts.DuplicateYamlKeys.test_unsafe_tags_are_still_not_yaml) ... ok
 test_fail_fixture_verdicts_and_evidence (test_audit_verdicts.FixtureVerdicts.test_fail_fixture_verdicts_and_evidence) ... ok
 test_pass_fixture (test_audit_verdicts.FixtureVerdicts.test_pass_fixture) ... ok
 test_standard_and_empty_selector_rules (test_audit_verdicts.FixtureVerdicts.test_standard_and_empty_selector_rules) ... ok
@@ -23,6 +39,12 @@ test_rules_fixtures (test_audit_verdicts.InputAndRuleErrors.test_rules_fixtures)
 test_rules_semantic_errors (test_audit_verdicts.InputAndRuleErrors.test_rules_semantic_errors) ... ok
 test_unreadable_or_unparsable_input (test_audit_verdicts.InputAndRuleErrors.test_unreadable_or_unparsable_input) ... ok
 test_yaml_is_read_with_safe_load_only (test_audit_verdicts.InputAndRuleErrors.test_yaml_is_read_with_safe_load_only) ... ok
+test_big_but_finite_numbers_are_accepted (test_audit_verdicts.NonFiniteNumbers.test_big_but_finite_numbers_are_accepted) ... ok
+test_input_numbers_that_overflow_to_infinity_are_rejected (test_audit_verdicts.NonFiniteNumbers.test_input_numbers_that_overflow_to_infinity_are_rejected) ... ok
+test_integer_too_large_for_a_float_is_rejected (test_audit_verdicts.NonFiniteNumbers.test_integer_too_large_for_a_float_is_rejected) ... ok
+test_nan_and_infinity_words_are_still_rejected (test_audit_verdicts.NonFiniteNumbers.test_nan_and_infinity_words_are_still_rejected) ... ok
+test_rules_yaml_1e400_without_a_dot_is_a_string_and_fails_the_schema (test_audit_verdicts.NonFiniteNumbers.test_rules_yaml_1e400_without_a_dot_is_a_string_and_fails_the_schema) ... ok
+test_rules_yaml_non_finite_numbers_are_rejected (test_audit_verdicts.NonFiniteNumbers.test_rules_yaml_non_finite_numbers_are_rejected) ... ok
 test_attribute_value_null_empty_and_blank (test_audit_verdicts.ObjectPrecedence.test_attribute_value_null_empty_and_blank) ... ok
 test_line1_standard_required_beats_everything (test_audit_verdicts.ObjectPrecedence.test_line1_standard_required_beats_everything) ... ok
 test_line2_missing_attribute_with_incomplete_attributes_is_coverage_incomplete (test_audit_verdicts.ObjectPrecedence.test_line2_missing_attribute_with_incomplete_attributes_is_coverage_incomplete) ... ok
@@ -32,6 +54,11 @@ test_line2_null_field_is_field_missing (test_audit_verdicts.ObjectPrecedence.tes
 test_line3_missing_attribute_with_complete_attributes_is_a_fail (test_audit_verdicts.ObjectPrecedence.test_line3_missing_attribute_with_complete_attributes_is_a_fail) ... ok
 test_line3_pass_and_fail (test_audit_verdicts.ObjectPrecedence.test_line3_pass_and_fail) ... ok
 test_rule_that_does_not_need_the_parent_still_evaluates_the_attribute (test_audit_verdicts.ObjectPrecedence.test_rule_that_does_not_need_the_parent_still_evaluates_the_attribute) ... ok
+test_block_name_selector_on_attributes (test_audit_verdicts.ReadsGroupsBlocks.test_block_name_selector_on_attributes) ... ok
+test_block_name_selector_on_block_refs (test_audit_verdicts.ReadsGroupsBlocks.test_block_name_selector_on_block_refs) ... ok
+test_check_on_the_block_name_field_of_block_refs (test_audit_verdicts.ReadsGroupsBlocks.test_check_on_the_block_name_field_of_block_refs) ... ok
+test_name_pattern_selector_on_block_refs (test_audit_verdicts.ReadsGroupsBlocks.test_name_pattern_selector_on_block_refs) ... ok
+test_rules_that_do_not_name_a_block_do_not_read_blocks (test_audit_verdicts.ReadsGroupsBlocks.test_rules_that_do_not_name_a_block_do_not_read_blocks) ... ok
 test_line1_standard_required_even_with_no_objects_and_incomplete_coverage (test_audit_verdicts.RulePrecedence.test_line1_standard_required_even_with_no_objects_and_incomplete_coverage) ... ok
 test_line2_fail_beats_unknown_objects (test_audit_verdicts.RulePrecedence.test_line2_fail_beats_unknown_objects) ... ok
 test_line2_fail_is_kept_when_coverage_is_incomplete (test_audit_verdicts.RulePrecedence.test_line2_fail_is_kept_when_coverage_is_incomplete) ... ok
@@ -43,6 +70,9 @@ test_line3_selector_reads_another_group_that_is_not_complete (test_audit_verdict
 test_line4_no_objects_in_scope (test_audit_verdicts.RulePrecedence.test_line4_no_objects_in_scope) ... ok
 test_line5_unknown_object_gives_unknown_with_its_reason (test_audit_verdicts.RulePrecedence.test_line5_unknown_object_gives_unknown_with_its_reason) ... ok
 test_line6_pass (test_audit_verdicts.RulePrecedence.test_line6_pass) ... ok
+test_blank_source_counts_as_no_source (test_audit_verdicts.SourceAndHashHardening.test_blank_source_counts_as_no_source) ... ok
+test_blank_source_in_yaml (test_audit_verdicts.SourceAndHashHardening.test_blank_source_in_yaml) ... ok
+test_dwg_sha256_with_a_trailing_newline_is_rejected (test_audit_verdicts.SourceAndHashHardening.test_dwg_sha256_with_a_trailing_newline_is_rejected) ... ok
 test_no_field_means_the_drawing_passes (test_audit_verdicts.WholeReport.test_no_field_means_the_drawing_passes) ... ok
 test_overall_values (test_audit_verdicts.WholeReport.test_overall_values) ... ok
 test_report_identity_fields (test_audit_verdicts.WholeReport.test_report_identity_fields) ... ok
@@ -66,6 +96,19 @@ test_same_attribute_tag_twice_on_one_block_reference_is_rejected (test_coverage_
 test_every_fixture_states_it_is_fake (test_fixtures_in_sync.FixturesInSync.test_every_fixture_states_it_is_fake) ... ok
 test_json_fixtures_match_generator (test_fixtures_in_sync.FixturesInSync.test_json_fixtures_match_generator) ... ok
 test_no_cad_files_in_tests_or_package (test_fixtures_in_sync.FixturesInSync.test_no_cad_files_in_tests_or_package) ... ok
+test_allowed_relative_imports_stay_clean (test_static_write_controls.BypassSamples.test_allowed_relative_imports_stay_clean) ... ok
+test_argparse_filetype_opens_a_file_for_writing (test_static_write_controls.BypassSamples.test_argparse_filetype_opens_a_file_for_writing) ... ok
+test_attribute_access_not_only_calls (test_static_write_controls.BypassSamples.test_attribute_access_not_only_calls) ... ok
+test_attribute_allow_lists_still_let_the_package_work (test_static_write_controls.BypassSamples.test_attribute_allow_lists_still_let_the_package_work) ... ok
+test_module_names_are_never_values (test_static_write_controls.BypassSamples.test_module_names_are_never_values) ... ok
+test_open_with_an_opener (test_static_write_controls.BypassSamples.test_open_with_an_opener) ... ok
+test_os_reached_through_os_path (test_static_write_controls.BypassSamples.test_os_reached_through_os_path) ... ok
+test_private_os_inside_argparse (test_static_write_controls.BypassSamples.test_private_os_inside_argparse) ... ok
+test_relative_import_of_a_module_binding (test_static_write_controls.BypassSamples.test_relative_import_of_a_module_binding) ... ok
+test_sys_modules_gives_back_os (test_static_write_controls.BypassSamples.test_sys_modules_gives_back_os) ... ok
+test_sys_modules_subscript_and_traversal_to_banned_modules (test_static_write_controls.BypassSamples.test_sys_modules_subscript_and_traversal_to_banned_modules)
+Looking a module up by name must never work, whichever way sys.modules is reached. ... ok
+test_yaml_safeloader_only_in_rules_py (test_static_write_controls.BypassSamples.test_yaml_safeloader_only_in_rules_py) ... ok
 test_alias_rules (test_static_write_controls.NegativeSamples.test_alias_rules) ... ok
 test_autocad_string (test_static_write_controls.NegativeSamples.test_autocad_string) ... ok
 test_clean_read_only_code_passes (test_static_write_controls.NegativeSamples.test_clean_read_only_code_passes) ... ok
@@ -85,10 +128,15 @@ test_the_writer_is_not_clean_as_an_ordinary_module (test_static_write_controls.P
 test_the_enumerated_set_is_exactly_what_the_spec_needs (test_static_write_controls.WriterAllowList.test_the_enumerated_set_is_exactly_what_the_spec_needs) ... ok
 test_writer_accepts_its_own_primitives (test_static_write_controls.WriterAllowList.test_writer_accepts_its_own_primitives) ... ok
 test_writer_flags_everything_outside_the_set (test_static_write_controls.WriterAllowList.test_writer_flags_everything_outside_the_set) ... ok
+test_explicit_flags_only (test_static_write_controls.WriterFlagList.test_explicit_flags_only) ... ok
+test_getattr_cannot_fetch_a_flag_around_the_list (test_static_write_controls.WriterFlagList.test_getattr_cannot_fetch_a_flag_around_the_list) ... ok
+test_writer_still_cannot_reach_os_through_other_names (test_static_write_controls.WriterFlagList.test_writer_still_cannot_reach_os_through_other_names) ... ok
 test_reordering_nothing_changes_rule_and_object_order (test_traceability_determinism.Determinism.test_reordering_nothing_changes_rule_and_object_order) ... ok
 test_same_input_same_bytes_with_fixed_time (test_traceability_determinism.Determinism.test_same_input_same_bytes_with_fixed_time) ... ok
 test_the_time_field_is_the_only_clock_value (test_traceability_determinism.Determinism.test_the_time_field_is_the_only_clock_value) ... ok
 test_two_cli_runs_are_byte_identical_except_generated_at (test_traceability_determinism.Determinism.test_two_cli_runs_are_byte_identical_except_generated_at) ... ok
+test_absent_tag_fail_carries_the_proof_of_absence (test_traceability_determinism.Traceability.test_absent_tag_fail_carries_the_proof_of_absence)
+R2: 'block reference has no such attribute' is only a FAIL because attributes is COMPLETE; the FAIL must carry ... ok
 test_every_evidence_id_resolves_to_exactly_one_input_value (test_traceability_determinism.Traceability.test_every_evidence_id_resolves_to_exactly_one_input_value) ... ok
 test_evidence_values_match_the_reported_actual_value (test_traceability_determinism.Traceability.test_evidence_values_match_the_reported_actual_value) ... ok
 test_ids_are_deterministic_and_follow_the_documented_form (test_traceability_determinism.Traceability.test_ids_are_deterministic_and_follow_the_documented_form) ... ok
@@ -100,8 +148,12 @@ test_additional_properties_false_everywhere (test_validator_copy.RealSchemas.tes
 test_cad_read_instances (test_validator_copy.RealSchemas.test_cad_read_instances) ... ok
 test_rules_schema_rejects_unknown_check_and_extras (test_validator_copy.RealSchemas.test_rules_schema_rejects_unknown_check_and_extras) ... ok
 test_schemas_load_and_have_id_and_title (test_validator_copy.RealSchemas.test_schemas_load_and_have_id_and_title) ... ok
+test_a_oneof_only_wrapper_with_known_keywords_still_loads (test_validator_copy.UnknownKeywordRejectedAtLoad.test_a_oneof_only_wrapper_with_known_keywords_still_loads) ... ok
+test_header_says_the_tightening_is_deliberate (test_validator_copy.UnknownKeywordRejectedAtLoad.test_header_says_the_tightening_is_deliberate) ... ok
 test_supported_keywords_load (test_validator_copy.UnknownKeywordRejectedAtLoad.test_supported_keywords_load) ... ok
 test_unknown_keyword_nested_everywhere (test_validator_copy.UnknownKeywordRejectedAtLoad.test_unknown_keyword_nested_everywhere) ... ok
+test_unknown_keyword_on_nodes_without_type_properties_ref_or_anyof (test_validator_copy.UnknownKeywordRejectedAtLoad.test_unknown_keyword_on_nodes_without_type_properties_ref_or_anyof)
+R4: the original skipped any node that held only oneOf (or items, enum, ...). Every schema node is checked here. ... ok
 test_unknown_keyword_top_level (test_validator_copy.UnknownKeywordRejectedAtLoad.test_unknown_keyword_top_level) ... ok
 test_unsupported_format_rejected (test_validator_copy.UnknownKeywordRejectedAtLoad.test_unsupported_format_rejected) ... ok
 test_any_of_one_of (test_validator_copy.ValidatorBehaviour.test_any_of_one_of) ... ok
@@ -115,6 +167,12 @@ test_strings (test_validator_copy.ValidatorBehaviour.test_strings) ... ok
 test_types (test_validator_copy.ValidatorBehaviour.test_types) ... ok
 test_python_dash_m_cadaudit_check (test_writer_guards.EndToEnd.test_python_dash_m_cadaudit_check) ... ok
 test_python_dash_m_cadaudit_input_error_leaves_nothing (test_writer_guards.EndToEnd.test_python_dash_m_cadaudit_input_error_leaves_nothing) ... ok
+test_L1_check_target_returns_the_parent_identity (test_writer_guards.ParentIdentityAndSteps.test_L1_check_target_returns_the_parent_identity) ... ok
+test_L1_parent_replaced_right_after_check_target (test_writer_guards.ParentIdentityAndSteps.test_L1_parent_replaced_right_after_check_target) ... ok
+test_L4_after_link_the_message_names_the_temporary_name (test_writer_guards.ParentIdentityAndSteps.test_L4_after_link_the_message_names_the_temporary_name) ... ok
+test_L4_failure_before_publish_says_no_report_was_written (test_writer_guards.ParentIdentityAndSteps.test_L4_failure_before_publish_says_no_report_was_written) ... ok
+test_L4_real_verify_mismatch_says_the_report_exists_and_nothing_was_deleted (test_writer_guards.ParentIdentityAndSteps.test_L4_real_verify_mismatch_says_the_report_exists_and_nothing_was_deleted) ... ok
+test_L4_verify_failure_after_publish_says_the_report_exists (test_writer_guards.ParentIdentityAndSteps.test_L4_verify_failure_after_publish_says_the_report_exists) ... ok
 test_dot_dot_in_the_path_is_normalised (test_writer_guards.PositiveCases.test_dot_dot_in_the_path_is_normalised) ... ok
 test_fresh_out_path_succeeds_and_is_a_single_regular_file (test_writer_guards.PositiveCases.test_fresh_out_path_succeeds_and_is_a_single_regular_file) ... ok
 test_input_files_are_unchanged_by_a_successful_run (test_writer_guards.PositiveCases.test_input_files_are_unchanged_by_a_successful_run) ... ok
@@ -143,6 +201,6 @@ test_verify_step_deletes_nothing_when_the_file_is_not_the_expected_one (test_wri
 test_windows_reserved_names_and_streams (test_writer_guards.RefusalCases.test_windows_reserved_names_and_streams) ... skipped 'Windows file-name rules'
 
 ----------------------------------------------------------------------
-Ran 142 tests in 1.868s
+Ran 197 tests in 2.421s
 
 OK (skipped=1)

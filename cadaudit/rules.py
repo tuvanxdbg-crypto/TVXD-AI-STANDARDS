@@ -71,9 +71,21 @@ def _same_kind_values(kind: str, values: list) -> bool:
     return True
 
 
+def _check_uses_block_name(check: dict) -> bool:
+    """True when the check reads the block name of a block reference (a value that belongs to the blocks group)."""
+    fields = (check.get("field"), check.get("field_a"), check.get("field_b"))
+    return "block_name" in fields
+
+
 def compute_reads_groups(applies_to: str, selector: dict, check: dict) -> tuple:
     """applies_to plus every group the selector or the check refers to, in canonical group order (D5)."""
     reads = {applies_to}
+    # Any reference to a block name (selector block_name, selector name_pattern on block_refs, or a check on the
+    # block_name field) is a reference to the blocks group: an unreadable blocks table must never give a PASS.
+    if applies_to in ("block_refs", "attributes") and "block_name" in selector:
+        reads.add("blocks")
+    if applies_to == "block_refs" and ("name_pattern" in selector or _check_uses_block_name(check)):
+        reads.add("blocks")
     if "layer" in selector and applies_to != "layers":
         reads.add("layers")
         if applies_to == "attributes":
@@ -86,7 +98,12 @@ def compute_reads_groups(applies_to: str, selector: dict, check: dict) -> tuple:
 
 
 def _finite(x) -> bool:
-    return x == x and x not in (float("inf"), float("-inf"))
+    """A finite number that also converts to float (a huge integer would overflow in later comparisons)."""
+    try:
+        f = float(x)
+    except OverflowError:
+        return False
+    return f == f and abs(f) != float("inf")
 
 
 def _validate_rule(raw: dict) -> Rule:
@@ -148,7 +165,8 @@ def _validate_rule(raw: dict) -> Rule:
 
     # D4: the classifier can raise a rule to STANDARD_REQUIRED, never lower it.
     classification, reason = (STANDARD_REQUIRED, DECLARED) if raw["standard_required"] else (INTERNAL_ONLY, DECLARED)
-    if classification == INTERNAL_ONLY and group == "dimensions" and ctype == "numeric_range" and not raw["source"]:
+    has_source = isinstance(raw["source"], str) and raw["source"].strip() != ""    # a blank source is no source
+    if classification == INTERNAL_ONLY and group == "dimensions" and ctype == "numeric_range" and not has_source:
         classification, reason = STANDARD_REQUIRED, UPGRADED
     return Rule(id=rid, title=raw["title"], status=raw["status"], source=raw["source"], applies_to=group,
                 selector=dict(sel), check=dict(chk), standard_required=raw["standard_required"],
@@ -157,9 +175,41 @@ def _validate_rule(raw: dict) -> Rule:
                 name_regex=name_regex, check_regex=check_regex)
 
 
+def _reject_duplicate_keys(text: str) -> None:
+    """yaml.safe_load keeps the LAST of two equal keys, so a second `standard_required: false` could silently undo the
+    first `true`. Compose the node graph with the safe loader class (no Loader= argument anywhere) and refuse any
+    mapping that repeats a key, or that has a key which is not a plain scalar. Iterative and visits every node once,
+    so aliases cannot make it loop or blow up. Nothing is constructed: no tag is interpreted here."""
+    loader = yaml.SafeLoader(text)
+    try:
+        root = loader.get_single_node()
+    finally:
+        loader.dispose()
+    seen = set()
+    todo = [root]
+    while todo:
+        node = todo.pop()
+        if node is None or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if isinstance(node, yaml.MappingNode):
+            keys = set()
+            for key, value in node.value:
+                if not isinstance(key, yaml.ScalarNode):
+                    raise CadAuditError("RULES_SCHEMA_INVALID", "a mapping key is not a plain scalar")
+                if key.value in keys:
+                    raise CadAuditError("RULES_DUPLICATE_KEY", f"mapping key {key.value[:40]!r} appears twice in the same mapping")
+                keys.add(key.value)
+                todo.append(value)
+        elif isinstance(node, yaml.SequenceNode):
+            todo.extend(node.value)
+
+
 def load_rules(data: bytes) -> RuleSet:
     try:
-        doc = yaml.safe_load(data.decode("utf-8-sig"))
+        text = data.decode("utf-8-sig")
+        _reject_duplicate_keys(text)
+        doc = yaml.safe_load(text)
     except (UnicodeDecodeError, yaml.YAMLError, RecursionError) as e:
         raise CadAuditError("RULES_NOT_YAML", f"not valid YAML for safe_load: {type(e).__name__}") from None
     errs = _schema.check(doc, "cad_rules.v1.json")

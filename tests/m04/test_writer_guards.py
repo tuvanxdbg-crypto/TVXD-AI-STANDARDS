@@ -235,6 +235,83 @@ class RefusalCases(WriterCase):
         self.assertEqual(read_bytes(alias), b"abc")
 
 
+class ParentIdentityAndSteps(WriterCase):
+    """Review L1 (the parent's identity is the one check_target saw) and L4 (messages name the step reached)."""
+
+    @unittest.skipIf(os.name == "nt", "Windows has no dir_fd: the parent identity comparison is POSIX only (documented limit)")
+    def test_L1_parent_replaced_right_after_check_target(self):
+        out = self.w.out("report.json")
+        old_dir = self.w.outdir + "_old"
+        real = _report_writer.check_target
+
+        def racing(out_path, input_path, rules_path):
+            result = real(out_path, input_path, rules_path)
+            os.rename(self.w.outdir, old_dir)       # the checked parent moves away ...
+            os.mkdir(self.w.outdir)                 # ... and a new directory now sits at the same path
+            return result
+
+        before = self.w.snapshot(self.w.input, self.w.rules)
+        with mock.patch.object(_report_writer, "check_target", racing):     # cli keeps its own reference: only write_report races
+            code, err = self.run_check(out)
+        self.assertEqual(code, 3, err)
+        self.assertIn("OUT_PARENT_CHANGED", err)
+        self.assertEqual(os.listdir(self.w.outdir), [])        # nothing was created in the new directory
+        self.assertEqual(os.listdir(old_dir), [])              # nor in the old one
+        self.assertEqual(tmp_files_under(self.w.root), [])
+        self.assertEqual(self.w.snapshot(self.w.input, self.w.rules), before)
+
+    def test_L1_check_target_returns_the_parent_identity(self):
+        parent, name, parent_id = _report_writer.check_target(self.w.out("r.json"), self.w.input, self.w.rules)
+        st = os.lstat(self.w.outdir)
+        self.assertEqual((parent, name, parent_id), (self.w.outdir, "r.json", (st.st_dev, st.st_ino)))
+
+    def test_L4_verify_failure_after_publish_says_the_report_exists(self):
+        out = self.w.out("report.json")
+        with mock.patch.object(_report_writer, "_verify", side_effect=OSError(5, "simulated read failure")):
+            code, err = self.run_check(out)
+        self.assertEqual(code, 3, err)
+        self.assertIn("OUT_WRITE_FAILED", err)
+        self.assertIn("the report exists under its final name", err)
+        self.assertIn("nothing was deleted", err)
+        self.assertNotIn("no report was written", err)
+        self.assertTrue(os.path.isfile(out))                    # it really is there, and was not deleted
+        self.assertEqual(json.loads(read_bytes(out).decode("utf-8"))["schema"], "tvxd.cadaudit.report/v1")
+        self.assertEqual(tmp_files_under(self.w.root), [])
+
+    def test_L4_real_verify_mismatch_says_the_report_exists_and_nothing_was_deleted(self):
+        out = self.w.out("report.json")
+        with mock.patch.object(os, "read", return_value=b""):   # the read-back differs from what was built
+            code, err = self.run_check(out)
+        self.assertEqual(code, 3, err)
+        self.assertIn("OUT_VERIFY_FAILED", err)
+        self.assertIn("the report exists under --out", err)
+        self.assertIn("nothing was deleted", err)
+        self.assertTrue(os.path.isfile(out))
+        self.assertEqual(tmp_files_under(self.w.root), [])
+
+    def test_L4_failure_before_publish_says_no_report_was_written(self):
+        out = self.w.out("report.json")
+        target = "rename" if os.name == "nt" else "link"
+        with mock.patch.object(os, target, side_effect=OSError(1, "simulated publish failure")):
+            code, err = self.run_check(out)
+        self.assertEqual(code, 3, err)
+        self.assertIn("no report was written", err)
+        self.assertFalse(os.path.lexists(out))
+        self.assertEqual(tmp_files_under(self.w.root), [])
+
+    @unittest.skipIf(os.name == "nt", "the link-then-unlink publish step exists on POSIX only")
+    def test_L4_after_link_the_message_names_the_temporary_name(self):
+        out = self.w.out("report.json")
+        with mock.patch.object(os, "unlink", side_effect=OSError(1, "simulated unlink failure")):
+            code, err = self.run_check(out)
+        self.assertEqual(code, 3, err)
+        self.assertIn("the report exists under its final name; its temporary name could not be removed", err)
+        self.assertNotIn("no report was written", err)
+        self.assertTrue(os.path.isfile(out))
+        self.assertEqual(len(tmp_files_under(self.w.root)), 1)  # unlink is patched to fail, so the cleanup attempt fails too and the temporary name stays
+        self.assertEqual(read_bytes(out), read_bytes(tmp_files_under(self.w.root)[0]))
+
+
 class PositiveCases(WriterCase):
     def test_fresh_out_path_succeeds_and_is_a_single_regular_file(self):
         out = self.w.out("report.json")

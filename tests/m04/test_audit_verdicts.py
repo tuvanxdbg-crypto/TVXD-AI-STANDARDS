@@ -4,7 +4,10 @@ import json
 import os
 import unittest
 
+import yaml
+
 import m04_helpers  # noqa: F401
+from cadaudit import rules as rules_module
 from cadaudit.audit import run_audit
 from cadaudit.errors import CadAuditError
 from m04_helpers import World, check_args, fx, read_bytes, read_json, run_cli, tmp_files_under
@@ -78,7 +81,7 @@ class FixtureVerdicts(unittest.TestCase):
         self.assertEqual((fails["R-TEXT-HEIGHT"]["handle"], fails["R-TEXT-HEIGHT"]["evidence_ids"], fails["R-TEXT-HEIGHT"]["actual"]),
                          ("51", ["CADEV:F01:51:height"], 1.0))
         self.assertEqual((fails["R-TITLE-ATTR"]["handle"], fails["R-TITLE-ATTR"]["evidence_ids"], fails["R-TITLE-ATTR"]["actual"]),
-                         ("31", ["CADEV:F01:31:block_name"], None))
+                         ("31", ["CADEV:F01:31:block_name", "CADEV:F01:FILE:coverage.attributes.status", "CADEV:F01:FILE:coverage.attributes.enumerated", "CADEV:F01:FILE:coverage.attributes.expected"], None))
         self.assertEqual(fails["R-DIM-OVERRIDE"]["evidence_ids"], ["CADEV:F01:60:measured_value", "CADEV:F01:60:display_value"])
         self.assertEqual((fails["R-DIM-OVERRIDE"]["actual"], fails["R-DIM-OVERRIDE"]["expected"]), (2500.0, 2400.0))
         self.assertEqual((fails["R-XREF-RESOLVED"]["handle"], fails["R-XREF-RESOLVED"]["evidence_ids"], fails["R-XREF-RESOLVED"]["actual"]),
@@ -246,7 +249,7 @@ class ObjectPrecedence(unittest.TestCase):
         doc["attributes"] = [doc["attributes"][1]]
         set_cov(doc, "attributes", "COMPLETE", 1, 1, None)
         rep = audit_mem(doc, [rule("R-A", "block_refs", {"block_name": "TITLEBLOCK"}, {"type": "required_field", "attribute_tag": "DRAWING_NO"})])
-        self.assertEqual((rep["results"][0]["verdict"], rep["results"][0]["evidence_ids"]), ("FAIL", ["CADEV:F01:31:block_name"]))
+        self.assertEqual((rep["results"][0]["verdict"], rep["results"][0]["evidence_ids"]), ("FAIL", ["CADEV:F01:31:block_name", "CADEV:F01:FILE:coverage.attributes.status", "CADEV:F01:FILE:coverage.attributes.enumerated", "CADEV:F01:FILE:coverage.attributes.expected"]))   # R2: the absence is backed by COMPLETE coverage
 
     def test_attribute_value_null_empty_and_blank(self):
         chk = {"type": "required_field", "attribute_tag": "DRAWING_NO"}
@@ -353,7 +356,7 @@ class RulePrecedence(unittest.TestCase):
         set_cov(doc, "attributes", "NOT_EXTRACTED", None, 0, "NOT_REQUESTED")
         doc["attributes"] = []
         r = self.one(doc, rule("R-A", "block_refs", {"block_name": "TITLEBLOCK"}, {"type": "required_field", "attribute_tag": "DRAWING_NO"}))
-        self.assertEqual((r["verdict"], r["reasons"], r["reads_groups"]), ("UNKNOWN", ["COVERAGE_INCOMPLETE"], ["block_refs", "attributes"]))
+        self.assertEqual((r["verdict"], r["reasons"], r["reads_groups"]), ("UNKNOWN", ["COVERAGE_INCOMPLETE"], ["blocks", "block_refs", "attributes"]))
 
     def test_line3_comes_before_line4(self):
         doc = base()
@@ -405,7 +408,8 @@ class WholeReport(unittest.TestCase):
         for x in rep["results"]:
             self.assertEqual(set(x), row_keys)
         self.assertEqual(set(rep), {"schema", "cadaudit_version", "generated_at", "notice", "input", "rules_file", "rules", "results", "summary"})
-        self.assertEqual(set(rep["summary"]), {"rules_by_verdict", "results_by_verdict", "rules_by_status", "overall"})
+        self.assertEqual(set(rep["summary"]), {"rules_by_verdict", "results_by_verdict", "rules_by_status", "overall",
+                                               "all_rules_approved", "overall_note"})      # overall_note: FIXTURE rules, ALL_RULES_PASS
         self.assertIn("không kết luận", rep["notice"])
 
     def test_report_identity_fields(self):
@@ -481,7 +485,7 @@ class CheckSemantics(unittest.TestCase):
         self.assertEqual([r["handle"] for r in blocks["results"]], ["20"])
         attrs = audit_mem(doc, [rule("R-T", "attributes", {"block_name": "TITLEBLOCK", "tag": "REVISION"}, {"type": "required_field", "field": "value"})])
         self.assertEqual([r["handle"] for r in attrs["results"]], ["41"])
-        self.assertEqual(attrs["rules"][0]["reads_groups"], ["block_refs", "attributes"])
+        self.assertEqual(attrs["rules"][0]["reads_groups"], ["blocks", "block_refs", "attributes"])   # block_name reads blocks
 
 
 class InputAndRuleErrors(unittest.TestCase):
@@ -512,7 +516,8 @@ class InputAndRuleErrors(unittest.TestCase):
 
     def test_rules_fixtures(self):
         table = {"rules_error_unknown_check.yaml": "RULES_SCHEMA_INVALID", "rules_error_hint_not_required.yaml": "RULE_CONFIG_CONTRADICTORY",
-                 "rules_error_bad_schema.yaml": "RULES_SCHEMA_INVALID", "rules_error_not_yaml_object.yaml": "RULES_NOT_YAML"}
+                 "rules_error_bad_schema.yaml": "RULES_SCHEMA_INVALID", "rules_error_not_yaml_object.yaml": "RULES_NOT_YAML",
+                 "rules_error_duplicate_key.yaml": "RULES_DUPLICATE_KEY"}
         for name, code in table.items():
             with self.subTest(name):
                 got, err = self.run_check(rules_path=fx(os.path.join("errors", name)))
@@ -601,6 +606,249 @@ class InputAndRuleErrors(unittest.TestCase):
         for args in ((), ("check",), ("check", "--input", self.w.input), ("explode",)):
             code, _ = run_cli(*args)
             self.assertNotEqual(code, 0)
+
+
+def audit_yaml(text, input_name="cad_read_pass.json"):
+    return run_audit(read_bytes(fx(input_name)), text.encode("utf-8"), TS)
+
+
+YAML_HEAD = "schema: tvxd.cadaudit.rules/v1\nrules_version: t.1\nrules:\n"
+
+
+def yaml_rule(applies_to="dimensions", check="{type: numeric_range, field: dimscale, min: 1, max: 1}", source="s", extra="",
+              std="false"):
+    return (YAML_HEAD + f"  - id: R-Y\n    title: t\n    status: FIXTURE\n    source: {source}\n    applies_to: {applies_to}\n"
+            f"    selector: {{}}\n    check: {check}\n    standard_required: {std}\n{extra}")
+
+
+class DuplicateYamlKeys(unittest.TestCase):
+    """Review M1: yaml.safe_load keeps the last of two equal keys; the rules loader must refuse the file instead."""
+
+    def assert_rejected(self, text, code="RULES_DUPLICATE_KEY"):
+        with self.assertRaises(CadAuditError) as cm:
+            audit_yaml(text)
+        self.assertEqual(cm.exception.code, code)
+
+    def test_duplicate_standard_required_true_then_false_is_rejected(self):
+        text = yaml_rule(source="null", std="true", extra="    standard_required: false\n")
+        self.assertEqual(yaml.safe_load(text)["rules"][0]["standard_required"], False)     # what safe_load alone would do
+        self.assert_rejected(text)
+
+    def test_duplicate_standard_required_false_then_true_is_rejected_too(self):
+        self.assert_rejected(yaml_rule(std="false", extra="    standard_required: true\n"))
+
+    def test_duplicate_nested_key_is_rejected(self):
+        self.assert_rejected(yaml_rule(check="{type: numeric_range, field: dimscale, min: 1, min: 2}"))
+        self.assert_rejected(yaml_rule(check="\n      type: numeric_range\n      field: dimscale\n      max: 1\n      max: 9\n"))
+
+    def test_duplicate_top_level_and_in_selector_are_rejected(self):
+        self.assert_rejected(YAML_HEAD.replace("rules_version: t.1\n", "rules_version: t.1\nrules_version: t.2\n") + "  []\n")
+        text = yaml_rule().replace("selector: {}", "selector: {space: MODEL, space: Layout1}")
+        self.assert_rejected(text)
+
+    def test_duplicate_key_with_different_quoting_is_still_a_duplicate(self):
+        self.assert_rejected(yaml_rule(extra='    "standard_required": false\n'))
+
+    def test_a_key_that_is_not_a_scalar_is_rejected(self):
+        self.assert_rejected(yaml_rule(extra="    ? [a, b]\n    : c\n"), "RULES_SCHEMA_INVALID")
+
+    def test_the_same_key_in_different_mappings_is_fine(self):
+        rep = audit_yaml(yaml_rule(extra="") + yaml_rule(extra="").split("rules:\n")[1].replace("R-Y", "R-Z"))
+        self.assertEqual([r["rule_id"] for r in rep["rules"]], ["R-Y", "R-Z"])
+
+    def test_normal_files_are_unchanged(self):
+        for name in ("rules_internal.yaml", "rules_standard.yaml"):
+            with self.subTest(name):
+                text = read_bytes(fx(name)).decode("utf-8")
+                rules_module._reject_duplicate_keys(text)                           # no error
+                rep = audit_yaml(text)
+                expected = yaml.safe_load(text)["rules"]
+                self.assertEqual([r["rule_id"] for r in rep["rules"]], [x["id"] for x in expected])
+                self.assertEqual([r["classification"] == "STANDARD_REQUIRED" for r in rep["rules"]],
+                                 [x["standard_required"] or (x["applies_to"] == "dimensions" and x["check"]["type"] == "numeric_range" and not x["source"])
+                                  for x in expected])
+
+    def test_aliases_cannot_loop_or_explode(self):
+        lol = "a: &a [x, x, x, x, x, x, x, x, x]\n" + "".join(
+            f"{chr(98 + i)}: &{chr(98 + i)} [{', '.join('*' + chr(97 + i) for _ in range(9))}]\n" for i in range(12))
+        rules_module._reject_duplicate_keys(lol)                                    # visits each node once: instant
+        rules_module._reject_duplicate_keys("a: &a [*a]\n")                         # a recursive node does not loop
+        rules_module._reject_duplicate_keys("")
+        rules_module._reject_duplicate_keys("[]")
+
+    def test_unsafe_tags_are_still_not_yaml(self):
+        text = yaml_rule(extra="    note: !!python/object/apply:os.getcwd []\n")
+        self.assert_rejected(text, "RULES_NOT_YAML")
+
+
+class NonFiniteNumbers(unittest.TestCase):
+    """Review M2: 1e400 parses to inf without an error; every number that reaches a comparison must be finite."""
+
+    def raw_with(self, old, new):
+        raw = json.dumps(base()).replace(old, new, 1)
+        self.assertNotEqual(raw, json.dumps(base()), old)
+        return raw.encode()
+
+    def test_input_numbers_that_overflow_to_infinity_are_rejected(self):
+        for label, new in (("1e400", "1e400"), ("-1e999", "-1e999"), ("1E+400", "1E+400"), ("-1.5e400", "-1.5e400")):
+            with self.subTest(label), self.assertRaises(CadAuditError) as cm:
+                run_audit(self.raw_with('"height": 2.5', f'"height": {new}'), read_bytes(fx("rules_internal.yaml")), TS)
+            self.assertEqual(cm.exception.code, "INPUT_NOT_JSON")
+            self.assertIn("non-finite", cm.exception.message)
+
+    def test_integer_too_large_for_a_float_is_rejected(self):
+        for new in ("1" + "0" * 400, "-" + "9" * 350):
+            with self.subTest(len(new)), self.assertRaises(CadAuditError) as cm:
+                run_audit(self.raw_with('"height": 2.5', f'"height": {new}'), read_bytes(fx("rules_internal.yaml")), TS)
+            self.assertEqual(cm.exception.code, "INPUT_NOT_JSON")
+
+    def test_nan_and_infinity_words_are_still_rejected(self):
+        for word in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(word), self.assertRaises(CadAuditError) as cm:
+                run_audit(self.raw_with('"height": 2.5', f'"height": {word}'), read_bytes(fx("rules_internal.yaml")), TS)
+            self.assertEqual(cm.exception.code, "INPUT_NOT_JSON")
+
+    def test_big_but_finite_numbers_are_accepted(self):
+        rep = run_audit(self.raw_with('"height": 2.5', '"height": 1e300'), read_bytes(fx("rules_internal.yaml")), TS)
+        self.assertEqual(rep["summary"]["overall"], "HAS_FAIL")                     # out of the allowed range, evaluated normally
+
+    def test_rules_yaml_non_finite_numbers_are_rejected(self):
+        for key in ("min", "max", "tolerance"):
+            for value in (".inf", "-.inf", ".nan", "1.0e+400", "-1.0e+999", "1" + "0" * 400):
+                if key == "tolerance" and value.startswith("-"):
+                    continue                                                       # a negative tolerance fails the schema first
+                check = ("{type: equals_field, field_a: measured_value, field_b: display_value, tolerance: %s}" % value
+                         if key == "tolerance" else "{type: numeric_range, field: dimscale, %s: %s}" % (key, value))
+                with self.subTest(key=key, value=value[:12]), self.assertRaises(CadAuditError) as cm:
+                    audit_yaml(yaml_rule(check=check))
+                self.assertEqual(cm.exception.code, "RULE_INVALID")
+                self.assertIn("finite", cm.exception.message)
+
+    def test_rules_yaml_1e400_without_a_dot_is_a_string_and_fails_the_schema(self):
+        with self.assertRaises(CadAuditError) as cm:
+            audit_yaml(yaml_rule(check="{type: numeric_range, field: dimscale, min: 1e400}"))
+        self.assertEqual(cm.exception.code, "RULES_SCHEMA_INVALID")
+
+
+class ReadsGroupsBlocks(unittest.TestCase):
+    """Review M3: any reference to a block name reads the blocks group."""
+
+    def blocks_down(self):
+        doc = base()
+        set_cov(doc, "blocks", "NOT_EXTRACTED", None, 0, "NOT_REQUESTED")
+        doc["blocks"] = []
+        return doc
+
+    def one(self, doc, r):
+        return by_id(audit_mem(doc, [r]))[r["id"]]
+
+    def test_block_name_selector_on_block_refs(self):
+        r = rule("R-BN", "block_refs", {"block_name": "TITLEBLOCK"}, {"type": "required_field", "field": "layer"})
+        self.assertEqual(self.one(base(), r)["verdict"], "PASS")                     # blocks COMPLETE
+        got = self.one(self.blocks_down(), r)
+        self.assertEqual((got["verdict"], got["reasons"], got["reads_groups"]), ("UNKNOWN", ["COVERAGE_INCOMPLETE"], ["blocks", "block_refs"]))
+        self.assertEqual(got["evidence_ids"], ["CADEV:F01:FILE:coverage.blocks.status"])
+
+    def test_name_pattern_selector_on_block_refs(self):
+        r = rule("R-NP", "block_refs", {"name_pattern": "TITLE.*"}, {"type": "required_field", "field": "layer"})
+        got = self.one(self.blocks_down(), r)
+        self.assertEqual((got["verdict"], got["reasons"], got["reads_groups"]), ("UNKNOWN", ["COVERAGE_INCOMPLETE"], ["blocks", "block_refs"]))
+
+    def test_check_on_the_block_name_field_of_block_refs(self):
+        for check in ({"type": "name_pattern", "field": "block_name", "pattern": "[A-Z0-9-]+"},
+                      {"type": "allowed_values", "field": "block_name", "values": ["TITLEBLOCK", "DOOR-900"]},
+                      {"type": "required_field", "field": "block_name"}):
+            with self.subTest(check["type"]):
+                got = self.one(self.blocks_down(), rule("R-CK", "block_refs", {}, check))
+                self.assertEqual((got["verdict"], got["reasons"]), ("UNKNOWN", ["COVERAGE_INCOMPLETE"]))
+                self.assertIn("blocks", got["reads_groups"])
+
+    def test_block_name_selector_on_attributes(self):
+        r = rule("R-AT", "attributes", {"block_name": "TITLEBLOCK"}, {"type": "required_field", "field": "value"})
+        got = self.one(self.blocks_down(), r)
+        self.assertEqual((got["verdict"], got["reasons"], got["reads_groups"]), ("UNKNOWN", ["COVERAGE_INCOMPLETE"], ["blocks", "block_refs", "attributes"]))
+
+    def test_rules_that_do_not_name_a_block_do_not_read_blocks(self):
+        for r in (rule("R-L", "block_refs", {"layer": "A-ANNO-TEXT"}, {"type": "required_field", "field": "layer"}),
+                  rule("R-F", "block_refs", {}, {"type": "required_field", "field": "layer"})):
+            with self.subTest(r["id"]):
+                got = self.one(self.blocks_down(), r)
+                self.assertNotIn("blocks", got["reads_groups"])
+                self.assertEqual(got["verdict"], "PASS")                            # blocks is not needed, so its state is irrelevant
+        tag = rule("R-X", "block_refs", {}, {"type": "required_field", "attribute_tag": "DRAWING_NO"})
+        self.assertEqual(self.one(self.blocks_down(), tag)["reads_groups"], ["block_refs", "attributes"])
+
+
+class SourceAndHashHardening(unittest.TestCase):
+    def test_blank_source_counts_as_no_source(self):
+        dim = {"type": "numeric_range", "field": "dimscale", "min": 1, "max": 1}
+        for source in (" ", "   ", "\t", "\u00a0", None):
+            with self.subTest(repr(source)):
+                r = by_id(audit_mem(base(), [rule("R-DR", "dimensions", {}, dim, source=source)]))["R-DR"]
+                self.assertEqual((r["classification"], r["classification_reason"], r["verdict"], r["reasons"]),
+                                 ("STANDARD_REQUIRED", "UPGRADED_DIMENSION_RANGE_NO_INTERNAL_SOURCE", "UNKNOWN", ["STANDARD_LOOKUP_NOT_ENABLED"]))
+        r = by_id(audit_mem(base(), [rule("R-DR", "dimensions", {}, dim, source="Quy chế nội bộ 01")]))["R-DR"]
+        self.assertEqual(r["classification"], "INTERNAL_ONLY")
+
+    def test_blank_source_in_yaml(self):
+        rep = audit_yaml(yaml_rule(source="' '"))
+        self.assertEqual(rep["rules"][0]["classification"], "STANDARD_REQUIRED")
+
+    def test_dwg_sha256_with_a_trailing_newline_is_rejected(self):
+        for suffix in ("\n", "\r\n", " "):
+            doc = base()
+            doc["drawing"]["sha256"] += suffix
+            with self.subTest(repr(suffix)), self.assertRaises(CadAuditError) as cm:
+                audit_mem(doc, [rule(check=HEIGHT)])
+            self.assertEqual(cm.exception.code, "INPUT_SCHEMA_INVALID")
+
+
+class ApprovalNote(unittest.TestCase):
+    """Review L6: ALL_RULES_PASS says nothing about whether the rules were approved; the report now does."""
+
+    def test_fixture_rules_pass_is_flagged_not_approved(self):
+        rep = audit_fixture("cad_read_pass.json", "rules_internal.yaml")
+        self.assertEqual(rep["summary"]["overall"], "ALL_RULES_PASS")
+        self.assertIs(rep["summary"]["all_rules_approved"], False)
+        self.assertEqual(rep["summary"]["overall_note"], "RULES_NOT_APPROVED")
+        self.assertEqual(rep["summary"]["rules_by_status"]["APPROVED"], 0)
+
+    def test_all_approved_rules_have_no_note(self):
+        rep = audit_mem(base(), [rule("R-A", check=HEIGHT, status="APPROVED"), rule("R-B", check=FONT, status="APPROVED")])
+        self.assertEqual(rep["summary"]["overall"], "ALL_RULES_PASS")
+        self.assertIs(rep["summary"]["all_rules_approved"], True)
+        self.assertNotIn("overall_note", rep["summary"])
+
+    def test_one_proposed_rule_is_enough_for_the_note(self):
+        rep = audit_mem(base(), [rule("R-A", check=HEIGHT, status="APPROVED"), rule("R-B", check=FONT, status="PROPOSED")])
+        self.assertEqual((rep["summary"]["all_rules_approved"], rep["summary"].get("overall_note")), (False, "RULES_NOT_APPROVED"))
+
+    def test_note_only_goes_with_all_rules_pass(self):
+        fail = audit_fixture("cad_read_fail.json", "rules_internal.yaml")["summary"]
+        self.assertEqual((fail["overall"], fail["all_rules_approved"]), ("HAS_FAIL", False))
+        self.assertNotIn("overall_note", fail)
+        unknown = audit_fixture("cad_read_pass.json", "rules_standard.yaml")["summary"]
+        self.assertEqual((unknown["overall"], unknown["all_rules_approved"]), ("HAS_UNKNOWN", False))
+        self.assertNotIn("overall_note", unknown)
+
+    def test_the_three_overall_values_are_unchanged(self):
+        from cadaudit import _schema
+        enum = _schema.load("cad_audit_report.v1.json")["properties"]["summary"]["properties"]["overall"]["enum"]
+        self.assertEqual(enum, ["HAS_FAIL", "HAS_UNKNOWN", "ALL_RULES_PASS"])
+
+    def test_schema_closes_the_note_and_requires_the_flag(self):
+        from cadaudit import _schema
+        rep = audit_fixture("cad_read_pass.json", "rules_internal.yaml")
+        self.assertEqual(_schema.check(rep, "cad_audit_report.v1.json"), [])
+        bad = copy.deepcopy(rep)
+        bad["summary"]["overall_note"] = "ALL_GOOD"
+        self.assertTrue(_schema.check(bad, "cad_audit_report.v1.json"))
+        bad = copy.deepcopy(rep)
+        del bad["summary"]["all_rules_approved"]
+        self.assertTrue(_schema.check(bad, "cad_audit_report.v1.json"))
+        bad = copy.deepcopy(rep)
+        bad["summary"]["all_rules_approved"] = "no"
+        self.assertTrue(_schema.check(bad, "cad_audit_report.v1.json"))
 
 
 if __name__ == "__main__":

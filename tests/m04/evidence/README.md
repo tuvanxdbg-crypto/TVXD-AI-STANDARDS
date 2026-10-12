@@ -12,7 +12,7 @@ Thư mục này chứa báo cáo mẫu cho từng nhóm fixture của M04-A (spe
 | `report_{pass,fail,unknown}__standard.json` | Quy tắc `STANDARD_REQUIRED` (khai báo và nâng lên theo D4) và selector rỗng: mọi mục `STANDARD_REQUIRED` là UNKNOWN `STANDARD_LOOKUP_NOT_ENABLED`, selector rỗng là UNKNOWN `NO_OBJECTS_IN_SCOPE` |
 | `input_errors.json` | Lỗi input và lỗi quy tắc: mã thoát, mã lỗi, và xác nhận không có báo cáo nào được tạo |
 
-`sandbox-linux-unittest.txt` là output `unittest -v` của executor trong sandbox Linux (142 test, 1 bỏ qua vì chỉ chạy trên Windows). Đây không phải kết quả CI và không chứng minh hành vi trên Windows.
+`sandbox-linux-unittest.txt` là output `unittest -v` của executor trong sandbox Linux (197 test, 1 bỏ qua vì chỉ chạy trên Windows). Đây không phải kết quả CI và không chứng minh hành vi trên Windows.
 
 Output của `python -m unittest discover -s tests/m04 -p "test_*.py" -v` trên Linux và Windows lấy từ CI (3 job xanh trên HEAD của PR). Test âm D4 nằm trong `test_audit_verdicts.py` (lớp `Classification`), test âm D6 lớp 3 trong `test_static_write_controls.py`, test bảo vệ ghi D6 lớp 2 trong `test_writer_guards.py`.
 

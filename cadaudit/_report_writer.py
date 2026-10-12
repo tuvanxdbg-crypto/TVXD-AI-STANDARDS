@@ -39,7 +39,9 @@ def _inside(child: str, folder: str) -> bool:
 
 
 def check_target(out_path, input_path, rules_path) -> tuple:
-    """Validate --out before anything is created. Returns (parent_dir, file_name). Raises OUT_* errors."""
+    """Validate --out before anything is created. Returns (parent_dir, file_name, parent_id) where parent_id is the
+    (st_dev, st_ino) of the parent as seen by lstat here; write_report compares it with the directory it opens.
+    Raises OUT_* errors."""
     if not isinstance(out_path, str) or not out_path or "\x00" in out_path:
         _fail("OUT_INVALID", "--out must be a non-empty path")
     out_abs = os.path.abspath(out_path)
@@ -97,7 +99,7 @@ def check_target(out_path, input_path, rules_path) -> tuple:
         _fail("OUT_EXISTS", "cannot rule out that --out exists")
     else:
         _fail("OUT_EXISTS", "--out already exists (no overwrite option)")
-    return parent, name
+    return parent, name, (pst.st_dev, pst.st_ino)
 
 
 def _write_all(fd: int, data: bytes) -> None:
@@ -126,7 +128,8 @@ def _verify(posix: bool, dfd, parent: str, name: str, digest: str, size: int) ->
     path = os.path.join(parent, name)
     st = os.lstat(name, dir_fd=dfd) if posix else os.lstat(path)
     if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_size != size:
-        _fail("OUT_VERIFY_FAILED", "the published report is not a single regular file of the expected size; nothing was deleted")
+        _fail("OUT_VERIFY_FAILED", "the report exists under --out but is not a single regular file of the expected size; "
+                                   "nothing was deleted")
     rfd = os.open(name, flags, dir_fd=dfd) if posix else os.open(path, flags)
     try:
         h = hashlib.sha256()
@@ -138,7 +141,7 @@ def _verify(posix: bool, dfd, parent: str, name: str, digest: str, size: int) ->
     finally:
         os.close(rfd)
     if h.hexdigest() != digest:
-        _fail("OUT_VERIFY_FAILED", "the published report does not match what was built; nothing was deleted")
+        _fail("OUT_VERIFY_FAILED", "the report exists under --out but does not match what was built; nothing was deleted")
 
 
 def _close_quietly(fd) -> None:
@@ -149,8 +152,9 @@ def _close_quietly(fd) -> None:
 
 
 def write_report(out_path, data: bytes, input_path, rules_path) -> None:
-    """Create out_path exclusively with `data`. Raises CadAuditError (exit code 3) and leaves no out file on failure."""
-    parent, name = check_target(out_path, input_path, rules_path)
+    """Create out_path exclusively with `data`. Raises CadAuditError (exit code 3). Before the report is published a
+    failure leaves no out file; after it is published nothing is deleted, and the message says so."""
+    parent, name, parent_id = check_target(out_path, input_path, rules_path)
     digest = hashlib.sha256(data).hexdigest()
     tmp_name = TMP_PREFIX + secrets.token_hex(16) + ".json"
     posix = os.name != "nt"
@@ -160,41 +164,50 @@ def write_report(out_path, data: bytes, input_path, rules_path) -> None:
     dfd = None
     fd = None
     tmp_made = False
-    published = False
+    step = "START"      # START -> WRITE (temp exists) -> PUBLISH (link/rename running) -> LINKED (POSIX) -> PUBLISHED
     failure = None
     try:
         try:
             if posix:
                 dfd = os.open(parent, os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
                               | getattr(os, "O_CLOEXEC", 0))
-                checked, opened = os.lstat(parent), os.fstat(dfd)
-                if (checked.st_dev, checked.st_ino) != (opened.st_dev, opened.st_ino):
+                opened = os.fstat(dfd)
+                if parent_id != (opened.st_dev, opened.st_ino):     # identity seen by check_target, not a fresh lstat
                     _fail("OUT_PARENT_CHANGED", "the parent directory changed between the check and the write")
                 fd = os.open(tmp_name, flags, 0o644, dir_fd=dfd)
             else:
                 fd = os.open(tmp_path, flags, 0o644)
             tmp_made = True
+            step = "WRITE"
             _write_all(fd, data)
             os.fsync(fd)
             done, fd = fd, None
             os.close(done)
+            step = "PUBLISH"
             if posix:
                 os.link(tmp_name, name, src_dir_fd=dfd, dst_dir_fd=dfd, follow_symlinks=False)  # fails if name exists
-                published = True
+                step = "LINKED"          # the report name exists; the temporary name is still there
                 os.unlink(tmp_name, dir_fd=dfd)
                 tmp_made = False
             else:
                 os.rename(tmp_path, os.path.join(parent, name))  # fails if name exists; never os.replace
                 tmp_made = False
+            step = "PUBLISHED"           # the report exists under its final name; only verification is left
             _verify(posix, dfd, parent, name, digest, len(data))
         except CadAuditError as e:
             failure = e
-        except FileExistsError:
-            failure = CadAuditError("OUT_EXISTS", "--out appeared while writing; the existing file was not touched", exit_code=3)
         except OSError as e:
-            tail = ("the report name exists but its temporary name could not be removed" if published
-                    else "no report was written")
-            failure = CadAuditError("OUT_WRITE_FAILED", f"{type(e).__name__} (errno {e.errno}); {tail}", exit_code=3)
+            if isinstance(e, FileExistsError) and step == "PUBLISH":
+                failure = CadAuditError("OUT_EXISTS", "--out appeared while writing; the existing file was not touched", exit_code=3)
+            else:
+                if step == "LINKED":
+                    tail = ("the report exists under its final name; its temporary name could not be removed "
+                            "(nothing else was deleted)")
+                elif step == "PUBLISHED":
+                    tail = "the report exists under its final name but could not be verified; nothing was deleted"
+                else:
+                    tail = "no report was written"
+                failure = CadAuditError("OUT_WRITE_FAILED", f"{type(e).__name__} (errno {e.errno}); {tail}", exit_code=3)
     finally:
         # Order matters on Windows: the temporary file can only be removed after its handle is closed.
         if fd is not None:

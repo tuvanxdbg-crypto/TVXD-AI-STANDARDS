@@ -38,10 +38,26 @@ def _reject_constant(name):
     raise ValueError(f"non-finite number {name} is not allowed")
 
 
+def _parse_float(text):
+    """1e400 parses to inf without any error: refuse it, like NaN and Infinity, so every number is finite."""
+    value = float(text)
+    if value != value or abs(value) == float("inf"):
+        raise ValueError(f"non-finite number {text[:20]} is not allowed")
+    return value
+
+
+def _parse_int(text):
+    """An integer too large for a float would raise OverflowError later in a comparison: refuse it here."""
+    value = int(text)
+    float(value)     # OverflowError when the value is outside the float range
+    return value
+
+
 def parse_json(data: bytes, kind: str = "INPUT"):
     try:
-        return json.loads(data.decode("utf-8-sig"), object_pairs_hook=_no_duplicates, parse_constant=_reject_constant)
-    except (UnicodeDecodeError, ValueError, RecursionError) as e:
+        return json.loads(data.decode("utf-8-sig"), object_pairs_hook=_no_duplicates, parse_constant=_reject_constant,
+                          parse_float=_parse_float, parse_int=_parse_int)
+    except (UnicodeDecodeError, ValueError, OverflowError, RecursionError) as e:
         raise CadAuditError(f"{kind}_NOT_JSON", f"not valid JSON: {type(e).__name__}: {e}") from None
 
 
@@ -101,6 +117,9 @@ def load_cad_read(data: bytes) -> Drawing:
     file_id = doc["drawing"]["file_id"]
     if not re.fullmatch(r"[A-Za-z0-9_-]{1,32}", file_id):  # '$' in the schema pattern also matches before a trailing newline
         raise CadAuditError("INPUT_SCHEMA_INVALID", "drawing.file_id has characters outside [A-Za-z0-9_-]")
+
+    if not re.fullmatch(r"[0-9a-f]{64}", doc["drawing"]["sha256"]):  # same trailing-newline gap as above
+        raise CadAuditError("INPUT_SCHEMA_INVALID", "drawing.sha256 is not 64 lower-case hex characters")
 
     groups = {g: doc.get(g, []) for g in GROUPS}
     seen = {}

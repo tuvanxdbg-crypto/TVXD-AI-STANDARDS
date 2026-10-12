@@ -80,6 +80,31 @@ class UnknownKeywordRejectedAtLoad(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "unsupported schema keywords"):
                     _schema.load(f"{name}.json")
 
+    def test_unknown_keyword_on_nodes_without_type_properties_ref_or_anyof(self):
+        """R4: the original skipped any node that held only oneOf (or items, enum, ...). Every schema node is checked here."""
+        cases = {
+            "oneof_wrapper": {"type": "object", "properties": {"x": {"oneOf": [{"type": "string"}], "uniqueItems": True}}},
+            "oneof_wrapper_top": {"oneOf": [{"type": "string"}], "not": {}},
+            "oneof_wrapper_in_items": {"type": "array", "items": {"oneOf": [{"type": "string"}], "if": {}}},
+            "oneof_wrapper_in_oneof": {"oneOf": [{"oneOf": [{"type": "string"}], "contentEncoding": "x"}]},
+            "enum_only": {"type": "object", "properties": {"x": {"enum": ["a"], "multipleOf": 2}}},
+            "empty_with_extra": {"type": "object", "properties": {"x": {"minLength": 1, "dependentRequired": {}}}},
+            "oneof_wrapper_bad_format": {"type": "object", "properties": {"x": {"oneOf": [{"type": "string"}], "format": "email"}}},
+        }
+        for name, doc in cases.items():
+            with self.subTest(name):
+                self.put(f"{name}.json", doc)
+                with self.assertRaisesRegex(ValueError, "unsupported (schema keywords|format)"):
+                    _schema.load(f"{name}.json")
+
+    def test_a_oneof_only_wrapper_with_known_keywords_still_loads(self):
+        self.put("w.json", {"type": "object", "properties": {"x": {"oneOf": [{"type": "string"}, {"type": "null"}], "description": "d"}}})
+        self.assertIn("x", _schema.load("w.json")["properties"])
+
+    def test_header_says_the_tightening_is_deliberate(self):
+        src = read_bytes(os.path.join(REPO, "cadaudit", "_schema.py")).decode("utf-8")
+        self.assertIn("DELIBERATE TIGHTENING", src)
+
     def test_unsupported_format_rejected(self):
         self.put("f.json", {"type": "string", "format": "email"})
         with self.assertRaisesRegex(ValueError, "unsupported format"):

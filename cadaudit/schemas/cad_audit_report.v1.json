@@ -337,7 +337,8 @@
         "rules_by_verdict",
         "results_by_verdict",
         "rules_by_status",
-        "overall"
+        "overall",
+        "all_rules_approved"
       ],
       "properties": {
         "rules_by_verdict": {
@@ -416,6 +417,17 @@
             "HAS_UNKNOWN",
             "ALL_RULES_PASS"
           ]
+        },
+        "all_rules_approved": {
+          "type": "boolean",
+          "description": "true only when the rule file has at least one rule and every rule has status APPROVED."
+        },
+        "overall_note": {
+          "type": "string",
+          "enum": [
+            "RULES_NOT_APPROVED"
+          ],
+          "description": "Present only when overall is ALL_RULES_PASS and not every rule is APPROVED: the pass is relative to rules that are FIXTURE or PROPOSED."
         }
       }
     }

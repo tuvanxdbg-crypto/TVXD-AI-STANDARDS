@@ -13,8 +13,8 @@ from m04_helpers import REPO
 PACKAGE = os.path.join(REPO, "cadaudit")
 
 
-def rules_of(source, is_writer=False):
-    return {v.rule for v in scan_source(textwrap.dedent(source), is_writer)}
+def rules_of(source, is_writer=False, filename=""):
+    return {v.rule for v in scan_source(textwrap.dedent(source), is_writer, filename)}
 
 
 class PackageIsClean(unittest.TestCase):
@@ -237,6 +237,167 @@ class WriterAllowList(unittest.TestCase):
                 return hashlib.sha256(data).hexdigest(), secrets.token_hex(16), stat.S_ISREG(os.lstat(name).st_mode)
         """
         self.assertEqual(rules_of(src, is_writer=True), set())
+
+
+class BypassSamples(unittest.TestCase):
+    """Review findings H1: a module or attribute that re-exports os/open must not slip through the allow-list.
+    Each snippet below produced no finding before; every one must be flagged outside the writer."""
+
+    def assert_flagged(self, source, *rules, is_writer=False, filename=""):
+        got = rules_of(source, is_writer, filename)
+        self.assertTrue(got & set(rules), f"{source!r}: wanted one of {rules}, got {got}")
+
+    def test_argparse_filetype_opens_a_file_for_writing(self):
+        self.assert_flagged('import argparse\nargparse.FileType("w")("x.dwg")', "MODULE_ATTR", "BANNED_ATTR")
+        self.assert_flagged('import argparse\nft = argparse.FileType', "MODULE_ATTR", "BANNED_ATTR")
+        self.assert_flagged('import argparse\ngetattr(argparse, "FileType")', "GETATTR")
+        self.assert_flagged('from argparse import FileType', "FROM_IMPORT_NAME")
+
+    def test_os_reached_through_os_path(self):
+        self.assert_flagged("import os\nfo = os.path.os.open\nfo(p, os.path.os.O_WRONLY)", "OS_ATTR", "BANNED_ATTR")
+        self.assert_flagged("from os import path\npath.os.open", "OS_ATTR", "BANNED_ATTR")
+        self.assert_flagged("import os.path\nos.path.genericpath.os", "OS_ATTR", "BANNED_ATTR")
+        self.assert_flagged("from os import path\nfo = path.os.open", "OS_ATTR", "BANNED_ATTR")
+
+    def test_sys_modules_gives_back_os(self):
+        self.assert_flagged('import sys\nm = sys.modules["os"]\nm.open', "MODULE_ATTR", "BANNED_ATTR")
+        self.assert_flagged("import sys\nsys.argv", "MODULE_ATTR")                 # only what the package uses
+        self.assert_flagged("from sys import modules", "FROM_IMPORT_NAME")
+        self.assert_flagged("import sys as s\ns.modules", "MODULE_ATTR", "BANNED_ATTR")  # an alias is still resolved
+
+    def test_sys_modules_subscript_and_traversal_to_banned_modules(self):
+        """Looking a module up by name must never work, whichever way sys.modules is reached."""
+        cases = [
+            'import sys\nsys.modules["shutil"].copyfile("a.dwg", "b.dwg")',
+            'import sys\nsys.modules["subprocess"].Popen(["x"])',
+            'import sys\nsys.modules["os"].open("v.dwg", 513)',
+            'import sys\nm = sys.modules\nm["shutil"].copyfile(a, b)',
+            'import sys\nsys.modules.get("subprocess").run(x)',
+            'import sys\nsys.modules.pop("os")',
+            'import sys\ngetattr(sys, "modules")["shutil"]',
+            'import sys\nvars(sys)["modules"]["shutil"]',
+            'import sys\nsys.__dict__["modules"]["subprocess"]',
+            'from sys import modules\nmodules["shutil"]',
+            'import sys as s\ns.modules["shutil"].copy(a, b)',
+            'import argparse\nargparse._sys.modules["shutil"]',
+            'import importlib\nimportlib.import_module("shutil")',
+            'registry["shutil"].copyfile(a, b)',            # any subscript keyed by a banned module name
+            'registry["subprocess"]',
+            'registry["os"].open',
+        ]
+        for src in cases:
+            with self.subTest(src):
+                self.assertTrue(rules_of(src), f"not flagged: {src!r}")
+        self.assert_flagged('import sys\nsys.modules["shutil"].copyfile(a, b)', "BANNED_ATTR", "MODULE_ATTR")
+        self.assert_flagged('registry["shutil"]', "MODULE_SUBSCRIPT")
+        self.assert_flagged('import sys\nsys.modules["subprocess"].Popen(x)', "MODULE_SUBSCRIPT")
+        self.assert_flagged('import sys\nsys.modules["shutil"].copyfile(a, b)', "BANNED_ATTR", is_writer=True)
+        self.assert_flagged('registry["os"]', "MODULE_SUBSCRIPT", is_writer=True)
+        self.assertEqual(rules_of('d = {}\nd["name"]\nd["layer"]'), set())      # ordinary subscripts are fine
+
+    def test_private_os_inside_argparse(self):
+        self.assert_flagged("import argparse\nargparse._os.open", "MODULE_ATTR", "BANNED_ATTR")
+        self.assert_flagged("import argparse\nargparse._sys", "MODULE_ATTR", "BANNED_ATTR")
+        self.assert_flagged("from argparse import _os", "FROM_IMPORT_NAME")
+        self.assert_flagged("import json\njson.codecs.open", "MODULE_ATTR", "BANNED_ATTR")
+        self.assert_flagged("import datetime\ndatetime.sys", "MODULE_ATTR", "BANNED_ATTR")
+
+    def test_relative_import_of_a_module_binding(self):
+        self.assert_flagged("from ._report_writer import os\nos.open", "FROM_IMPORT_NAME")
+        self.assert_flagged("from ._report_writer import os\nfo = os.open\nfo(p, os.O_WRONLY | os.O_TRUNC)", "FROM_IMPORT_NAME", "BANNED_ATTR")
+        self.assert_flagged("from ._report_writer import _write_all", "FROM_IMPORT_NAME")
+        self.assert_flagged("from ._report_writer import *", "FROM_IMPORT_NAME")
+        self.assert_flagged("from . import _report_writer as w\nw.os.open", "FROM_IMPORT_NAME", "BANNED_ATTR")
+        self.assert_flagged("from . import _report_writer", "FROM_IMPORT_NAME")
+        self.assert_flagged("from .loader import os", "FROM_IMPORT_NAME")
+        self.assert_flagged("from .rules import yaml", "FROM_IMPORT_NAME")
+        self.assert_flagged("from .rules import re as r", "FROM_IMPORT_NAME")
+        self.assert_flagged("from .errors import system", "FROM_IMPORT_NAME")
+        self.assert_flagged("from .. import x", "IMPORT_NOT_ALLOWED")
+        self.assert_flagged("from .sub.mod import x", "IMPORT_NOT_ALLOWED")
+
+    def test_allowed_relative_imports_stay_clean(self):
+        for src in ("from ._report_writer import write_report", "from ._report_writer import check_target, write_report",
+                    "from .errors import CadAuditError", "from .model import GROUPS, COMPLETE", "from . import __version__, _schema",
+                    "from .audit import run_audit"):
+            with self.subTest(src):
+                self.assertEqual(rules_of(src), set())
+
+    def test_open_with_an_opener(self):
+        for src in ("open(p, 'r', opener=f)", "open(p, mode='rb', opener=lambda path, flags: 0)",
+                    "open(p, 'r', -1, None, None, None, f)", "open(p, 'r', **kw)", "open(*a)", "open(p, 'r', *rest)"):
+            with self.subTest(src):
+                self.assert_flagged(src, "OPENER", "OPEN_MODE")
+        self.assert_flagged("thing(opener=f)", "OPENER")        # the keyword is banned on any call
+
+    def test_attribute_access_not_only_calls(self):
+        for name in ("open", "os", "_os", "sys", "_sys", "modules", "FileType"):
+            with self.subTest(name):
+                self.assert_flagged(f"x = thing.{name}", "BANNED_ATTR")
+                self.assert_flagged(f"thing.{name}.more", "BANNED_ATTR")
+                self.assert_flagged(f"getattr(thing, {name!r})", "GETATTR")
+
+    def test_module_names_are_never_values(self):
+        for src in ("import sys\nm = sys", "import argparse\nf(argparse)", "import json\nx = [json]", "import re\nre"):
+            with self.subTest(src):
+                self.assert_flagged(src, "BARE_MODULE")
+
+    def test_attribute_allow_lists_still_let_the_package_work(self):
+        src = """
+            import argparse
+            import hashlib
+            import json
+            import os
+            import re
+            import sys
+            import datetime as dt
+
+            def f(path):
+                p = argparse.ArgumentParser(prog="x")
+                print(json.dumps({}), hashlib.sha256(b"").hexdigest(), re.fullmatch("a", "a"), dt.datetime.now(), file=sys.stderr)
+                return os.path.join(os.path.dirname(os.path.realpath(path)), "a"), sys.exit
+        """
+        self.assertEqual(rules_of(src), set())
+        self.assertEqual(rules_of("from os import path\npath.join('a', 'b')"), set())
+
+    def test_yaml_safeloader_only_in_rules_py(self):
+        src = "import yaml\nloader = yaml.SafeLoader(text)\nnode = loader.get_single_node()\nloader.dispose()\nyaml.MappingNode"
+        self.assertEqual(rules_of(src, filename="rules.py"), set())
+        self.assert_flagged(src, "YAML")                                           # no file name
+        self.assert_flagged(src, "YAML", filename="loader.py")
+        self.assert_flagged(src, "YAML", is_writer=True, filename="_report_writer.py")
+        for src in ("import yaml\nyaml.load(s)", "import yaml\nyaml.Loader", "import yaml\nyaml.UnsafeLoader", "import yaml\nyaml.FullLoader",
+                    "import yaml\nyaml.CSafeLoader", "import yaml\nyaml.safe_load(s, Loader=yaml.SafeLoader)",
+                    "import yaml\nyaml.SafeLoader(s, Loader=L)", "import yaml\nyaml.constructor"):
+            with self.subTest(src):
+                self.assert_flagged(src, "YAML", filename="rules.py")
+
+
+class WriterFlagList(unittest.TestCase):
+    """Inside the writer the os.O_* flags are an explicit list, and getattr may only fetch the known optional flags."""
+
+    def test_explicit_flags_only(self):
+        for flag in ("O_TRUNC", "O_RDWR", "O_APPEND", "O_NONBLOCK", "O_SYNC", "O_TMPFILE"):
+            with self.subTest(flag):
+                self.assertIn("WRITER_ATTR", rules_of(f"import os\nx = os.{flag}", is_writer=True))
+        for flag in ("O_RDONLY", "O_WRONLY", "O_CREAT", "O_EXCL"):
+            with self.subTest(flag):
+                self.assertEqual(rules_of(f"import os\nx = os.{flag}", is_writer=True), set())
+        self.assertNotIn("os.O_TRUNC", ast_rules.WRITER_DOTTED)
+        self.assertFalse([d for d in ast_rules.WRITER_DOTTED if d.endswith("*")])
+
+    def test_getattr_cannot_fetch_a_flag_around_the_list(self):
+        for name in ("O_TRUNC", "O_RDWR", "O_APPEND", "replace"):
+            with self.subTest(name):
+                self.assertIn("GETATTR", rules_of(f"import os\nx = getattr(os, {name!r}, 0)", is_writer=True))
+        for name in ("O_NOFOLLOW", "O_BINARY", "O_CLOEXEC", "O_DIRECTORY"):
+            with self.subTest(name):
+                self.assertEqual(rules_of(f"import os\nx = getattr(os, {name!r}, 0)", is_writer=True), set())
+
+    def test_writer_still_cannot_reach_os_through_other_names(self):
+        self.assertIn("WRITER_ATTR", rules_of("import os\nos.path.os.open", is_writer=True))
+        self.assertIn("BANNED_ATTR", rules_of("x.os.open(p, 513)", is_writer=True))
+        self.assertTrue(rules_of("from .loader import os", is_writer=True))
 
 
 if __name__ == "__main__":

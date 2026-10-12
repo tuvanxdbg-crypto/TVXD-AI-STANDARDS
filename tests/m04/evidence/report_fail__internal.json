@@ -1,7 +1,7 @@
 {
   "schema": "tvxd.cadaudit.report/v1",
   "cadaudit_version": "0.1.0-m04a",
-  "generated_at": "2026-10-12T15:00:41+07:00",
+  "generated_at": "2026-10-12T16:59:47+07:00",
   "notice": "Báo cáo này không kết luận bản vẽ đạt tiêu chuẩn, tính hợp pháp hay sự phù hợp thiết kế.",
   "input": {
     "file_id": "F01",
@@ -118,6 +118,7 @@
       "standard_hint": null,
       "applies_to": "block_refs",
       "reads_groups": [
+        "blocks",
         "block_refs",
         "attributes"
       ],
@@ -131,7 +132,10 @@
         "UNKNOWN": 0
       },
       "evidence_ids": [
-        "CADEV:F01:31:block_name"
+        "CADEV:F01:31:block_name",
+        "CADEV:F01:FILE:coverage.attributes.status",
+        "CADEV:F01:FILE:coverage.attributes.enumerated",
+        "CADEV:F01:FILE:coverage.attributes.expected"
       ]
     },
     {
@@ -391,7 +395,10 @@
       "verdict": "FAIL",
       "reason": null,
       "evidence_ids": [
-        "CADEV:F01:31:block_name"
+        "CADEV:F01:31:block_name",
+        "CADEV:F01:FILE:coverage.attributes.status",
+        "CADEV:F01:FILE:coverage.attributes.enumerated",
+        "CADEV:F01:FILE:coverage.attributes.expected"
       ],
       "actual": null,
       "expected": "attribute DRAWING_NO present and non-empty",
@@ -471,6 +478,7 @@
       "PROPOSED": 0,
       "APPROVED": 0
     },
-    "overall": "HAS_FAIL"
+    "overall": "HAS_FAIL",
+    "all_rules_approved": false
   }
 }

@@ -33,6 +33,26 @@ class Traceability(unittest.TestCase):
                         self.assertRegex(ev, r"^CADEV:F01:([0-9A-F]+|FILE):[A-Za-z0-9_.]+$")
                         self.assertEqual(len(resolve_evidence(doc, ev)), 1)
         self.assertGreater(total, 100)
+    def test_absent_tag_fail_carries_the_proof_of_absence(self):
+        """R2: 'block reference has no such attribute' is only a FAIL because attributes is COMPLETE; the FAIL must carry
+        the evidence of that coverage (status, enumerated, expected), and those IDs must resolve and say what they prove."""
+        proof = ["CADEV:F01:FILE:coverage.attributes.status", "CADEV:F01:FILE:coverage.attributes.enumerated",
+                 "CADEV:F01:FILE:coverage.attributes.expected"]
+        doc = read_json(fx("cad_read_fail.json"))
+        rep = run_audit(read_bytes(fx("cad_read_fail.json")), read_bytes(fx("rules_internal.yaml")), TS)
+        rows = [r for r in rep["results"] if r["rule_id"] == "R-TITLE-ATTR" and r["verdict"] == "FAIL"]
+        self.assertTrue(rows)
+        rule = next(x for x in rep["rules"] if x["rule_id"] == "R-TITLE-ATTR")
+        for item in rows + [rule]:
+            for ev in proof:
+                self.assertIn(ev, item["evidence_ids"])
+            self.assertTrue(any(ev.endswith(":block_name") for ev in item["evidence_ids"]))   # the parent block reference too
+        for row in rows:
+            status, enumerated, expected = (resolve_evidence(doc, ev) for ev in proof)
+            self.assertEqual((status, enumerated == expected and len(enumerated) == 1), (["COMPLETE"], True))
+            self.assertEqual(enumerated, [len(doc["attributes"])])
+            tag = "DRAWING_NO"
+            self.assertNotIn((row["handle"], tag), {(a["parent_handle"], a["tag"]) for a in doc["attributes"]})   # really absent
 
     def test_ids_are_deterministic_and_follow_the_documented_form(self):
         rep = run_audit(read_bytes(fx("cad_read_fail.json")), read_bytes(fx("rules_internal.yaml")), TS)

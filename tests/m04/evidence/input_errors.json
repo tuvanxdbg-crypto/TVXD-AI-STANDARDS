@@ -54,6 +54,12 @@
       "exit_code": 2,
       "stderr": "cadaudit 0.1.0-m04a: ERROR RULES_NOT_YAML: not valid YAML for safe_load: ConstructorError",
       "report_created": false
+    },
+    {
+      "case": "rules_error_duplicate_key.yaml",
+      "exit_code": 2,
+      "stderr": "cadaudit 0.1.0-m04a: ERROR RULES_DUPLICATE_KEY: mapping key 'standard_required' appears twice in the same mapping",
+      "report_created": false
     }
   ]
 }
