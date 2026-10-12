@@ -1,19 +1,20 @@
 # CLAUDE.md — TVXD-AI-STANDARDS
 
 ## Current milestone
-M03 — GitHub governance: **ĐANG THỰC HIỆN, chưa PASS; chờ chủ repo chốt** (trạng thái ngày 2026-10-12).
+M03 — GitHub governance: **PASS** (trạng thái ngày 2026-10-12). Chủ repo chốt trong chat Claude ngày 2026-10-12, nguyên văn: "Tôi chốt M03 — GitHub governance là PASS."
 - Spec `docs/M03_GITHUB_GOVERNANCE.md`: REVIEW_V1 PASS và chủ repo phê duyệt tại `a2e8362`.
 - M03-A (CI 3 job `linux`, `windows`, `metadata`; CODEOWNERS; `tests/m03/validate_repo_metadata.py`; PR template; `docs/REVIEW_PROCESS.md`) đã merge vào `main` tại `d1b65aa` (PR #8).
 - M03-B: **PASS**. Chủ repo nghiệm thu ngày 2026-10-12 tại `60fba2f` (PR #9, merge `4db1f77`). Ruleset cho `main` (bắt buộc PR, 3 check ở chế độ strict, không bypass), Secret Protection, Push protection và phê duyệt workflow fork đã áp. Hạng mục quét lịch sử secret đạt theo tiêu chí thay thế A1 (spec §7a), không theo điều kiện gốc; A1 không chứng minh GitHub đã quét xong toàn bộ lịch sử.
 - M03-C: **PASS**. Chủ repo nghiệm thu ngày 2026-10-12 tại `fa3ed98` (PR #15, merge `c4e3190`), theo kế hoạch `docs/M03_C_VERIFICATION_PLAN.md` (PR #12). Push thẳng, force push, merge khi check đỏ và merge khi nhánh chậm hơn `main` đều bị ruleset chặn; `main` không đổi. T1/T2 chạy trên máy IT (không phải ducdq), tài khoản `tuvanxdbg-crypto` theo xác nhận của chủ repo.
-- M03-A, M03-B, M03-C đều PASS. M03 tổng thể chờ chủ repo chốt.
+- M03-A, M03-B, M03-C đều PASS; trạng thái được đồng bộ vào `main` qua PR #13 (merge `ad367a5`).
+- M04 trở đi chưa được phép. Mốc tiếp theo cần spec mới, REVIEW_V1 và chủ repo phê duyệt trực tiếp.
 - Mọi thay đổi vào `main` đi qua PR và cần 3 check xanh trên nhánh đã cập nhật theo `main`.
 
 M02 — Standards Gateway: **CLOSED (bounded)**. The owner decided this in the Claude chat on 2026-10-09, on the proposal reviewed at `dd21083` (docs/M02_CLOSEOUT_PROPOSAL.md).
 - The closure covers the contract-v2 offline validation on Linux and Windows.
 - It also covers one bounded live stage B: Q-S1, sent with the scope of notebook `8ca84143-…` and its three mapped sources, which returned evidence only from TCVN-8794-2011.
 - PR #5 is merged only on the owner's separate approval of an exact SHA.
-- Mốc tiếp theo là M03 (xem trên). M04 trở đi chưa được phép.
+- Mốc tiếp theo là M03, nay đã PASS (xem trên). M04 trở đi chưa được phép.
 - M01 (NotebookLM content-read-only pilot) is closed. Every M01 and M02 rule below stays in force.
 
 ## M02 rules (closed milestone; still in force)
