@@ -1,0 +1,79 @@
+PS C:\Users\BOSS\AppData\Local\Temp\m03c-20261012-102858\m03c-probe> & {
+>>   Assert-Repo
+>>   Invoke-Git config user.name "tuvanxdbg-crypto"
+>>   Invoke-Git config user.email "319632382+tuvanxdbg-crypto@users.noreply.github.com"
+>>   Assert-Head $MAIN_BEFORE "Sau-cau-hinh"
+>>   "CAU HINH OK"
+>> }
+Sau-cau-hinh : HEAD = 1071a85233728508fc47bc8005571fed1ad13c32
+CAU HINH OK
+PS C:\Users\BOSS\AppData\Local\Temp\m03c-20261012-102858\m03c-probe> & {
+>>   Assert-Repo
+>>   Assert-Head $MAIN_BEFORE "T1-chuan-bi"
+>>   Assert-MainBefore "T1-truoc"
+>>   Invoke-Git commit --allow-empty -m "M03-C T1 probe: phai bi tu choi"
+>>   $t1  = Invoke-Git rev-parse HEAD
+>>   $t1p = Invoke-Git rev-parse "HEAD~1"
+>>   if ($t1 -notmatch '^[0-9a-f]{40}$' -or $t1 -eq $MAIN_BEFORE -or $t1p -ne $MAIN_BEFORE) { throw "Commit T1 khong dung (HEAD=$t1, cha=$t1p). Khong push. Dung lai." }
+>>   "T1 commit = $t1 (cha = $t1p)"
+>>   & git push origin "${t1}:refs/heads/main"
+>>   "T1 push exit = $LASTEXITCODE"
+>>   Assert-MainBefore "T1-sau"
+>> }
+T1-chuan-bi : HEAD = 1071a85233728508fc47bc8005571fed1ad13c32
+T1-truoc : main tren GitHub = 1071a85233728508fc47bc8005571fed1ad13c32
+[detached HEAD 4f49a39] M03-C T1 probe: phai bi tu choi
+T1 commit = 4f49a3971ec9117eb533aaff31442d7038f29f90 (cha = 1071a85233728508fc47bc8005571fed1ad13c32)
+Enumerating objects: 1, done.
+Counting objects: 100% (1/1), done.
+Writing objects: 100% (1/1), 223 bytes | 223.00 KiB/s, done.
+Total 1 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: Review all repository rules at https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/rules?ref=refs%2Fheads%2Fmain
+remote:
+remote: - Changes must be made through a pull request.
+remote:
+remote: - 3 of 3 required status checks are expected.
+remote:
+To https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS.git
+ ! [remote rejected] 4f49a3971ec9117eb533aaff31442d7038f29f90 -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS.git'
+T1 push exit = 1
+T1-sau : main tren GitHub = 1071a85233728508fc47bc8005571fed1ad13c32
+PS C:\Users\BOSS\AppData\Local\Temp\m03c-20261012-102858\m03c-probe> & { Assert-Repo; Invoke-Git switch --detach $MAIN_BEFORE; Assert-Head $MAIN_BEFORE "Sau-T1" }
+Warning: you are leaving 1 commit behind, not connected to
+any of your branches:
+
+  4f49a39 M03-C T1 probe: phai bi tu choi
+
+If you want to keep it by creating a new branch, this may be a good time
+to do so with:
+
+ git branch <new-branch-name> 4f49a39
+
+HEAD is now at 1071a85 Merge pull request #12 from tuvanxdbg-crypto/claude/m03c-plan
+Sau-T1 : HEAD = 1071a85233728508fc47bc8005571fed1ad13c32
+PS C:\Users\BOSS\AppData\Local\Temp\m03c-20261012-102858\m03c-probe> & {
+>>   Assert-Repo
+>>   Assert-Head $MAIN_BEFORE "T2-chuan-bi"
+>>   Assert-MainBefore "T2-truoc"
+>>   & git push --force-with-lease="refs/heads/main:$MAIN_BEFORE" origin "${PARENT}:refs/heads/main"
+>>   "T2 push exit = $LASTEXITCODE"
+>>   Assert-MainBefore "T2-sau"
+>> }
+T2-chuan-bi : HEAD = 1071a85233728508fc47bc8005571fed1ad13c32
+T2-truoc : main tren GitHub = 1071a85233728508fc47bc8005571fed1ad13c32
+Total 0 (delta 0), reused 0 (delta 0), pack-reused 0 (from 0)
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: Review all repository rules at https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/rules?ref=refs%2Fheads%2Fmain
+remote:
+remote: - Cannot force-push to this branch
+remote:
+remote: - Changes must be made through a pull request.
+remote:
+To https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS.git
+ ! [remote rejected] 4db1f77be95c6fde60463614be5cc8c10fe97313 -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS.git'
+T2 push exit = 1
+T2-sau : main tren GitHub = 1071a85233728508fc47bc8005571fed1ad13c32
+PS C:\Users\BOSS\AppData\Local\Temp\m03c-20261012-102858\m03c-probe>
