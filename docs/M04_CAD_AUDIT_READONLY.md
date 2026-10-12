@@ -100,8 +100,20 @@ Schema JSON (draft 2020-12, chỉ dùng tập từ khóa mà validator hỗ tr�
 - **Độ phủ (`coverage`), theo từng nhóm** (`layers`, `blocks`, `block_refs`, `attributes`, `texts`, `dimensions`, `xrefs`, `units`):
   - `status`: `COMPLETE`, `INCOMPLETE` hoặc `NOT_EXTRACTED`;
   - `expected` và `enumerated`: số đếm;
-  - `reason` khi không `COMPLETE`.
+  - `reason`: `null` hoặc một mã trong danh sách đóng `XREF_DEPENDENT`, `READ_ERROR`, `TIMEOUT`, `PARTIAL_ENUMERATION`, `NOT_REQUESTED`, kèm `note` tùy chọn.
   Bài học từ Pilot 01B: không được coi "không thấy lỗi" là "đạt" khi chưa đọc hết.
+- **Bất biến độ phủ.** Kiểm ngữ nghĩa ngay sau khi kiểm schema. Vi phạm bất kỳ dòng nào là lỗi input `COVERAGE_INCONSISTENT`: dừng hẳn, không sinh báo cáo. Gọi `N` là số phần tử thực có trong mảng của nhóm đó.
+
+  | `status` | `expected` | `enumerated` | `reason` | Mảng đối tượng |
+  |---|---|---|---|---|
+  | `COMPLETE` | số nguyên ≥ 0 | bằng `expected` | `null` | `N` = `enumerated` |
+  | `INCOMPLETE` | số nguyên ≥ 0, hoặc `null` khi không biết tổng | nhỏ hơn `expected` khi `expected` có giá trị; ≥ 0 khi `expected` là `null` | khác `null` | `N` = `enumerated` |
+  | `NOT_EXTRACTED` | `null` | 0 | khác `null` | rỗng (`N` = 0) |
+
+  Mảng của một nhóm có phần tử mà `coverage` của nhóm đó không có, hoặc ngược lại, cũng là `COVERAGE_INCONSISTENT`.
+- **Tham chiếu chéo.** Handle cha của `attributes` phải có trong `block_refs`.
+  - Khi `block_refs` là `COMPLETE`: handle cha không tìm thấy là lỗi input `DANGLING_REFERENCE`.
+  - Khi `block_refs` không `COMPLETE`: handle cha không tìm thấy được chấp nhận, nhưng mọi quy tắc cần đối tượng cha cho kết quả UNKNOWN (`COVERAGE_INCOMPLETE`).
 - **Đối tượng.** Mỗi đối tượng có `handle` (chuỗi hex của AutoCAD, duy nhất trong file) và `space` (`MODEL`, hoặc tên layout):
   - `layers`: tên, màu, linetype, lineweight, plot, frozen/off/locked;
   - `blocks` (định nghĩa): tên, `is_xref_dependent`, số entity;
@@ -170,26 +182,75 @@ Các kiểu `check` được phép, danh sách đóng, không có biểu thức 
   - `FIELD_MISSING`: trường cần kiểm là `null`;
   - `STANDARD_LOOKUP_NOT_ENABLED`;
   - `NO_OBJECTS_IN_SCOPE`: selector không chọn được đối tượng nào, nên không kết luận là đạt.
-- **Lỗi input** dừng hẳn với mã lỗi rõ ràng, không sinh báo cáo một phần:
+- **Nhóm dữ liệu mà một quy tắc đọc** (`reads_groups`): gồm nhóm `applies_to` cộng mọi nhóm mà `selector` hoặc `check` tham chiếu, ví dụ selector lọc `block_refs` theo layer thì đọc cả `layers`. Danh sách này tính tất định khi nạp quy tắc và in vào báo cáo.
+- **Verdict theo từng đối tượng**, xét theo thứ tự, dừng ở dòng đầu tiên khớp:
+  1. Quy tắc `STANDARD_REQUIRED`: UNKNOWN (`STANDARD_LOOKUP_NOT_ENABLED`), bất kể dữ liệu.
+  2. Trường cần kiểm là `null`, hoặc đối tượng tham chiếu không có vì nhóm liên quan không `COMPLETE`: UNKNOWN (`FIELD_MISSING` hoặc `COVERAGE_INCOMPLETE`).
+  3. Áp `check`: FAIL nếu vi phạm, PASS nếu không.
+  Một FAIL luôn có evidence ID trỏ tới đúng giá trị vi phạm. Không có FAIL suy luận, kiểu "thiếu đối tượng nên coi là sai".
+- **Verdict theo từng quy tắc**, xét theo thứ tự, dừng ở dòng đầu tiên khớp:
+  1. Quy tắc `STANDARD_REQUIRED`: UNKNOWN (`STANDARD_LOOKUP_NOT_ENABLED`).
+  2. Có ít nhất một đối tượng FAIL: FAIL. FAIL được giữ cả khi độ phủ chưa đủ, vì đã có bằng chứng trực tiếp. Khi đó báo cáo ghi thêm `coverage_complete: false` cạnh FAIL.
+  3. Có nhóm trong `reads_groups` không `COMPLETE`: UNKNOWN (`COVERAGE_INCOMPLETE`). Không bao giờ PASS.
+  4. Không có đối tượng nào trong phạm vi: UNKNOWN (`NO_OBJECTS_IN_SCOPE`).
+  5. Có ít nhất một đối tượng UNKNOWN: UNKNOWN, với lý do của đối tượng đó (nhiều lý do thì liệt kê đủ).
+  6. Còn lại, mọi đối tượng đều PASS: PASS.
+- **Tổng hợp cả báo cáo:** đếm số quy tắc theo verdict. Không có trường nào mang nghĩa "bản vẽ đạt". Trường `overall` chỉ nhận `HAS_FAIL`, `HAS_UNKNOWN` (khi không có FAIL) hoặc `ALL_RULES_PASS`. Giá trị cuối cùng chỉ có khi mọi quy tắc đều PASS, và luôn đi kèm `rule_status` của từng quy tắc.
+- **Lỗi input** dừng hẳn với mã lỗi rõ ràng, không sinh báo cáo, kể cả báo cáo một phần:
   - input sai schema;
   - `read_mode` khác `READ_ONLY`;
   - handle trùng;
-  - quy tắc sai schema.
+  - `COVERAGE_INCONSISTENT`, `DANGLING_REFERENCE`;
+  - quy tắc sai schema, hoặc cấu hình mâu thuẫn theo D4.
 - **Tất định:** cùng input và cùng quy tắc thì cho cùng báo cáo, so theo byte, trừ một trường thời gian được tách riêng.
 
 ### D6. Không có quyền ghi CAD
 
+**Bất biến cần giữ:** `cadaudit` không bao giờ mở một file **đã tồn tại** để ghi. Nó cũng không cắt ngắn, thay thế, đổi tên hay xóa file đã tồn tại nào, ngoài file tạm do chính nó vừa tạo. Mọi lần ghi đều là tạo mới độc quyền. Vì vậy, kể cả khi đường dẫn bị đánh tráo, công cụ cũng chỉ có thể tạo thêm một file mới, không thể sửa một bản vẽ đang có.
+
 Ba lớp:
-1. **Thiết kế:** `cadaudit/` chỉ đọc file JSON/YAML và ghi đúng một file báo cáo tại `--out`.
-   - Từ chối `--out` trùng input, có đuôi `.dwg`/`.dxf`/`.bak`, hoặc nằm trong thư mục của input.
-   - Không mở file nào khác.
-2. **Kiểm tĩnh** bằng test trong `tests/m04/`: quét mã nguồn `cadaudit/` và báo lỗi nếu xuất hiện:
-   - import `win32com`, `comtypes`, `pythoncom`, `subprocess`, `socket`, `ctypes`;
-   - chuỗi `AutoCAD.Application`;
-   - lời gọi `os.system`, `os.remove`, `shutil.move`, `shutil.copy*`;
-   - lời gọi `open(...)` ở chế độ ghi ngoài một hàm ghi báo cáo duy nhất.
-   Có test âm chứng minh bộ quét bắt được từng mẫu.
-3. **Ranh giới repo:** TVXD-AI-STANDARDS không chứa code LISP, COM hay script mở DWG. `tests/m03/validate_repo_metadata.py` không đổi trong M04-A.
+
+**1. Đọc input.** File JSON và YAML chỉ được mở ở chế độ đọc (`rb`). Không mở file nào khác.
+
+**2. Ghi báo cáo: bộ ghi duy nhất `cadaudit/_report_writer.py`, fail-closed.**
+- **Kiểm `--out` trước khi ghi.** Từ chối và thoát mã khác 0, không tạo file nào, nếu:
+  - đuôi không phải `.json` (danh sách cho phép, không phải danh sách cấm);
+  - `--out` đã tồn tại dưới bất kỳ dạng nào: file, thư mục, symlink (kể cả symlink hỏng), hard link, junction hay reparse point. Không có tùy chọn ghi đè;
+  - thư mục cha không tồn tại hoặc không phải thư mục thật;
+  - đường dẫn tuyệt đối của thư mục cha khác với kết quả `os.path.realpath` của nó (so không phân biệt hoa thường trên Windows), tức là trên đường đi có symlink, junction hay reparse point. Đường dẫn dạng 8.3 (ví dụ `DUCDQ~1.TVX`) cũng lệch so với `realpath` và bị từ chối an toàn. Người dùng truyền đường dẫn dạng đầy đủ; thông báo lỗi phải nói rõ điều này (bài học từ M03-C);
+  - thư mục cha trùng, hoặc nằm trong, thư mục chứa file input hay file quy tắc;
+  - `--out` trùng input hoặc file quy tắc (so bằng đường dẫn đã chuẩn hóa và `os.path.samefile` khi có).
+- **Ghi:**
+  1. Dựng toàn bộ nội dung báo cáo trong bộ nhớ.
+  2. Tạo file tạm có tên ngẫu nhiên dạng `.cadaudit-tmp-<random>.json` trong thư mục cha đã kiểm. Mở bằng `os.open` với `O_CREAT | O_EXCL | O_WRONLY`, thêm `O_NOFOLLOW` khi hệ điều hành có và `O_BINARY` trên Windows.
+     - Trên POSIX, thư mục cha được mở bằng `O_DIRECTORY | O_NOFOLLOW`. Mọi thao tác tạo, link và xóa dùng `dir_fd` của thư mục này, để thư mục cha không bị đánh tráo giữa lúc kiểm và lúc ghi.
+  3. Ghi đủ nội dung, `flush` và `fsync`, rồi đóng.
+  4. **Công bố không thay thế:** POSIX dùng `os.link(tmp, out)`, lệnh này thất bại nếu `out` đã có, rồi xóa tên tạm. Windows dùng `os.rename(tmp, out)`, lệnh này thất bại nếu `out` đã có. Không dùng `os.replace`.
+  5. Có lỗi ở bất kỳ bước nào: xóa file tạm (chỉ file tạm do chính lần chạy này tạo), thoát mã khác 0, không để lại file `out`. Không có báo cáo một phần.
+- **Sau khi ghi:** kiểm `out` là file thường, `st_nlink == 1`, và `sha256` khớp nội dung đã dựng. Không khớp thì báo lỗi, không xóa gì, vì không chắc file đó là của mình.
+- **Phần còn hở, ghi rõ:**
+  - Windows không có `dir_fd`. Nếu thư mục cha bị đánh tráo đúng lúc giữa lúc kiểm và lúc ghi, báo cáo có thể bị tạo ở chỗ khác. Bất biến ở đầu mục vẫn giữ: không file nào đang có bị sửa.
+  - Nếu tiến trình bị giết giữa chừng, file `.cadaudit-tmp-*` có thể còn lại. Công cụ không tự xóa file nào khi khởi động; file tạm không bao giờ được coi là báo cáo.
+
+**3. Kiểm tĩnh theo danh sách cho phép, dùng AST** (test trong `tests/m04/`, chạy trên mọi file `.py` của `cadaudit/`):
+- **Import:**
+  - chỉ được import module có trong danh sách cho phép: thư viện chuẩn cần thiết như `json`, `re`, `hashlib`, `argparse`, `os`, `os.path`, `stat`, `errno`, `sys`, `secrets`, `datetime`, `dataclasses`, `typing`, `functools`; cùng `yaml`. Module ngoài danh sách là lỗi;
+  - cấm hẳn `subprocess`, `socket`, `ctypes`, `win32com`, `comtypes`, `pythoncom`, `importlib`, `shutil`, `pathlib`, `io`, `tempfile`;
+  - cấm `import ... as ...` với `os` và `yaml`; `from os import ...` chỉ cho tên trong danh sách cho phép.
+- **Lời gọi và thuộc tính:**
+  - ngoài `_report_writer.py`, mọi lời gọi hay truy cập thuộc tính có tên `write`, `write_text`, `write_bytes`, `writelines`, `truncate`, `unlink`, `remove`, `rename`, `replace`, `link`, `symlink`, `rmdir`, `mkdir`, `makedirs`, `chmod`, `chown`, `utime` đều là lỗi, bất kể đối tượng gọi là gì; cùng với `os.open`, `os.system`, `os.fdopen`;
+  - ngoài `_report_writer.py`, `open(...)` chỉ được gọi với mode là chuỗi hằng `"rb"` hoặc `"r"`. Mode không phải hằng cũng là lỗi;
+  - trong `_report_writer.py`, chỉ được dùng đúng tập lời gọi mà mục 2 cần, liệt kê sẵn trong test.
+- **Truy cập động và YAML:**
+  - cấm `__import__`, `eval`, `exec`, `compile`, `globals`, `vars`, `setattr`, `delattr`, truy cập `__dict__` hay `__builtins__`;
+  - `getattr` chỉ được dùng với tên thuộc tính là chuỗi hằng không thuộc danh sách cấm ở trên;
+  - chỉ `yaml.safe_load`; cấm `yaml.load`, `yaml.unsafe_load`, `yaml.full_load` và mọi tham số `Loader=`.
+- **Chuỗi:** cấm chuỗi `AutoCAD.Application`.
+- **Test âm:** mỗi luật có ít nhất một đoạn mã mẫu vi phạm, và bộ quét phải bắt được. Các mẫu gồm `Path(...).write_text`, `p.open("w")`, `os.open`, `os.replace`, `os.rename`, `os.unlink`, `f.write` ngoài bộ ghi, `import os as o` rồi `o.remove`, `from os import remove`, `__import__("os")`, `importlib.import_module`, `getattr(os, "remove")`, `getattr(os, name)`, `eval`, `exec`, `subprocess`, `ctypes`, `win32com`, `socket`, `yaml.load`.
+
+Kiểm tĩnh là lớp bổ sung, không thay cho kiểm lúc chạy ở lớp 2.
+
+**4. Ranh giới repo:** TVXD-AI-STANDARDS không chứa code LISP, COM hay script mở DWG. `tests/m03/validate_repo_metadata.py` không đổi trong M04-A.
 
 ### D7. Fixture và test: `tests/m04/`
 
@@ -197,8 +258,21 @@ Ba lớp:
 - **Ca PASS:** dữ liệu đúng mọi quy tắc nội bộ.
 - **Ca FAIL:** sai tên layer, sai font/chiều cao text, thiếu attribute bắt buộc, dimension bị ghi đè giá trị hiển thị, xref `NOT_FOUND`.
 - **Ca UNKNOWN:** coverage `INCOMPLETE`, trường `null`, quy tắc `STANDARD_REQUIRED`, selector rỗng.
-- **Ca lỗi input:** sai schema, `read_mode: "READ_WRITE"`, handle trùng, quy tắc có kiểu `check` lạ, quy tắc có `standard_hint` mà `standard_required: false`.
-- **Bảo vệ ghi:** `--out` trỏ vào file `.dwg`, trùng input, cùng thư mục input; cùng các test âm của D6.
+- **Bất biến độ phủ (D1):** test theo bảng cho mọi tổ hợp `status` × quan hệ giữa `expected`, `enumerated`, `reason` và số phần tử thực. Tổ hợp hợp lệ được chấp nhận, mọi tổ hợp còn lại cho `COVERAGE_INCONSISTENT`. Có ca `COMPLETE` mà `enumerated` khác `expected`, và ca `COMPLETE` mà mảng thiếu phần tử.
+- **Thứ tự kết luận (D5):** mỗi dòng trong hai danh sách thứ tự có ít nhất một ca. Gồm ca FAIL cùng độ phủ không đủ (giữ FAIL, ghi `coverage_complete: false`), ca không FAIL mà độ phủ không đủ (UNKNOWN, không PASS), và ca selector đọc nhóm khác chưa `COMPLETE`.
+- **Ca lỗi input:** sai schema, `read_mode: "READ_WRITE"`, handle trùng, `COVERAGE_INCONSISTENT`, `DANGLING_REFERENCE`, quy tắc có kiểu `check` lạ, quy tắc có `standard_hint` mà `standard_required: false`.
+- **Bảo vệ ghi (D6 lớp 2), chạy trên Linux và Windows.** Mỗi ca kiểm cả ba điều: mã thoát khác 0; file đích hay file bị trỏ tới giữ nguyên `sha256` và kích thước; không còn file tạm. Các ca:
+  - `--out` đã tồn tại là file thường (có đuôi `.json`);
+  - `--out` là symlink tới một file giả mang đuôi `.dwg`;
+  - `--out` là symlink hỏng;
+  - `--out` là hard link tới file giả `.dwg`;
+  - thư mục cha là symlink (POSIX) hoặc junction (Windows);
+  - đuôi không phải `.json`;
+  - `--out` trùng input;
+  - `--out` nằm trong thư mục input;
+  - lỗi giả lập giữa lúc ghi file tạm.
+  Trên Windows, nếu tạo symlink cần quyền mà runner không có, test đó bị bỏ qua với lý do ghi rõ. Test junction và hard link vẫn phải chạy.
+- **Kiểm tĩnh (D6 lớp 3):** đủ test âm như đã liệt kê.
 - **Kiểm truy vết:** mọi evidence ID trong mọi báo cáo fixture trỏ tới đúng giá trị trong input.
 - **Kiểm tất định:** chạy hai lần, so báo cáo theo byte.
 
@@ -234,7 +308,7 @@ Theo `CLAUDE.md`, mỗi mốc nghiệm thu ghi đủ: mục tiêu, evidence yêu
 
 | Mốc | Mục tiêu | Evidence yêu cầu | Điều kiện đạt | Người duyệt |
 |---|---|---|---|---|
-| M04-A | Contract, bộ quy tắc, bộ phân loại, bộ kiểm, báo cáo, bảo vệ ghi; chạy bằng fixture | Link CI xanh của 3 job trên HEAD của PR; output `tests/m04` trên Linux và Windows; báo cáo mẫu cho từng nhóm fixture (PASS, FAIL, UNKNOWN, lỗi input); output test âm của D4 và D6; kiểm truy vết và kiểm tất định | Mọi ca fixture cho đúng verdict và lý do. Không ca `STANDARD_REQUIRED` nào ra PASS/FAIL. Mọi test âm D6 bắt đúng mẫu. Mọi evidence ID truy được về input. Báo cáo tất định. Không có code LISP/COM/DWG trong repo | REVIEW_V1 tại HEAD, chủ repo |
+| M04-A | Contract, bộ quy tắc, bộ phân loại, bộ kiểm, báo cáo, bảo vệ ghi; chạy bằng fixture | Link CI xanh của 3 job trên HEAD của PR; output `tests/m04` trên Linux và Windows; báo cáo mẫu cho từng nhóm fixture (PASS, FAIL, UNKNOWN, lỗi input); output test âm của D4 và D6; kiểm truy vết và kiểm tất định | Mọi ca fixture cho đúng verdict và lý do. Không ca `STANDARD_REQUIRED` nào ra PASS/FAIL. Không ca nào có nhóm trong `reads_groups` chưa `COMPLETE` mà ra PASS. Mọi tổ hợp độ phủ sai đều bị từ chối. Mọi ca bảo vệ ghi D6 lớp 2 đạt trên cả Linux và Windows: không file có sẵn nào bị đổi, không còn file tạm. Mọi test âm D6 lớp 3 bắt đúng mẫu. Mọi evidence ID truy được về input. Báo cáo tất định. Không có code LISP/COM/DWG trong repo | REVIEW_V1 tại HEAD, chủ repo |
 | M04-B | Chạy trên dữ liệu thật | Theo kế hoạch riêng (§6) | Theo kế hoạch riêng | REVIEW_V1, chủ repo |
 | M04-C | Tra tiêu chuẩn cho mục `STANDARD_REQUIRED` | Theo kế hoạch riêng (§6) | Theo kế hoạch riêng | REVIEW_V1, chủ repo |
 | M04 (đóng có giới hạn) | Đóng M04 sau M04-A và M04-B | Nghiệm thu M04-A và M04-B; bản ghi đóng nêu rõ phần chưa làm (M04-C) | M04-A và M04-B đều PASS; bản ghi đóng có REVIEW_V1 | Chủ repo |
