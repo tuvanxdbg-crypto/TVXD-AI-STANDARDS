@@ -47,77 +47,162 @@ Thứ tự chạy: P0, T1, T2, T4, T3, dọn dẹp.
   - lỗi mạng;
   - không đọc được trạng thái.
   Khi INVALID: dừng, không chạy probe kế tiếp, báo Claude và chủ repo. Chỉ chạy lại từ P0, với `MAIN_BEFORE` mới, khi chủ repo xác nhận trong chat.
-- Mọi lệnh force (thử T2 và khôi phục) dùng `--force-with-lease=refs/heads/main:<SHA dự kiến>`. GitHub chỉ cập nhật `main` khi giá trị hiện tại đúng bằng SHA dự kiến; nếu có thay đổi xen giữa, lệnh bị từ chối thay vì ghi đè. Không dùng `--force` trần.
+- Mọi lệnh force (thử T2 và phục hồi) dùng `--force-with-lease=refs/heads/main:<SHA dự kiến>`. GitHub chỉ cập nhật `main` khi giá trị hiện tại đúng bằng SHA dự kiến; nếu có thay đổi xen giữa, lệnh bị từ chối thay vì ghi đè. Không dùng `--force` trần.
 
 ### 4.2 T1 và T2: chủ repo chạy trên máy của mình
 
-Claude không push vào `main`, kể cả để thử (CLAUDE.md: "Do not push directly to main"). Chủ repo chạy trong PowerShell, trong một thư mục tạm, với bản clone mới.
+Claude không push vào `main`, kể cả để thử (CLAUDE.md: "Do not push directly to main"). Chủ repo chạy trong cửa sổ Windows PowerShell hoặc PowerShell 7, **không dùng PowerShell ISE**. ISE biến output stderr của `git` thành lỗi, nên khối sẽ dừng sai chỗ.
 
-**Chuẩn bị** (dán nguyên khối; thay giá trị SHA bằng giá trị Claude gửi ở P0):
+**Cơ chế dừng (fail-closed).**
+- `$ErrorActionPreference = 'Stop'` làm mọi cmdlet lỗi (`New-Item`, `Set-Location`…) dừng khối.
+- Lệnh native `git` không tự dừng khi lỗi, nên mọi lệnh `git` chuẩn bị, đọc và tạo commit đi qua hàm `Invoke-Git`. Hàm này kiểm `$LASTEXITCODE` ngay sau lệnh và `throw` khi khác 0.
+- Riêng `git push` của probe là lệnh dự kiến có thể bị từ chối. Lệnh này chạy trực tiếp, ghi lại exit code, rồi phân loại theo mục 4.1. Không có cơ chế tự `throw` cho lệnh push.
+- Mỗi khối được dán nguyên khối, dạng `& { ... }`. Một `throw` sẽ dừng toàn bộ phần còn lại của khối.
+- Trước mỗi probe, khối kiểm:
+  - đang đứng đúng thư mục clone mới;
+  - `origin` đúng URL của repo;
+  - `HEAD` đúng SHA dự kiến.
+
+**Khối 0: định nghĩa** (dán nguyên khối; thay hai giá trị SHA bằng giá trị Claude gửi ở P0):
 
 ```powershell
+$ErrorActionPreference = 'Stop'
 $MAIN_BEFORE = "<SHA 40 ký tự của MAIN_BEFORE từ P0>"
 $PARENT      = "<SHA 40 ký tự của PARENT từ P0>"
-function Get-RemoteMain { ((git ls-remote origin refs/heads/main) -split "`t")[0] }
+$REPO_URL    = "https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS.git"
+$WORK        = Join-Path $env:TEMP ("m03c-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+$CLONE       = Join-Path $WORK "m03c-probe"
+if ($MAIN_BEFORE -notmatch '^[0-9a-f]{40}$' -or $PARENT -notmatch '^[0-9a-f]{40}$') { throw "MAIN_BEFORE va PARENT phai la SHA 40 ky tu hex." }
+
+function Invoke-Git {
+  $out = & git @args
+  if ($LASTEXITCODE -ne 0) { throw "git $($args -join ' ') that bai (exit $LASTEXITCODE). Dung lai, bao Claude." }
+  $out
+}
+function Get-RemoteMain {
+  $line = Invoke-Git ls-remote $REPO_URL refs/heads/main
+  $sha = ("$line" -split "`t")[0]
+  if ($sha -notmatch '^[0-9a-f]{40}$') { throw "Khong doc duoc main tren GitHub. Dung lai, bao Claude." }
+  $sha
+}
 function Assert-MainBefore([string]$Step) {
   $now = Get-RemoteMain
   "$Step : main tren GitHub = $now"
   if ($now -ne $MAIN_BEFORE) { throw "$Step : main khac MAIN_BEFORE. Dung lai, bao Claude." }
 }
-git clone https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS.git m03c-probe
-Set-Location m03c-probe
-git switch --detach $MAIN_BEFORE
-git rev-parse HEAD "$MAIN_BEFORE~1"   # dòng 1 phải bằng MAIN_BEFORE, dòng 2 phải bằng PARENT
+function Assert-Repo {
+  if ((Get-Location).Path -ne $CLONE) { throw "Khong o thu muc clone $CLONE. Dung lai." }
+  $url = Invoke-Git remote get-url origin
+  if ($url -ne $REPO_URL) { throw "origin khong dung repo: $url. Dung lai." }
+}
+function Assert-Head([string]$Expected, [string]$Step) {
+  $h = Invoke-Git rev-parse HEAD
+  "$Step : HEAD = $h"
+  if ($h -ne $Expected) { throw "$Step : HEAD khac $Expected. Dung lai." }
+}
+"WORK = $WORK"
 ```
 
-**T1, push thẳng một commit mới** (dán nguyên khối; khối dừng ngay khi có drift):
+**Khối 1: clone mới và kiểm tra:**
 
 ```powershell
 & {
+  New-Item -ItemType Directory -Path $WORK | Out-Null
+  Set-Location $WORK
+  Invoke-Git clone $REPO_URL m03c-probe
+  Set-Location $CLONE
+  Assert-Repo
+  Invoke-Git switch --detach $MAIN_BEFORE
+  Assert-Head $MAIN_BEFORE "Chuan-bi"
+  $p = Invoke-Git rev-parse "$MAIN_BEFORE~1"
+  "Chuan-bi : cha thu nhat cua MAIN_BEFORE = $p"
+  if ($p -ne $PARENT) { throw "Cha thu nhat cua MAIN_BEFORE khac PARENT. Dung lai, bao Claude." }
+  "CHUAN BI OK"
+}
+```
+
+Chỉ chạy T1 khi khối 1 in `CHUAN BI OK`.
+
+**T1, push thẳng một commit mới:**
+
+```powershell
+& {
+  Assert-Repo
+  Assert-Head $MAIN_BEFORE "T1-chuan-bi"
   Assert-MainBefore "T1-truoc"
-  git commit --allow-empty -m "M03-C T1 probe: phai bi tu choi"
-  "T1 commit = $(git rev-parse HEAD)"
-  git push origin HEAD:refs/heads/main
-  "T1 exit = $LASTEXITCODE"
+  Invoke-Git commit --allow-empty -m "M03-C T1 probe: phai bi tu choi"
+  $t1  = Invoke-Git rev-parse HEAD
+  $t1p = Invoke-Git rev-parse "HEAD~1"
+  if ($t1 -notmatch '^[0-9a-f]{40}$' -or $t1 -eq $MAIN_BEFORE -or $t1p -ne $MAIN_BEFORE) { throw "Commit T1 khong dung (HEAD=$t1, cha=$t1p). Khong push. Dung lai." }
+  "T1 commit = $t1 (cha = $t1p)"
+  & git push origin "${t1}:refs/heads/main"
+  "T1 push exit = $LASTEXITCODE"
   Assert-MainBefore "T1-sau"
 }
-git switch --detach $MAIN_BEFORE      # bỏ commit thử ở máy
 ```
 
-- Commit T1 có cha là `MAIN_BEFORE`. Khi `main` vẫn bằng `MAIN_BEFORE`, đây là một push fast-forward hợp lệ về mặt Git, nên nếu bị từ chối thì lý do chỉ có thể đến từ phía GitHub.
-- T1 **bị chặn** khi: exit khác 0; output có dòng `! [remote rejected]` kèm lời giải thích của GitHub ở các dòng `remote:`; và cả hai dòng `T1-truoc`, `T1-sau` đều bằng `MAIN_BEFORE`.
-- **INVALID** nếu output là lỗi xác thực hoặc quyền, hoặc là `! [rejected] ... (fetch first)` hay `(non-fast-forward)` (Git từ chối ở máy vì `main` đã đổi), hoặc có drift.
-- **T1 bất ngờ thành công** khi `T1-sau` bằng đúng `T1 commit`. Khối sẽ dừng ở `T1-sau`. M03-C ghi FAIL, không chạy T2, báo Claude. Commit thử không đổi file nào (`--allow-empty`); việc gỡ nó khỏi `main` làm qua một PR revert riêng, không force push.
+Sau T1, đưa bản clone về `MAIN_BEFORE`. Bước này chỉ đổi ở máy:
 
-**T2, force push lùi `main` về `PARENT`** (chỉ chạy khi T1 bị chặn; dán nguyên khối):
+```powershell
+& { Assert-Repo; Invoke-Git switch --detach $MAIN_BEFORE; Assert-Head $MAIN_BEFORE "Sau-T1" }
+```
+
+- Commit T1 được kiểm là có cha đúng bằng `MAIN_BEFORE` trước khi push. Khi `main` vẫn bằng `MAIN_BEFORE`, đây là push fast-forward hợp lệ về mặt Git. Vì vậy nếu bị từ chối, lý do chỉ có thể đến từ phía GitHub.
+- T1 **bị chặn** khi đủ ba điều kiện:
+  - `T1 push exit` khác 0;
+  - output có dòng `! [remote rejected]`, kèm lời giải thích của GitHub ở các dòng `remote:`;
+  - cả `T1-truoc` lẫn `T1-sau` đều bằng `MAIN_BEFORE`.
+- T1 **INVALID** khi gặp một trong các trường hợp:
+  - khối dừng trước lệnh push;
+  - output là lỗi xác thực hoặc quyền;
+  - output là `! [rejected] ... (fetch first)` hay `(non-fast-forward)` (Git từ chối ngay ở máy);
+  - có drift.
+- **T1 bất ngờ thành công** khi `T1-sau` in đúng giá trị `T1 commit`. Khi đó khối dừng ở `T1-sau`, và đây là **sự cố (incident)**, xử lý như sau:
+  - M03-C ghi FAIL. Không chạy T2 hay bất kỳ probe nào khác.
+  - Giữ nguyên toàn bộ output làm evidence. Không push gì thêm, không tự đổi ruleset, không tự tìm cách gỡ commit.
+  - Hiện trạng: `main` có thêm một commit rỗng nằm trên `MAIN_BEFORE`, với cây file giống hệt `MAIN_BEFORE`. Một PR (revert hay loại khác) **không thể** xóa commit này khỏi lịch sử hay đưa ref `main` về `MAIN_BEFORE`. PR chỉ có thể thêm commit mới. Commit rỗng không đổi file nào, nên cũng không có nội dung để revert.
+  - Báo Claude. Chủ repo quyết định riêng một trong hai hướng:
+    - (a) chấp nhận commit rỗng trong lịch sử và coi nó là mốc mới. Evidence ghi rõ, và mọi lần chạy lại bắt đầu từ P0 với `MAIN_BEFORE` mới;
+    - (b) phê duyệt một kế hoạch phục hồi ref riêng, có REVIEW_V1 và phê duyệt đúng SHA, dùng lease gắn với SHA của commit T1 và cơ chế quản trị mà chủ repo chọn.
+  - Kế hoạch này không cho phép hướng (b) chạy, và không cho phép đổi ruleset để phục hồi.
+
+**T2, force push lùi `main` về `PARENT`** (chỉ chạy khi T1 bị chặn):
 
 ```powershell
 & {
+  Assert-Repo
+  Assert-Head $MAIN_BEFORE "T2-chuan-bi"
   Assert-MainBefore "T2-truoc"
-  git push --force-with-lease="refs/heads/main:$MAIN_BEFORE" origin "${PARENT}:refs/heads/main"
-  "T2 exit = $LASTEXITCODE"
+  & git push --force-with-lease="refs/heads/main:$MAIN_BEFORE" origin "${PARENT}:refs/heads/main"
+  "T2 push exit = $LASTEXITCODE"
   Assert-MainBefore "T2-sau"
 }
 ```
 
 - Lease gắn với `MAIN_BEFORE`. Nếu `main` đã đổi trước khi lệnh tới GitHub, Git trả `stale info` và không cập nhật gì; khi đó kết quả là INVALID.
-- T2 **bị chặn** khi: exit khác 0; output có `! [remote rejected]` kèm giải thích ở các dòng `remote:`; và `T2-truoc`, `T2-sau` đều bằng `MAIN_BEFORE`.
-- **T2 bất ngờ thành công** khi `T2-sau` bằng `PARENT`. M03-C ghi FAIL. Khôi phục ngay bằng khối dưới; lệnh chỉ đưa `main` về `MAIN_BEFORE` khi `main` đang đúng bằng `PARENT`, nên không ghi đè thay đổi nào xen giữa:
+- T2 **bị chặn** khi đủ ba điều kiện:
+  - `T2 push exit` khác 0;
+  - output có `! [remote rejected]`, kèm giải thích ở các dòng `remote:`;
+  - `T2-truoc` và `T2-sau` đều bằng `MAIN_BEFORE`.
+- **T2 bất ngờ thành công** khi `T2-sau` bằng `PARENT`. Đây là sự cố, và M03-C ghi FAIL. Chủ repo chạy khối phục hồi dưới **một lần**. Khối chỉ đưa ref `main` về `MAIN_BEFORE` khi `main` đang đúng bằng `PARENT`, nên không ghi đè thay đổi nào xen giữa. Vì lệnh T2 vừa được GitHub chấp nhận, lệnh cùng loại này dự kiến cũng được chấp nhận:
 
 ```powershell
 & {
+  Assert-Repo
   $now = Get-RemoteMain
-  "Truoc khoi phuc: main tren GitHub = $now"
-  if ($now -ne $PARENT) { throw "main khong bang PARENT. Khong khoi phuc bang lenh nay, bao Claude." }
-  git push --force-with-lease="refs/heads/main:$PARENT" origin "${MAIN_BEFORE}:refs/heads/main"
-  "Khoi phuc exit = $LASTEXITCODE"
-  Assert-MainBefore "Sau-khoi-phuc"
+  "Truoc phuc hoi: main tren GitHub = $now"
+  if ($now -ne $PARENT) { throw "main khong bang PARENT. Khong phuc hoi bang lenh nay, bao Claude." }
+  & git push --force-with-lease="refs/heads/main:$PARENT" origin "${MAIN_BEFORE}:refs/heads/main"
+  "Phuc hoi push exit = $LASTEXITCODE"
+  Assert-MainBefore "Sau-phuc-hoi"
 }
 ```
 
-  Nếu khối khôi phục dừng hoặc lệnh push bị từ chối: không thử lại, không đổi ruleset. Báo Claude; việc khôi phục chuyển sang một PR riêng đưa nội dung `main` về đúng cây của `MAIN_BEFORE`, qua review như mọi PR khác.
-- Ghi nguyên văn toàn bộ output của các khối T1, T2 (và khối khôi phục nếu có chạy). Thông báo từ chối ghi đúng như in ra, không chép lại theo trí nhớ.
-- **Giới hạn đã biết:** ruleset có cả rule "bắt buộc PR" lẫn rule "chặn force push". Một lần push bị từ chối có thể do một hoặc cả hai rule. Evidence ghi nguyên văn các rule GitHub nêu ra, không suy diễn thêm.
+  Nếu khối phục hồi dừng hoặc push bị từ chối: không thử lại, không đổi ruleset, giữ evidence, báo Claude. Chủ repo quyết định riêng cách xử lý. Một PR đưa nội dung về cây của `MAIN_BEFORE` chỉ khôi phục **nội dung file**, không khôi phục ref: `main` sẽ có thêm commit mới, không quay về đúng SHA `MAIN_BEFORE`.
+- Ghi nguyên văn toàn bộ output của khối 1, T1, T2 (và khối phục hồi nếu có chạy). Thông báo từ chối ghi đúng như in ra, không chép lại theo trí nhớ.
+- **Giới hạn đã biết:**
+  - ruleset có cả rule "bắt buộc PR" lẫn rule "chặn force push". Một lần push bị từ chối có thể do một hoặc cả hai rule. Evidence ghi nguyên văn các rule GitHub nêu ra, không suy diễn thêm;
+  - các khối PowerShell này chưa từng chạy trước M03-C. Nếu một khối dừng vì lỗi cú pháp hoặc môi trường trước lệnh push, kết quả là INVALID, không phải FAIL.
 
 ### 4.3 T4 và T3: PR thử, Claude chuẩn bị, chỉ đọc trạng thái
 
@@ -160,7 +245,7 @@ Claude tạo nhánh thử `claude/m03c-probe` **tách từ `PARENT`**, nên nhá
 
 Ghi trong `tests/m03/evidence/github-ruleset-<ngày>-m03c/`, qua một PR riêng có REVIEW_V1:
 - ruleset JSON đọc lại ở P0, kèm `MAIN_BEFORE` và `PARENT` (SHA đầy đủ);
-- output nguyên văn của các khối T1 và T2 (gồm các dòng kiểm drift trước/sau, `T1 commit`, exit code), và khối khôi phục nếu có chạy;
+- output nguyên văn của khối 1, T1 và T2 (gồm các dòng kiểm drift trước/sau, `HEAD`, `T1 commit` và cha của nó, exit code), và khối phục hồi nếu có chạy;
 - link PR thử, link các run CI (xanh ở T4, đỏ ở T3), ở mỗi bước: `head.sha`, `draft`, `mergeable_state`, `ahead_by`, `behind_by`, `merge_base_commit.sha`, danh sách file, SHA của `main` trước/sau; ảnh hộp merge;
 - mọi kết quả INVALID và lý do, nếu có;
 - xác nhận dọn dẹp: PR thử đã đóng và không merge, nhánh đã xóa, `main` vẫn bằng `MAIN_BEFORE` (trừ khi có PR thật khác merge xen giữa, khi đó ghi rõ);
@@ -174,7 +259,7 @@ Không ghi token, mật khẩu hay bất kỳ dữ liệu đăng nhập nào.
 - `main` sau kiểm chứng vẫn ở `MAIN_BEFORE`, hoặc chỉ thay đổi do PR thật đã được duyệt.
 - Có REVIEW_V1 PASS tại HEAD của PR evidence, và chủ repo nghiệm thu.
 
-Chỉ cần một tình huống không bị chặn là M03-C FAIL. Khi đó dừng, khôi phục theo mục 4.2 và báo chủ repo, không tự sửa ruleset. Một tình huống INVALID không phải FAIL, nhưng M03-C chưa đạt cho tới khi chạy lại hợp lệ.
+Chỉ cần một tình huống không bị chặn là M03-C FAIL. Khi đó dừng, xử lý sự cố theo mục 4.2 và báo chủ repo, không tự sửa ruleset. Một tình huống INVALID không phải FAIL, nhưng M03-C chưa đạt cho tới khi chạy lại hợp lệ.
 
 ## 7. Phân vai
 
