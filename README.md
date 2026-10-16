@@ -34,14 +34,15 @@ Trạng thái ngày 2026-10-12:
 - **M03-A đã merge** (PR #8). Workflow `ci` chạy 3 job offline `linux`, `windows`, `metadata` cho mọi PR vào `main`: token chỉ đọc, không secret, không NotebookLM.
 - **M03-B: PASS**, chủ repo nghiệm thu ngày 2026-10-12 (PR #9). Ruleset `main` bắt buộc PR và 3 check ở chế độ strict, chặn force push và xóa nhánh, không bypass. Secret Protection và Push protection đã bật. Quét lịch sử secret đạt theo tiêu chí thay thế A1 (spec §7a).
 - **M03-C: PASS**, chủ repo nghiệm thu ngày 2026-10-12 (PR #15). Push thẳng, force push, merge khi check đỏ và merge khi nhánh chậm hơn `main` đều bị chặn. Kế hoạch: [docs/M03_C_VERIFICATION_PLAN.md](docs/M03_C_VERIFICATION_PLAN.md).
-- **M03: PASS**, chủ repo chốt ngày 2026-10-12. M04 trở đi chưa được phép.
+- **M03: PASS**, chủ repo chốt ngày 2026-10-12. Mốc tiếp theo: M04 (xem dưới).
 
-## M04 — CAD audit chỉ đọc (M04-A đã triển khai, chờ review)
+## M04 — CAD audit chỉ đọc (M04-A đã nghiệm thu, M04 chưa đóng)
 
 Spec: [docs/M04_CAD_AUDIT_READONLY.md](docs/M04_CAD_AUDIT_READONLY.md), duyệt tại `a031fc2`. Chủ repo cho phép triển khai M04-A ngày 2026-10-12.
 
 Trạng thái:
-- **M04-A: đã triển khai, chờ REVIEW_V1 và nghiệm thu của chủ repo.** Chưa phải PASS.
+- **M04-A: nghiệm thu**, chủ repo nghiệm thu ngày 2026-10-16 tại `c486c8e` (PR #18). REVIEW_V1 PASS tại SHA đó.
+- M04 chưa đóng: theo spec §6, M04 chỉ đóng có giới hạn sau khi M04-A và M04-B đều được nghiệm thu.
 - Chỉ dùng dữ liệu fixture giả (`tests/m04/fixtures/`). Không có AutoCAD, không có file DWG/DXF, không có bản vẽ thật, không gọi Gateway hay NotebookLM.
 - M04-B (chạy trên bản trích xuất thật), M04-C (tra tiêu chuẩn), M05 và M06 chưa được phép.
 
