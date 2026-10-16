@@ -1,0 +1,449 @@
+{
+  "schema": "tvxd.cadaudit.report/v1",
+  "cadaudit_version": "0.1.0-m04a",
+  "generated_at": "2026-10-12T16:59:47+07:00",
+  "notice": "Báo cáo này không kết luận bản vẽ đạt tiêu chuẩn, tính hợp pháp hay sự phù hợp thiết kế.",
+  "input": {
+    "file_id": "F01",
+    "input_sha256": "fbcb9fed50a67fe29809d1b280e674c1f75f123c28c8daa4ed10b8d72fa73810",
+    "dwg_sha256": "3204bdd0167382886f61364664fc8462275235539994f782c959f31cab902a79"
+  },
+  "rules_file": {
+    "sha256": "3eabb093d50158a2266ae8da67006a9a054896e7f3278f73ff0bea558a73b8d5",
+    "rules_version": "fixture-internal.1"
+  },
+  "rules": [
+    {
+      "rule_id": "R-LAYER-NAME",
+      "title": "FIXTURE: layer name starts with A- and uses upper-case words",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "layers",
+      "reads_groups": [
+        "layers"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "COVERAGE_INCOMPLETE"
+      ],
+      "coverage_complete": false,
+      "objects_in_scope": 4,
+      "counts": {
+        "PASS": 4,
+        "FAIL": 0,
+        "UNKNOWN": 0
+      },
+      "evidence_ids": [
+        "CADEV:F01:FILE:coverage.layers.status"
+      ]
+    },
+    {
+      "rule_id": "R-BLOCK-NAME",
+      "title": "FIXTURE: block definition names are upper-case words",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "blocks",
+      "reads_groups": [
+        "blocks"
+      ],
+      "verdict": "PASS",
+      "reasons": [],
+      "coverage_complete": true,
+      "objects_in_scope": 2,
+      "counts": {
+        "PASS": 2,
+        "FAIL": 0,
+        "UNKNOWN": 0
+      },
+      "evidence_ids": []
+    },
+    {
+      "rule_id": "R-TEXT-FONT",
+      "title": "FIXTURE: annotation text uses an allowed font",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "texts",
+      "reads_groups": [
+        "layers",
+        "texts"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "COVERAGE_INCOMPLETE"
+      ],
+      "coverage_complete": false,
+      "objects_in_scope": 2,
+      "counts": {
+        "PASS": 1,
+        "FAIL": 0,
+        "UNKNOWN": 1
+      },
+      "evidence_ids": [
+        "CADEV:F01:FILE:coverage.layers.status"
+      ]
+    },
+    {
+      "rule_id": "R-TEXT-HEIGHT",
+      "title": "FIXTURE: annotation text height between 2.5 and 3.5",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "texts",
+      "reads_groups": [
+        "layers",
+        "texts"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "COVERAGE_INCOMPLETE"
+      ],
+      "coverage_complete": false,
+      "objects_in_scope": 2,
+      "counts": {
+        "PASS": 2,
+        "FAIL": 0,
+        "UNKNOWN": 0
+      },
+      "evidence_ids": [
+        "CADEV:F01:FILE:coverage.layers.status"
+      ]
+    },
+    {
+      "rule_id": "R-TITLE-ATTR",
+      "title": "FIXTURE: title block has a non-empty DRAWING_NO attribute",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "block_refs",
+      "reads_groups": [
+        "blocks",
+        "block_refs",
+        "attributes"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "COVERAGE_INCOMPLETE"
+      ],
+      "coverage_complete": false,
+      "objects_in_scope": 1,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "UNKNOWN": 1
+      },
+      "evidence_ids": [
+        "CADEV:F01:FILE:coverage.attributes.status"
+      ]
+    },
+    {
+      "rule_id": "R-DIM-OVERRIDE",
+      "title": "FIXTURE: dimension display value equals the measured value",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "dimensions",
+      "reads_groups": [
+        "dimensions"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "COVERAGE_INCOMPLETE"
+      ],
+      "coverage_complete": false,
+      "objects_in_scope": 0,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "UNKNOWN": 0
+      },
+      "evidence_ids": [
+        "CADEV:F01:FILE:coverage.dimensions.status"
+      ]
+    },
+    {
+      "rule_id": "R-DIM-SCALE",
+      "title": "FIXTURE: DIMSCALE is 1",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "dimensions",
+      "reads_groups": [
+        "dimensions"
+      ],
+      "verdict": "UNKNOWN",
+      "reasons": [
+        "COVERAGE_INCOMPLETE"
+      ],
+      "coverage_complete": false,
+      "objects_in_scope": 0,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 0,
+        "UNKNOWN": 0
+      },
+      "evidence_ids": [
+        "CADEV:F01:FILE:coverage.dimensions.status"
+      ]
+    },
+    {
+      "rule_id": "R-XREF-RESOLVED",
+      "title": "FIXTURE: every xref path is resolved",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "xrefs",
+      "reads_groups": [
+        "xrefs"
+      ],
+      "verdict": "FAIL",
+      "reasons": [],
+      "coverage_complete": false,
+      "objects_in_scope": 1,
+      "counts": {
+        "PASS": 0,
+        "FAIL": 1,
+        "UNKNOWN": 0
+      },
+      "evidence_ids": [
+        "CADEV:F01:70:path_status"
+      ]
+    },
+    {
+      "rule_id": "R-UNITS",
+      "title": "FIXTURE: INSUNITS is 4 (millimetres)",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "classification_reason": "DECLARED",
+      "standard_hint": null,
+      "applies_to": "units",
+      "reads_groups": [
+        "units"
+      ],
+      "verdict": "PASS",
+      "reasons": [],
+      "coverage_complete": true,
+      "objects_in_scope": 1,
+      "counts": {
+        "PASS": 1,
+        "FAIL": 0,
+        "UNKNOWN": 0
+      },
+      "evidence_ids": []
+    }
+  ],
+  "results": [
+    {
+      "rule_id": "R-LAYER-NAME",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "10",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:10:name"
+      ],
+      "actual": "A-WALL",
+      "expected": "fullmatch A-[A-Z0-9]+(-[A-Z0-9]+)*, length <= 40",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-LAYER-NAME",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "11",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:11:name"
+      ],
+      "actual": "A-DOOR",
+      "expected": "fullmatch A-[A-Z0-9]+(-[A-Z0-9]+)*, length <= 40",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-LAYER-NAME",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "12",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:12:name"
+      ],
+      "actual": "A-ANNO-TEXT",
+      "expected": "fullmatch A-[A-Z0-9]+(-[A-Z0-9]+)*, length <= 40",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-LAYER-NAME",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "13",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:13:name"
+      ],
+      "actual": "A-ANNO-DIM",
+      "expected": "fullmatch A-[A-Z0-9]+(-[A-Z0-9]+)*, length <= 40",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-BLOCK-NAME",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "20",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:20:name"
+      ],
+      "actual": "DOOR-900",
+      "expected": "fullmatch [A-Z0-9-]+, length <= 255",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-BLOCK-NAME",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "21",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:21:name"
+      ],
+      "actual": "TITLEBLOCK",
+      "expected": "fullmatch [A-Z0-9-]+, length <= 255",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-TEXT-FONT",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "50",
+      "verdict": "UNKNOWN",
+      "reason": "FIELD_MISSING",
+      "evidence_ids": [
+        "CADEV:F01:50:font"
+      ],
+      "actual": null,
+      "expected": "one of [\"arial.ttf\", \"simplex.shx\"]",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-TEXT-FONT",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "51",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:51:font"
+      ],
+      "actual": "arial.ttf",
+      "expected": "one of [\"arial.ttf\", \"simplex.shx\"]",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-TEXT-HEIGHT",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "50",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:50:height"
+      ],
+      "actual": 2.5,
+      "expected": "range min=2.5 max=3.5 tolerance=0",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-TEXT-HEIGHT",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "51",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:51:height"
+      ],
+      "actual": 3.5,
+      "expected": "range min=2.5 max=3.5 tolerance=0",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-TITLE-ATTR",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "31",
+      "verdict": "UNKNOWN",
+      "reason": "COVERAGE_INCOMPLETE",
+      "evidence_ids": [
+        "CADEV:F01:31:block_name",
+        "CADEV:F01:FILE:coverage.attributes.status"
+      ],
+      "actual": null,
+      "expected": "attribute DRAWING_NO present and non-empty",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-XREF-RESOLVED",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "70",
+      "verdict": "FAIL",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:70:path_status"
+      ],
+      "actual": "NOT_FOUND",
+      "expected": "path_status is RESOLVED",
+      "standard_hint": null
+    },
+    {
+      "rule_id": "R-UNITS",
+      "rule_status": "FIXTURE",
+      "classification": "INTERNAL_ONLY",
+      "handle": "FILE",
+      "verdict": "PASS",
+      "reason": null,
+      "evidence_ids": [
+        "CADEV:F01:FILE:units.insunits"
+      ],
+      "actual": 4,
+      "expected": "one of [4]",
+      "standard_hint": null
+    }
+  ],
+  "summary": {
+    "rules_by_verdict": {
+      "PASS": 2,
+      "FAIL": 1,
+      "UNKNOWN": 6
+    },
+    "results_by_verdict": {
+      "PASS": 10,
+      "FAIL": 1,
+      "UNKNOWN": 2
+    },
+    "rules_by_status": {
+      "FIXTURE": 9,
+      "PROPOSED": 0,
+      "APPROVED": 0
+    },
+    "overall": "HAS_FAIL",
+    "all_rules_approved": false
+  }
+}

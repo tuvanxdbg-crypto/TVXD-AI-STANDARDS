@@ -1,0 +1,4 @@
+# FIXTURE ONLY (negative): YAML tag that safe_load must refuse to construct.
+schema: tvxd.cadaudit.rules/v1
+rules_version: !!python/object/apply:os.getcwd []
+rules: []

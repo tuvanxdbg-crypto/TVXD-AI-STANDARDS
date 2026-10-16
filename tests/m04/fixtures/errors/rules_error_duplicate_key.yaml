@@ -1,0 +1,13 @@
+# FIXTURE ONLY (negative): a repeated mapping key. yaml.safe_load would keep the last standard_required and silently drop the first.
+schema: tvxd.cadaudit.rules/v1
+rules_version: "fixture-error.1"
+rules:
+  - id: R-DUP-KEY
+    title: "FIXTURE: standard_required twice"
+    status: FIXTURE
+    source: null
+    applies_to: dimensions
+    selector: {}
+    check: {type: numeric_range, field: dimscale, min: 1, max: 1}
+    standard_required: true
+    standard_required: false

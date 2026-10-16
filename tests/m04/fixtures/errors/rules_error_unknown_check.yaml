@@ -1,0 +1,12 @@
+# FIXTURE ONLY (negative): fake rule with a check type that is not in the closed list. Must be rejected at load.
+schema: tvxd.cadaudit.rules/v1
+rules_version: "fixture-error.1"
+rules:
+  - id: R-BAD-CHECK
+    title: "FIXTURE: unknown check type"
+    status: FIXTURE
+    source: "FIXTURE (fake)"
+    applies_to: layers
+    selector: {}
+    check: {type: python_expression, expr: "len(name) > 3"}
+    standard_required: false

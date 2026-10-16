@@ -1,0 +1,13 @@
+# FIXTURE ONLY (negative): standard_hint with standard_required false is a contradictory configuration (D4).
+schema: tvxd.cadaudit.rules/v1
+rules_version: "fixture-error.1"
+rules:
+  - id: R-BAD-HINT
+    title: "FIXTURE: hint without standard_required"
+    status: FIXTURE
+    source: "FIXTURE (fake)"
+    applies_to: layers
+    selector: {}
+    check: {type: name_pattern, field: name, pattern: "A-.*"}
+    standard_required: false
+    standard_hint: "TCVN-FAKE-01"

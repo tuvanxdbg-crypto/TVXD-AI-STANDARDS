@@ -1,0 +1,435 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "cad_audit_report.v1.json",
+  "title": "CAD audit report v1",
+  "description": "docs/M04_CAD_AUDIT_READONLY.md D5. No field means 'the drawing passes'. generated_at is the only time field and is kept apart from the deterministic content.",
+  "$defs": {
+    "evidence_id": {
+      "type": "string",
+      "pattern": "^CADEV:[A-Za-z0-9_-]{1,32}:([0-9A-F]{1,16}|FILE):[A-Za-z0-9_.]{1,64}$"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "type": "string",
+          "maxLength": 65536
+        },
+        {
+          "type": "number"
+        },
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "cadaudit_version",
+    "generated_at",
+    "notice",
+    "input",
+    "rules_file",
+    "rules",
+    "results",
+    "summary"
+  ],
+  "properties": {
+    "schema": {
+      "type": "string",
+      "const": "tvxd.cadaudit.report/v1"
+    },
+    "cadaudit_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "notice": {
+      "type": "string",
+      "const": "Báo cáo này không kết luận bản vẽ đạt tiêu chuẩn, tính hợp pháp hay sự phù hợp thiết kế."
+    },
+    "input": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "file_id",
+        "input_sha256",
+        "dwg_sha256"
+      ],
+      "properties": {
+        "file_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{1,32}$"
+        },
+        "input_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "dwg_sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "rules_file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha256",
+        "rules_version"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "rules_version": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64
+        }
+      }
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "title",
+          "rule_status",
+          "classification",
+          "classification_reason",
+          "standard_hint",
+          "applies_to",
+          "reads_groups",
+          "verdict",
+          "reasons",
+          "coverage_complete",
+          "objects_in_scope",
+          "counts",
+          "evidence_ids"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "title": {
+            "type": "string",
+            "maxLength": 300
+          },
+          "rule_status": {
+            "type": "string",
+            "enum": [
+              "FIXTURE",
+              "PROPOSED",
+              "APPROVED"
+            ]
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "INTERNAL_ONLY",
+              "STANDARD_REQUIRED"
+            ]
+          },
+          "classification_reason": {
+            "type": "string",
+            "enum": [
+              "DECLARED",
+              "UPGRADED_DIMENSION_RANGE_NO_INTERNAL_SOURCE"
+            ]
+          },
+          "standard_hint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "applies_to": {
+            "type": "string",
+            "enum": [
+              "layers",
+              "blocks",
+              "block_refs",
+              "attributes",
+              "texts",
+              "dimensions",
+              "xrefs",
+              "units"
+            ]
+          },
+          "reads_groups": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "layers",
+                "blocks",
+                "block_refs",
+                "attributes",
+                "texts",
+                "dimensions",
+                "xrefs",
+                "units"
+              ]
+            }
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "UNKNOWN"
+            ]
+          },
+          "reasons": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "COVERAGE_INCOMPLETE",
+                "FIELD_MISSING",
+                "STANDARD_LOOKUP_NOT_ENABLED",
+                "NO_OBJECTS_IN_SCOPE"
+              ]
+            }
+          },
+          "coverage_complete": {
+            "type": "boolean"
+          },
+          "objects_in_scope": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "counts": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "PASS",
+              "FAIL",
+              "UNKNOWN"
+            ],
+            "properties": {
+              "PASS": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "FAIL": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "UNKNOWN": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/evidence_id"
+            }
+          }
+        }
+      }
+    },
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rule_id",
+          "rule_status",
+          "classification",
+          "handle",
+          "verdict",
+          "reason",
+          "evidence_ids",
+          "actual",
+          "expected",
+          "standard_hint"
+        ],
+        "properties": {
+          "rule_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64
+          },
+          "rule_status": {
+            "type": "string",
+            "enum": [
+              "FIXTURE",
+              "PROPOSED",
+              "APPROVED"
+            ]
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "INTERNAL_ONLY",
+              "STANDARD_REQUIRED"
+            ]
+          },
+          "handle": {
+            "type": "string",
+            "pattern": "^([0-9A-F]{1,16}|FILE)$"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL",
+              "UNKNOWN"
+            ]
+          },
+          "reason": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "COVERAGE_INCOMPLETE",
+              "FIELD_MISSING",
+              "STANDARD_LOOKUP_NOT_ENABLED",
+              "NO_OBJECTS_IN_SCOPE",
+              null
+            ]
+          },
+          "evidence_ids": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/evidence_id"
+            }
+          },
+          "actual": {
+            "$ref": "#/$defs/value"
+          },
+          "expected": {
+            "$ref": "#/$defs/value"
+          },
+          "standard_hint": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "rules_by_verdict",
+        "results_by_verdict",
+        "rules_by_status",
+        "overall",
+        "all_rules_approved"
+      ],
+      "properties": {
+        "rules_by_verdict": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "PASS",
+            "FAIL",
+            "UNKNOWN"
+          ],
+          "properties": {
+            "PASS": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "FAIL": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "UNKNOWN": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "results_by_verdict": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "PASS",
+            "FAIL",
+            "UNKNOWN"
+          ],
+          "properties": {
+            "PASS": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "FAIL": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "UNKNOWN": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "rules_by_status": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "FIXTURE",
+            "PROPOSED",
+            "APPROVED"
+          ],
+          "properties": {
+            "FIXTURE": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "PROPOSED": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "APPROVED": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "overall": {
+          "type": "string",
+          "enum": [
+            "HAS_FAIL",
+            "HAS_UNKNOWN",
+            "ALL_RULES_PASS"
+          ]
+        },
+        "all_rules_approved": {
+          "type": "boolean",
+          "description": "true only when the rule file has at least one rule and every rule has status APPROVED."
+        },
+        "overall_note": {
+          "type": "string",
+          "enum": [
+            "RULES_NOT_APPROVED"
+          ],
+          "description": "Present only when overall is ALL_RULES_PASS and not every rule is APPROVED: the pass is relative to rules that are FIXTURE or PROPOSED."
+        }
+      }
+    }
+  }
+}

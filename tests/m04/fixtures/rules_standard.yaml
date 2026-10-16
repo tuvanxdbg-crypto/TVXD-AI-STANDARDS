@@ -1,0 +1,51 @@
+# FIXTURE ONLY: fake rules that need a standard (STANDARD_REQUIRED) or that select nothing. M04-A never calls the
+# Gateway or NotebookLM, so every STANDARD_REQUIRED rule must come out UNKNOWN (STANDARD_LOOKUP_NOT_ENABLED).
+schema: tvxd.cadaudit.rules/v1
+rules_version: "fixture-standard.1"
+fixture_note: "FIXTURE ONLY: fake rules. Not a CHUAN-HOA-CAD rule set."
+rules:
+  - id: R-STD-LAYER-LW
+    title: "FIXTURE: layer lineweight depends on a standard (declared)"
+    status: FIXTURE
+    source: null
+    applies_to: layers
+    selector: {}
+    check: {type: numeric_range, field: lineweight, min: 18, max: 50}
+    standard_required: true
+    standard_hint: "TCVN-FAKE-01"
+
+  - id: R-STD-TEXT-HEIGHT
+    title: "FIXTURE: text height that would FAIL on the fail fixture, but needs a standard"
+    status: FIXTURE
+    source: "FIXTURE (fake)"
+    applies_to: texts
+    selector: {}
+    check: {type: numeric_range, field: height, min: 2.5, max: 3.5}
+    standard_required: true
+
+  - id: R-DIM-RANGE-NOSRC
+    title: "FIXTURE: dimension value range without internal source (raised to STANDARD_REQUIRED)"
+    status: PROPOSED
+    source: null
+    applies_to: dimensions
+    selector: {}
+    check: {type: numeric_range, field: measured_value, min: 600, max: 6000}
+    standard_required: false
+
+  - id: R-DIM-RANGE-SRC
+    title: "FIXTURE: same range with an internal source (stays INTERNAL_ONLY)"
+    status: FIXTURE
+    source: "FIXTURE (fake internal source)"
+    applies_to: dimensions
+    selector: {}
+    check: {type: numeric_range, field: measured_value, min: 600, max: 6000}
+    standard_required: false
+
+  - id: R-EMPTY-SELECTOR
+    title: "FIXTURE: selector that selects no object"
+    status: FIXTURE
+    source: "FIXTURE (fake)"
+    applies_to: block_refs
+    selector: {block_name: NO-SUCH-BLOCK}
+    check: {type: name_pattern, field: layer, pattern: "A-.*"}
+    standard_required: false

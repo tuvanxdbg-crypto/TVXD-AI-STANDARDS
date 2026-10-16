@@ -1,0 +1,227 @@
+{
+  "schema": "tvxd.cadaudit.cad_read/v1",
+  "fixture_note": "FIXTURE ONLY: fake extraction data for M04-A tests. Not from a real drawing; no DWG exists.",
+  "drawing": {
+    "file_id": "F01",
+    "file_name": "FIXTURE-SAMPLE-01.dwg",
+    "sha256": "3204bdd0167382886f61364664fc8462275235539994f782c959f31cab902a79",
+    "size_bytes": 4096,
+    "source_tool": "FIXTURE-GENERATOR",
+    "source_tool_version": "0",
+    "extracted_at": "2026-10-12T10:00:00+07:00",
+    "read_mode": "READ_ONLY",
+    "dwg_modified": false
+  },
+  "coverage": {
+    "layers": {
+      "status": "COMPLETE",
+      "expected": 5,
+      "enumerated": 5,
+      "reason": null
+    },
+    "blocks": {
+      "status": "COMPLETE",
+      "expected": 2,
+      "enumerated": 2,
+      "reason": null
+    },
+    "block_refs": {
+      "status": "COMPLETE",
+      "expected": 2,
+      "enumerated": 2,
+      "reason": null
+    },
+    "attributes": {
+      "status": "COMPLETE",
+      "expected": 1,
+      "enumerated": 1,
+      "reason": null
+    },
+    "texts": {
+      "status": "COMPLETE",
+      "expected": 2,
+      "enumerated": 2,
+      "reason": null
+    },
+    "dimensions": {
+      "status": "COMPLETE",
+      "expected": 1,
+      "enumerated": 1,
+      "reason": null
+    },
+    "xrefs": {
+      "status": "COMPLETE",
+      "expected": 1,
+      "enumerated": 1,
+      "reason": null
+    },
+    "units": {
+      "status": "COMPLETE",
+      "expected": 1,
+      "enumerated": 1,
+      "reason": null
+    }
+  },
+  "layers": [
+    {
+      "handle": "10",
+      "space": "MODEL",
+      "name": "A-WALL",
+      "color": 7,
+      "linetype": "Continuous",
+      "lineweight": 25,
+      "plot": true,
+      "frozen": false,
+      "off": false,
+      "locked": false
+    },
+    {
+      "handle": "11",
+      "space": "MODEL",
+      "name": "A-DOOR",
+      "color": 7,
+      "linetype": "Continuous",
+      "lineweight": 25,
+      "plot": true,
+      "frozen": false,
+      "off": false,
+      "locked": false
+    },
+    {
+      "handle": "12",
+      "space": "MODEL",
+      "name": "A-ANNO-TEXT",
+      "color": 7,
+      "linetype": "Continuous",
+      "lineweight": 25,
+      "plot": true,
+      "frozen": false,
+      "off": false,
+      "locked": false
+    },
+    {
+      "handle": "13",
+      "space": "MODEL",
+      "name": "A-ANNO-DIM",
+      "color": 7,
+      "linetype": "Continuous",
+      "lineweight": 25,
+      "plot": true,
+      "frozen": false,
+      "off": false,
+      "locked": false
+    },
+    {
+      "handle": "14",
+      "space": "MODEL",
+      "name": "wall_01",
+      "color": 7,
+      "linetype": "Continuous",
+      "lineweight": 25,
+      "plot": true,
+      "frozen": false,
+      "off": false,
+      "locked": false
+    }
+  ],
+  "blocks": [
+    {
+      "handle": "20",
+      "space": "MODEL",
+      "name": "DOOR-900",
+      "is_xref_dependent": false,
+      "entity_count": 12
+    },
+    {
+      "handle": "21",
+      "space": "MODEL",
+      "name": "TITLEBLOCK",
+      "is_xref_dependent": false,
+      "entity_count": 30
+    }
+  ],
+  "block_refs": [
+    {
+      "handle": "30",
+      "space": "MODEL",
+      "block_name": "DOOR-900",
+      "layer": "A-DOOR",
+      "insert_x": 1000.0,
+      "insert_y": 0.0,
+      "insert_z": 0.0,
+      "scale_x": 1.0,
+      "scale_y": 1.0,
+      "scale_z": 1.0,
+      "rotation": 0.0
+    },
+    {
+      "handle": "31",
+      "space": "MODEL",
+      "block_name": "TITLEBLOCK",
+      "layer": "A-ANNO-TEXT",
+      "insert_x": 0.0,
+      "insert_y": 0.0,
+      "insert_z": 0.0,
+      "scale_x": 1.0,
+      "scale_y": 1.0,
+      "scale_z": 1.0,
+      "rotation": 0.0
+    }
+  ],
+  "attributes": [
+    {
+      "handle": "41",
+      "space": "MODEL",
+      "parent_handle": "31",
+      "tag": "REVISION",
+      "value": "A"
+    }
+  ],
+  "texts": [
+    {
+      "handle": "50",
+      "space": "MODEL",
+      "text_type": "TEXT",
+      "value": "GHI CHU",
+      "style": "STD",
+      "font": "comic.ttf",
+      "height": 2.5,
+      "layer": "A-ANNO-TEXT"
+    },
+    {
+      "handle": "51",
+      "space": "MODEL",
+      "text_type": "TEXT",
+      "value": "KICH THUOC",
+      "style": "STD",
+      "font": "arial.ttf",
+      "height": 1.0,
+      "layer": "A-ANNO-TEXT"
+    }
+  ],
+  "dimensions": [
+    {
+      "handle": "60",
+      "space": "MODEL",
+      "dim_type": "LINEAR",
+      "measured_value": 2400.0,
+      "display_value": 2500.0,
+      "dimscale": 1.0,
+      "layer": "A-ANNO-DIM"
+    }
+  ],
+  "xrefs": [
+    {
+      "handle": "70",
+      "space": "MODEL",
+      "name": "XR-SITE",
+      "path_status": "NOT_FOUND"
+    }
+  ],
+  "units": [
+    {
+      "insunits": 4,
+      "measurement": 1
+    }
+  ]
+}

@@ -36,6 +36,22 @@ Trạng thái ngày 2026-10-12:
 - **M03-C: PASS**, chủ repo nghiệm thu ngày 2026-10-12 (PR #15). Push thẳng, force push, merge khi check đỏ và merge khi nhánh chậm hơn `main` đều bị chặn. Kế hoạch: [docs/M03_C_VERIFICATION_PLAN.md](docs/M03_C_VERIFICATION_PLAN.md).
 - **M03: PASS**, chủ repo chốt ngày 2026-10-12. M04 trở đi chưa được phép.
 
+## M04 — CAD audit chỉ đọc (M04-A đã triển khai, chờ review)
+
+Spec: [docs/M04_CAD_AUDIT_READONLY.md](docs/M04_CAD_AUDIT_READONLY.md), duyệt tại `a031fc2`. Chủ repo cho phép triển khai M04-A ngày 2026-10-12.
+
+Trạng thái:
+- **M04-A: đã triển khai, chờ REVIEW_V1 và nghiệm thu của chủ repo.** Chưa phải PASS.
+- Chỉ dùng dữ liệu fixture giả (`tests/m04/fixtures/`). Không có AutoCAD, không có file DWG/DXF, không có bản vẽ thật, không gọi Gateway hay NotebookLM.
+- M04-B (chạy trên bản trích xuất thật), M04-C (tra tiêu chuẩn), M05 và M06 chưa được phép.
+
+Nội dung M04-A:
+- `cadaudit/`: bộ kiểm chỉ đọc trên file JSON trích xuất sẵn (CAD_READ contract v1, quy tắc YAML đọc bằng `yaml.safe_load`, bộ phân loại `INTERNAL_ONLY` / `STANDARD_REQUIRED`, đầu ra PASS / FAIL / UNKNOWN kèm evidence ID `CADEV:...`).
+- Mục `STANDARD_REQUIRED` luôn là UNKNOWN với lý do `STANDARD_LOOKUP_NOT_ENABLED`. Báo cáo không kết luận bản vẽ đạt tiêu chuẩn.
+- Báo cáo chỉ được tạo mới bằng `cadaudit/_report_writer.py`, không bao giờ ghi đè hay sửa file có sẵn (D6).
+- Chạy thử: `python -m cadaudit check --input <cad_read.json> --rules <rules.yaml> --out <report.json>` (Python 3.11, `pyyaml==6.0.2`).
+- Test: `python -m unittest discover -s tests/m04 -p "test_*.py" -v`. Evidence mẫu và cách tạo lại: [tests/m04/evidence/README.md](tests/m04/evidence/README.md).
+
 ## M02 — Standards Gateway (closed, bounded, 2026-10-09)
 
 The Gateway (`gateway/`) exposes exactly three MCP tools to Claude Code: `standards_lookup`, `standards_verify` and `standards_status`.
