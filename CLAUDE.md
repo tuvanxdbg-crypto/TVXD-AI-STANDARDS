@@ -1,21 +1,38 @@
 # CLAUDE.md — TVXD-AI-STANDARDS
 
 ## Current milestone
+M04 — CAD audit chỉ đọc: **đang thực hiện** (trạng thái ngày 2026-10-16). Spec `docs/M04_CAD_AUDIT_READONLY.md`: REVIEW_V1 PASS và chủ repo phê duyệt tại `a031fc2` (PR #17, merge `e368ff1`).
+- M04-A: **nghiệm thu**. Chủ repo nghiệm thu ngày 2026-10-16 tại `c486c8e` (PR #18, merge `a2a3557`), nguyên văn: "Tôi nghiệm thu M04-A tại commit c486c8e3df70ac04a312ce404bda6872f62bedee." REVIEW_V1 PASS tại SHA đó (review 5541729325). Chỉ fixture giả, chạy offline và trên CI.
+- M04 chưa đóng. Theo spec §6, M04 chỉ đóng có giới hạn sau khi M04-A và M04-B đều được chủ repo nghiệm thu.
+- M04-B (bản trích xuất thật), M04-C (tra tiêu chuẩn qua Gateway), M05 và M06 chưa được phép. M04-B cần kế hoạch riêng, ít nhất một quy tắc `APPROVED` bên CHUAN-HOA-CAD, REVIEW_V1 và chủ repo phê duyệt trực tiếp.
+
 M03 — GitHub governance: **PASS** (trạng thái ngày 2026-10-12). Chủ repo chốt trong chat Claude ngày 2026-10-12, nguyên văn: "Tôi chốt M03 — GitHub governance là PASS."
 - Spec `docs/M03_GITHUB_GOVERNANCE.md`: REVIEW_V1 PASS và chủ repo phê duyệt tại `a2e8362`.
 - M03-A (CI 3 job `linux`, `windows`, `metadata`; CODEOWNERS; `tests/m03/validate_repo_metadata.py`; PR template; `docs/REVIEW_PROCESS.md`) đã merge vào `main` tại `d1b65aa` (PR #8).
 - M03-B: **PASS**. Chủ repo nghiệm thu ngày 2026-10-12 tại `60fba2f` (PR #9, merge `4db1f77`). Ruleset cho `main` (bắt buộc PR, 3 check ở chế độ strict, không bypass), Secret Protection, Push protection và phê duyệt workflow fork đã áp. Hạng mục quét lịch sử secret đạt theo tiêu chí thay thế A1 (spec §7a), không theo điều kiện gốc; A1 không chứng minh GitHub đã quét xong toàn bộ lịch sử.
 - M03-C: **PASS**. Chủ repo nghiệm thu ngày 2026-10-12 tại `fa3ed98` (PR #15, merge `c4e3190`), theo kế hoạch `docs/M03_C_VERIFICATION_PLAN.md` (PR #12). Push thẳng, force push, merge khi check đỏ và merge khi nhánh chậm hơn `main` đều bị ruleset chặn; `main` không đổi. T1/T2 chạy trên máy IT (không phải ducdq), tài khoản `tuvanxdbg-crypto` theo xác nhận của chủ repo.
 - M03-A, M03-B, M03-C đều PASS; trạng thái được đồng bộ vào `main` qua PR #13 (merge `ad367a5`).
-- M04 trở đi chưa được phép. Mốc tiếp theo cần spec mới, REVIEW_V1 và chủ repo phê duyệt trực tiếp.
+- Mốc tiếp theo là M04 (xem trên).
 - Mọi thay đổi vào `main` đi qua PR và cần 3 check xanh trên nhánh đã cập nhật theo `main`.
 
 M02 — Standards Gateway: **CLOSED (bounded)**. The owner decided this in the Claude chat on 2026-10-09, on the proposal reviewed at `dd21083` (docs/M02_CLOSEOUT_PROPOSAL.md).
 - The closure covers the contract-v2 offline validation on Linux and Windows.
 - It also covers one bounded live stage B: Q-S1, sent with the scope of notebook `8ca84143-…` and its three mapped sources, which returned evidence only from TCVN-8794-2011.
 - PR #5 is merged only on the owner's separate approval of an exact SHA.
-- Mốc tiếp theo là M03, nay đã PASS (xem trên). M04 trở đi chưa được phép.
+- Mốc tiếp theo là M03, nay đã PASS (xem trên). M04 xem trên.
 - M01 (NotebookLM content-read-only pilot) is closed. Every M01 and M02 rule below stays in force.
+
+## M04 rules (vẫn có hiệu lực sau khi M04 đóng)
+Theo spec `docs/M04_CAD_AUDIT_READONLY.md` (D9, §9). Bộ kiểm `cadaudit/` chỉ đọc file JSON trích xuất sẵn theo CAD_READ contract v1 và quy tắc YAML.
+- Không kết nối hay điều khiển AutoCAD. Không thêm code LISP, COM, AutoLISP hay script mở DWG vào repo này.
+- Không đưa file DWG, DXF, bản sao làm việc, bản dump thô hay dữ liệu bản vẽ thật vào repo.
+- Không ghi CAD dưới mọi hình thức (việc này thuộc M05/M06).
+- Báo cáo chỉ được tạo mới qua `cadaudit/_report_writer.py`, không ghi đè hay sửa file có sẵn (D6). Không nới các kiểm soát tĩnh trong `tests/m04/ast_rules.py` nếu không có REVIEW_V1 và chủ repo phê duyệt.
+- Không gọi Gateway ở chế độ live, không gọi NotebookLM, không đổi `notebooklm.mode`. Mục `STANDARD_REQUIRED` luôn là UNKNOWN với lý do `STANDARD_LOOKUP_NOT_ENABLED` cho đến khi M04-C được mở theo quy tắc M02.
+- Không sửa CHUAN-HOA-CAD từ repo này. Không coi quy tắc `PROPOSED` bên đó là đã duyệt. `ALL_RULES_PASS` kèm `RULES_NOT_APPROVED` không phải kết quả đạt.
+- Không kết luận tính hợp pháp, sự phù hợp thiết kế hay "đạt tiêu chuẩn" từ báo cáo `cadaudit`.
+- Không đổi pin, config, quyền M01, ruleset hay cài đặt repo.
+- M04-B, M04-C, M05, M06 mỗi bước cần kế hoạch hoặc spec riêng, REVIEW_V1 tại đúng SHA và chủ repo phê duyệt trực tiếp.
 
 ## M02 rules (closed milestone; still in force)
 Completed under Issue #4: the Gateway (`gateway/`), built and tested with fixture data (`tests/m02/fixtures/`), plus the one approved bounded live stage B (B2v2 at `6eb2aed`). Any further M02 work, live run or source set needs a new reviewed request, plan or both, and the owner's direct approval of an exact SHA.
