@@ -4,7 +4,8 @@
 M04 — CAD audit chỉ đọc: **đang thực hiện** (trạng thái ngày 2026-10-16). Spec `docs/M04_CAD_AUDIT_READONLY.md`: REVIEW_V1 PASS và chủ repo phê duyệt tại `a031fc2` (PR #17, merge `e368ff1`).
 - M04-A: **nghiệm thu**. Chủ repo nghiệm thu ngày 2026-10-16 tại `c486c8e` (PR #18, merge `a2a3557`), nguyên văn: "Tôi nghiệm thu M04-A tại commit c486c8e3df70ac04a312ce404bda6872f62bedee." REVIEW_V1 PASS tại SHA đó (review 5541729325). Chỉ fixture giả, chạy offline và trên CI.
 - M04 chưa đóng. Theo spec §6, M04 chỉ đóng có giới hạn sau khi M04-A và M04-B đều được chủ repo nghiệm thu.
-- M04-B (bản trích xuất thật), M04-C (tra tiêu chuẩn qua Gateway), M05 và M06 chưa được phép. M04-B cần kế hoạch riêng, ít nhất một quy tắc `APPROVED` bên CHUAN-HOA-CAD, REVIEW_V1 và chủ repo phê duyệt trực tiếp.
+- M04-B: **kế hoạch đã duyệt, chưa chạy** (trạng thái ngày 2026-10-19). Kế hoạch `docs/M04_B_PLAN.md`: REVIEW_V1 PASS tại `00595f6` (review 5567822283), merge `21eda0b` (PR #20). Chủ repo chốt B1–B5 ngày 2026-10-19, nguyên văn: "Tôi chốt B1–B5 theo đề xuất của LEAD." Chỉ chạy khi G1–G7 của kế hoạch đều đạt; hiện G2 (bộ xuất CHUAN-HOA-CAD được nghiệm thu), G3 (gói đọc thật), G4 (chọn bản vẽ), G7 (script kiểm truy vết) chưa đạt.
+- M04-C (tra tiêu chuẩn qua Gateway), M05 và M06 chưa được phép.
 
 M03 — GitHub governance: **PASS** (trạng thái ngày 2026-10-12). Chủ repo chốt trong chat Claude ngày 2026-10-12, nguyên văn: "Tôi chốt M03 — GitHub governance là PASS."
 - Spec `docs/M03_GITHUB_GOVERNANCE.md`: REVIEW_V1 PASS và chủ repo phê duyệt tại `a2e8362`.

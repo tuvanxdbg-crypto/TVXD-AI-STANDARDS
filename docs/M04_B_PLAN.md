@@ -1,6 +1,6 @@
 # Kế hoạch M04-B: chạy bộ kiểm chỉ đọc trên một bản vẽ thật
 
-Trạng thái: **bản nháp, chờ REVIEW_V1 và chủ repo phê duyệt**. Kế hoạch này chưa cho phép chạy bất cứ thứ gì.
+Trạng thái: **đã duyệt**. REVIEW_V1 PASS tại `00595f6` (review 5567822283), merge vào `main` tại `21eda0b` (PR #20). Chủ repo chốt B1–B5 ngày 2026-10-19 (mục 8). Kế hoạch vẫn chưa cho phép chạy: chỉ chạy khi G1–G7 đều đạt (mục 3).
 
 Bản vá theo REVIEW_V1 `pullrequestreview-5566700969` (PATCH_REQUIRED tại `e690cd8`):
 - F01: G2, G3, mục 1, mục 4 bước 1 và mục 5 ràng với hợp đồng bộ xuất đã duyệt;
@@ -157,7 +157,9 @@ Sau khi M04-B được nghiệm thu, một PR riêng ghi bản đóng M04, có R
 
 Điều kiện thoát "retrieve evidence" của Issue #2 chỉ đạt một phần.
 
-## 8. Các quyết định cần chủ repo chốt
+## 8. Các quyết định của chủ repo
+
+Chủ repo chốt trong chat ngày 2026-10-19, khoảng 13:49 +07:00, nguyên văn: "Tôi chốt B1–B5 theo đề xuất của LEAD." Vì vậy cột "Đề xuất của LEAD" dưới đây là quyết định đã chốt.
 
 | # | Câu hỏi | Đề xuất của LEAD |
 |---|---|---|
