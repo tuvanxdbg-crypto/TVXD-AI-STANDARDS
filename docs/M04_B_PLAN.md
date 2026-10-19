@@ -2,6 +2,10 @@
 
 Trạng thái: **bản nháp, chờ REVIEW_V1 và chủ repo phê duyệt**. Kế hoạch này chưa cho phép chạy bất cứ thứ gì.
 
+Bản vá theo REVIEW_V1 `pullrequestreview-5566700969` (PATCH_REQUIRED tại `e690cd8`):
+- F01: G2, G3, mục 1, mục 4 bước 1 và mục 5 ràng với hợp đồng bộ xuất đã duyệt;
+- F02: mục 5.1 mới, G7, điều kiện 6, B1 và mục 9.
+
 ## 1. Căn cứ
 
 - Spec `docs/M04_CAD_AUDIT_READONLY.md` (duyệt tại `a031fc2`):
@@ -15,7 +19,12 @@ Trạng thái: **bản nháp, chờ REVIEW_V1 và chủ repo phê duyệt**. K�
     - Q2: ban đầu chỉ áp cho bản vẽ dựng từ mẫu V2.
   - Q3: layer đọc bằng LibreDWG, xref lấy từ `VB-XREFS`.
   - Q4: chỉ báo cáo `cadaudit` đã lọc được đưa sang TVXD.
-  - Đề nghị phạm vi bộ xuất CAD_READ v1 pha 1 (chỉ fixture) đang chờ review: CHUAN-HOA-CAD PR #68.
+  - **Hợp đồng bộ xuất CAD_READ v1 pha 1:** đề nghị `runs/M04BEXSPEC-20261016-01/` tại `f19021b75404d96dc1b077c04a468f60f059beaa` (CHUAN-HOA-CAD PR #68).
+    - GPT review PASS (`pullrequestreview-5562423230`).
+    - Người dùng duyệt X1–X7 ngày 2026-10-19 (HAP-M04B-EXPORTER-P1-01, ghi nhận ở CHUAN-HOA-CAD PR #70).
+    - Hợp đồng có bốn đầu vào: JSON `dwgread`, hồ sơ lần đọc `--dwgread-record` (`chc.dwgread_record/v1`), `l01_result.json` đầy đủ, và `--meta`.
+    - Điều kiện chấp nhận a1–a8 và b1–b4 ở mục 2.1 của đề nghị.
+    - Bộ xuất chưa được viết.
 
 ## 2. Mục tiêu
 
@@ -30,40 +39,47 @@ M04-B **không** nhằm kết luận bản vẽ đạt tiêu chuẩn. Nó cũng 
 | # | Điều kiện | Ở đâu | Hiện trạng |
 |---|---|---|---|
 | G1 | Có ít nhất một quy tắc kiểm APPROVED | CHUAN-HOA-CAD | Đạt: HAP-M04B-RULES-01, `0b3c5c5` |
-| G2 | Bộ xuất CAD_READ v1 pha 1 được viết, kiểm trên fixture và nghiệm thu | CHUAN-HOA-CAD | Chưa: đề nghị phạm vi ở PR #68 |
-| G3 | Gói duyệt cho lần đọc thật, theo kiểu L01: | CHUAN-HOA-CAD | Chưa |
-| | • SHA-256 của bản vẽ được duyệt trước; | | |
-| | • đọc trên bản sao; | | |
-| | • chạy `dwgread` và `l01_readonly.py`; | | |
-| | • tệp nguồn không đổi sau khi đọc | | |
+| G2 | Bộ xuất CAD_READ v1 pha 1 được viết theo đúng hợp đồng bốn đầu vào đã duyệt tại `f19021b` (HAP-M04B-EXPORTER-P1-01), kiểm trên fixture, GPT review PASS và người dùng nghiệm thu **tại một SHA cụ thể**. Lần chạy thật dùng đúng SHA đó | CHUAN-HOA-CAD | Chưa: phạm vi đã duyệt, bộ xuất chưa viết. Chưa có bản được nghiệm thu thì G2 chưa đạt |
+| G3 | Gói duyệt cho lần đọc thật, theo kiểu L01, có review và phê duyệt riêng, gồm: | CHUAN-HOA-CAD | Chưa |
+| | • SHA-256 của bản vẽ được duyệt trước; đọc trên bản sao; | | |
+| | • **script đọc tạo hồ sơ `chc.dwgread_record/v1`**: đo hash bản sao trước, chạy `dwgread`, đo hash và kích thước byte của JSON, đo hash bản sao sau. Script được review và duyệt tại SHA cụ thể; | | |
+| | • chạy `l01_readonly.py` (cầu COM đã nghiệm thu, không sửa); | | |
+| | • bộ xuất tại SHA của G2 kiểm a1–a8 (hậu kiểm L01: `STATE` = `L0_L1_PASSED`, `POSTCHECK_ERRORS` rỗng, hash trước = sau, `SOURCE_UNCHANGED` và `WC_UNCHANGED` = `true`) và b1–b4 (JSON → hồ sơ → hash nguồn → `--meta` → L01). Sai một điều kiện thì không có bản trích xuất | | |
 | G4 | Chọn bản vẽ (Q5) có căn cứ thuộc phạm vi mẫu V2 (Q2), và chốt dữ liệu nào được đưa vào repo này | chủ repo | Chưa |
 | G5 | Kế hoạch này có REVIEW_V1 và được chủ repo phê duyệt | repo này | Chưa |
 | G6 | `cadaudit` dùng nguyên bản tại một SHA ghim (đề xuất `9f11076`). Nếu phải sửa mã thì làm PR riêng, review riêng, trước khi chạy | repo này | Không cần sửa theo hiểu biết hiện tại |
+| G7 | Có phép kiểm truy vết cục bộ (mục 5.1) đã được review và duyệt tại SHA cụ thể. Phép kiểm này dùng cách giải evidence ID độc lập với `cadaudit`, theo `resolve_evidence` trong `tests/m04/m04_helpers.py` | repo này, PR riêng có review | Chưa |
 
-Chỉ chạy khi G1–G6 đều đạt.
+Chỉ chạy khi G1–G7 đều đạt.
+
+Nếu hợp đồng bộ xuất đổi sau HAP-M04B-EXPORTER-P1-01, phải đối chiếu lại kế hoạch này và review lại trước khi chạy. Ví dụ: thêm hoặc bớt đầu vào, đổi điều kiện 2.1, đổi chính sách coverage.
 
 ## 4. Luồng chạy dự kiến
 
 1. **Trích xuất** (bên CHUAN-HOA-CAD, trên máy người dùng, theo gói G3).
-   - Bộ xuất tạo một tệp CAD_READ v1 từ đầu ra của `dwgread` và `VB-XREFS`.
-   - Tệp này ở lại máy người dùng, không commit vào repo nào.
+   - Script đọc đã duyệt tạo JSON `dwgread` và hồ sơ `chc.dwgread_record/v1`. `l01_readonly.py` tạo `l01_result.json`.
+   - Bộ xuất tại SHA của G2 nhận bốn đầu vào, kiểm a1–a8 và b1–b4, rồi tạo một tệp CAD_READ v1.
+   - Các tệp này ở lại máy người dùng, không commit vào repo nào.
 2. **Kiểm** (trên máy người dùng).
    - Chạy `python -m cadaudit check --input <tệp CAD_READ> --rules <approved/check_rules.approved.yaml> --out <tệp báo cáo mới>`.
    - Dùng bản checkout của repo này ở SHA ghim, và tệp quy tắc ở commit `0b3c5c5` của CHUAN-HOA-CAD, kiểm sha256.
    - Bộ ghi của `cadaudit` chỉ tạo tệp mới (D6).
-3. **Lọc và đưa evidence vào repo này**, theo quyết định B1 (mục 8).
-   - Mặc định chỉ có bản tóm tắt; báo cáo đầy đủ ở lại máy người dùng.
-4. **Nghiệm thu:** CLAUDE_EXECUTION_REPORT, REVIEW_V1 tại HEAD, chủ repo nghiệm thu.
+3. **Kiểm truy vết cục bộ** (trên máy người dùng, mục 5.1), trên đúng tệp CAD_READ, tệp quy tắc và báo cáo đã ghim hash.
+4. **Lọc và đưa evidence vào repo này**, theo quyết định B1 (mục 8).
+   - Mặc định có bản tóm tắt và output đã lọc của mục 5.1; báo cáo đầy đủ ở lại máy người dùng.
+5. **Nghiệm thu:** CLAUDE_EXECUTION_REPORT, REVIEW_V1 tại HEAD, chủ repo nghiệm thu.
 
-Các bước 1 và 2 chạy trên máy người dùng. Môi trường cloud không nhận bản trích xuất thật.
+Các bước 1–3 chạy trên máy người dùng. Môi trường cloud không nhận bản trích xuất thật, JSON `dwgread` hay báo cáo đầy đủ.
 
 ## 5. Evidence yêu cầu
 
 - `RUN_MANIFEST` bên CHUAN-HOA-CAD cho lần trích xuất. Gồm:
+  - RUN_ID của lần đọc, của run L01, và SHA bộ xuất (G2) cùng SHA script đọc (G3) đã dùng;
   - sha256 của tệp nguồn trước và sau khi đọc;
-  - phiên bản LibreDWG;
-  - run `VB-XREFS`;
-  - sha256 của tệp CAD_READ tạo ra.
+  - phiên bản LibreDWG và mã thoát `dwgread`;
+  - sha256 của JSON `dwgread`, của hồ sơ `chc.dwgread_record/v1`, của `l01_result.json`, của `--meta` và của tệp CAD_READ tạo ra;
+  - kết quả từng điều kiện a1–a8 và b1–b4 do bộ xuất báo;
+  - không ghi đường dẫn máy.
 - Trong repo này, tại `tests/m04/evidence_b/` (tên chốt ở B5):
   - **Bản tóm tắt** gồm:
     - sha256 của tệp CAD_READ, của tệp quy tắc và của báo cáo đầy đủ;
@@ -71,8 +87,47 @@ Các bước 1 và 2 chạy trên máy người dùng. Môi trường cloud khô
     - `overall`, `all_rules_approved`;
     - kết luận, lý do và số đếm theo từng quy tắc;
     - coverage của `layers` và `xrefs`.
+  - **Output đã lọc của phép kiểm truy vết** (mục 5.1).
   - Báo cáo `cadaudit` đầy đủ chỉ được đưa vào nếu B1 chọn như vậy.
 - Lệnh đã chạy và output dòng lệnh, đã bỏ đường dẫn máy.
+
+### 5.1 Kiểm truy vết cục bộ
+
+Hash và hợp schema không thay cho kiểm truy vết. Phép kiểm này chạy trên máy người dùng, ngay sau bước kiểm. Đầu vào là đúng ba tệp đã ghim sha256 ở mục 5: tệp CAD_READ, tệp quy tắc, báo cáo. Script kiểm đã được duyệt theo G7.
+
+Phép kiểm làm các việc sau:
+1. Kiểm sha256 của ba tệp trùng giá trị ghi trong evidence; sai thì dừng.
+2. Kiểm báo cáo hợp schema `cad_audit_report.v1`.
+3. Với **mọi** evidence ID trong báo cáo, cả ở cấp quy tắc (`rules[].evidence_ids`) lẫn ở từng dòng kết quả layer và xref (`results[].evidence_ids`), kể cả ID cấp `FILE` như `coverage.layers.status`:
+   - đúng dạng `CADEV:<file_id>:<handle|FILE>:<trường>`, và `file_id` trùng `drawing.file_id`;
+   - giải bằng cách độc lập với `cadaudit` ra **đúng một** giá trị trong tệp CAD_READ.
+4. Với mỗi dòng kết quả có `actual`, kiểm `actual` bằng giá trị mà evidence ID của trường được kiểm trỏ tới.
+5. Đếm lại theo từng quy tắc từ `results[]`: số dòng PASS, FAIL, UNKNOWN và tổng số dòng. Đối chiếu với `rules[].counts` và `rules[].objects_in_scope`.
+6. Đối chiếu `coverage_complete`, verdict và `reasons` của từng quy tắc với `coverage` của tệp CAD_READ và với các dòng kết quả, theo thứ tự kết luận D5.
+7. Mọi FAIL và UNKNOWN có ít nhất một evidence ID.
+
+**Output đã lọc** đưa vào repo này. Output không có tên layer, tên xref, handle hay đường dẫn máy, và gồm:
+- sha256 của ba tệp đầu vào và SHA của script kiểm;
+- kết quả kiểm schema;
+- tổng số evidence ID; số giải đúng một giá trị; số không giải được; số giải ra nhiều giá trị; số sai dạng hoặc sai `file_id`;
+- số dòng có `actual` lệch;
+- kết quả đối chiếu số đếm, coverage và verdict theo từng quy tắc (khớp hoặc lệch, kèm số lệch);
+- người chạy, thời điểm chạy, người duyệt.
+
+**Không đạt** khi có bất kỳ trường hợp nào sau:
+- sai hash;
+- báo cáo không hợp schema;
+- có evidence ID không giải được, giải ra nhiều giá trị, sai dạng hoặc sai `file_id`;
+- có dòng `actual` lệch;
+- có số đếm, coverage hay verdict lệch;
+- có FAIL hoặc UNKNOWN không có evidence ID.
+
+Không đạt, hoặc chưa chạy phép kiểm này, thì dừng nghiệm thu M04-B.
+
+**Phân vai và giới hạn:**
+- Chủ repo chạy phép kiểm trên máy ducdq, hoặc Claude chạy trên máy đó theo quyền chủ repo cấp.
+- Reviewer trên cloud chỉ thấy output đã lọc và các hash. Reviewer không đọc dữ liệu thô, nên không tự giải lại evidence ID được.
+- Mức tin cậy của điều kiện 6 vì vậy dựa vào script kiểm đã duyệt (G7) và hash đã ghim. Chủ repo nghiệm thu dựa trên đó.
 
 ## 6. Nghiệm thu
 
@@ -84,12 +139,12 @@ Các bước 1 và 2 chạy trên máy người dùng. Môi trường cloud khô
 
 | # | Điều kiện |
 |---|---|
-| 1 | G1–G6 đạt trước khi chạy |
-| 2 | sha256 tệp nguồn không đổi trước và sau trích xuất |
+| 1 | G1–G7 đạt trước khi chạy |
+| 2 | sha256 tệp nguồn không đổi trước và sau trích xuất; bộ xuất báo a1–a8 và b1–b4 đều đạt, đúng SHA bộ xuất của G2 |
 | 3 | `cadaudit` chạy thành công, báo cáo hợp schema `cad_audit_report.v1` |
 | 4 | sha256 của tệp quy tắc trong báo cáo trùng với `approved/check_rules.approved.yaml` tại `0b3c5c5` |
 | 5 | `CHC-XREF-RESOLVED` cho PASS hoặc UNKNOWN. Nếu ra FAIL thì đó là dấu hiệu lỗi ánh xạ, vì trái Q1a, và phải điều tra trước khi nghiệm thu |
-| 6 | `CHC-LAYER-V2` cho kết luận bất kỳ, nhưng mọi kết quả truy được về đối tượng trong bản trích xuất qua evidence ID |
+| 6 | `CHC-LAYER-V2` cho kết luận bất kỳ, nhưng mọi kết quả truy được về đối tượng trong bản trích xuất qua evidence ID: phép kiểm mục 5.1 đạt, có output đã lọc trong evidence |
 | 7 | Báo cáo không kết luận đạt tiêu chuẩn |
 | 8 | Không có bản trích xuất đầy đủ hay đường dẫn máy nào bị commit |
 
@@ -106,7 +161,7 @@ Sau khi M04-B được nghiệm thu, một PR riêng ghi bản đóng M04, có R
 
 | # | Câu hỏi | Đề xuất của LEAD |
 |---|---|---|
-| B1 | Đưa gì vào repo này: chỉ bản tóm tắt, hay cả báo cáo `cadaudit` đầy đủ (có tên layer, tên xref, sha256 tệp nguồn) | Chỉ bản tóm tắt; báo cáo đầy đủ ở lại máy người dùng |
+| B1 | Đưa gì vào repo này: chỉ bản tóm tắt và output đã lọc của mục 5.1 (bắt buộc trong mọi lựa chọn), hay thêm báo cáo `cadaudit` đầy đủ (có tên layer, tên xref, sha256 tệp nguồn) | Chỉ bản tóm tắt và output đã lọc; báo cáo đầy đủ ở lại máy người dùng |
 | B2 | Số bản vẽ cho M04-B | Một bản vẽ dựng từ mẫu V2 |
 | B3 | Bước kiểm chạy ở đâu | Trên máy người dùng (ducdq), không đưa bản trích xuất lên cloud |
 | B4 | SHA ghim của `cadaudit` | `9f11076` (`main` hiện tại; `cadaudit/` không đổi từ `c486c8e`) |
@@ -118,6 +173,8 @@ Sau khi M04-B được nghiệm thu, một PR riêng ghi bản đóng M04, có R
 - Coverage `layers` có thể INCOMPLETE, nếu không xác minh được số mục của bảng layer trong JSON của `dwgread` (CHUAN-HOA-CAD PR #68, mục 3.2).
 - Quy tắc xref không phát hiện được xref thiếu tệp với nguồn hiện có (Q1a).
 - Một bản vẽ không đại diện cho cả bộ hồ sơ.
+- Hồ sơ lần đọc chỉ chứng minh các tệp nhất quán với nhau, không tự chứng minh `dwgread` đã đọc đúng tệp đó. Mức tin cậy dựa vào script đọc đã duyệt (G3).
+- Reviewer cloud không đọc dữ liệu thô; truy vết được chứng minh qua script kiểm đã duyệt (G7) và output đã lọc (mục 5.1).
 
 ## 10. Không thuộc M04-B
 
