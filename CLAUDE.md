@@ -143,6 +143,21 @@ Review moi phai ghi marker `REVIEW_V1`, kem `REVIEWER_MODEL` va `REVIEWED_COMMIT
 Review chi hop le khi `REVIEWED_COMMIT` bang HEAD hien tai cua PR; review cu la STALE.
 Review PASS khong phai nghiem thu. Chi nguoi duyet moi chot mot moc.
 
+### Khi nao Reviewer duoc review
+- Reviewer duoc review mot PR khi tren PR co `CLAUDE_EXECUTION_REPORT` voi
+  `HEAD_COMMIT` day du va dong
+  `NEXT_REQUEST: REQUEST_REVIEW_V1 at exact HEAD <SHA> (scope: <SCOPE>)`,
+  trong do `<SHA>` bang HEAD hien tai cua PR. Khong can binh luan cho phep
+  review cua chu repo.
+- Pham vi review la `<SCOPE>` trong dong `NEXT_REQUEST` va mo ta PR.
+- Review chi dang bang review action COMMENT tai dung SHA do. Reviewer khong
+  mark ready, khong merge, khong sua repo, khong chay du lieu that, khong doc
+  hay ghi DWG, khong goi NotebookLM hay Gateway live.
+- Chu repo van co the dung review hoac thu hep pham vi bang binh luan tren PR.
+  Binh luan cua chu repo thang dong `NEXT_REQUEST`.
+- Quy tac nay chi bo buoc cho phep review. Merge, nghiem thu, phe duyet quyet
+  dinh va moi lan chay live van can chu repo phe duyet truc tiep dung SHA.
+
 ### Chuyen tiep marker
 - Moi review `GPT_REVIEW_V1` da dang, gom M01 va M02 (PR #3, PR #5, Issue #2,
   Issue #4), giu nguyen lam ho so lich su. Khong doi ten, khong sua, khong viet
