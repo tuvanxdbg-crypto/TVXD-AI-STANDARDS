@@ -17,6 +17,10 @@ branch -> commit -> PR -> cập nhật theo main -> CI xanh -> REVIEW_V1 tại H
    - không có check.
    Chỉ trạng thái thứ hai là CI failure.
 5. **REVIEW_V1.** Reviewer đăng review có marker `REVIEW_V1`, kèm `REVIEWER_MODEL`, `REVIEWED_COMMIT`, `DECISION` và `NEXT_ALLOWED_STEP`.
+   - Reviewer được review khi PR có `CLAUDE_EXECUTION_REPORT` với `NEXT_REQUEST: REQUEST_REVIEW_V1 at exact HEAD <SHA> (scope: <SCOPE>)`, trong đó `<SHA>` bằng HEAD hiện tại. Không cần bình luận cho phép review của chủ repo.
+   - Phạm vi review theo `<SCOPE>`. Review chỉ đăng bằng review action COMMENT.
+   - Reviewer không mark ready, không merge, không sửa repo, không chạy dữ liệu thật.
+   - Chủ repo có thể dừng review hoặc thu hẹp phạm vi bằng bình luận trên PR; bình luận đó thắng `NEXT_REQUEST`.
 6. **Chủ repo duyệt và merge.** PASS của Reviewer không thay cho nghiệm thu. Chủ repo duyệt trực tiếp đúng SHA rồi tự bấm merge.
 
 ## 2. Khi nào review hết hiệu lực
@@ -50,7 +54,7 @@ DECISION: PASS | PATCH_REQUIRED | BLOCKED
 NEXT_ALLOWED_STEP: <bước tiếp theo duy nhất được phép>
 ```
 
-Báo cáo của Executor/LEAD trên PR dùng khối `CLAUDE_EXECUTION_REPORT`, có `HEAD_COMMIT` đầy đủ và kết thúc bằng `NEXT_REQUEST: REQUEST_REVIEW_V1 at exact HEAD <SHA>`.
+Báo cáo của Executor/LEAD trên PR dùng khối `CLAUDE_EXECUTION_REPORT`, có `HEAD_COMMIT` đầy đủ và kết thúc bằng `NEXT_REQUEST: REQUEST_REVIEW_V1 at exact HEAD <SHA> (scope: <SCOPE>)`. Dòng này là yêu cầu review, đủ để Reviewer bắt đầu (mục 1, bước 5).
 
 ## 5. Marker cũ
 
