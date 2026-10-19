@@ -1,6 +1,6 @@
 # Kế hoạch M04-B: chạy bộ kiểm chỉ đọc trên một bản vẽ thật
 
-Trạng thái: **bản nháp, chờ REVIEW_V1 và chủ repo phê duyệt**. Kế hoạch này chưa cho phép chạy bất cứ thứ gì.
+Trạng thái: **đã duyệt**. REVIEW_V1 PASS tại `00595f6` (review 5567822283), merge vào `main` tại `21eda0b` (PR #20). Chủ repo chốt B1–B5 ngày 2026-10-19 (mục 8). Kế hoạch vẫn chưa cho phép chạy: chỉ chạy khi G1–G7 đều đạt (mục 3).
 
 Bản vá theo REVIEW_V1 `pullrequestreview-5566700969` (PATCH_REQUIRED tại `e690cd8`):
 - F01: G2, G3, mục 1, mục 4 bước 1 và mục 5 ràng với hợp đồng bộ xuất đã duyệt;
@@ -46,8 +46,8 @@ M04-B **không** nhằm kết luận bản vẽ đạt tiêu chuẩn. Nó cũng 
 | | • chạy `l01_readonly.py` (cầu COM đã nghiệm thu, không sửa); | | |
 | | • bộ xuất tại SHA của G2 kiểm a1–a8 (hậu kiểm L01: `STATE` = `L0_L1_PASSED`, `POSTCHECK_ERRORS` rỗng, hash trước = sau, `SOURCE_UNCHANGED` và `WC_UNCHANGED` = `true`) và b1–b4 (JSON → hồ sơ → hash nguồn → `--meta` → L01). Sai một điều kiện thì không có bản trích xuất | | |
 | G4 | Chọn bản vẽ (Q5) có căn cứ thuộc phạm vi mẫu V2 (Q2), và chốt dữ liệu nào được đưa vào repo này | chủ repo | Chưa |
-| G5 | Kế hoạch này có REVIEW_V1 và được chủ repo phê duyệt | repo này | Chưa |
-| G6 | `cadaudit` dùng nguyên bản tại một SHA ghim (đề xuất `9f11076`). Nếu phải sửa mã thì làm PR riêng, review riêng, trước khi chạy | repo này | Không cần sửa theo hiểu biết hiện tại |
+| G5 | Kế hoạch này có REVIEW_V1 và được chủ repo phê duyệt | repo này | Đạt: REVIEW_V1 PASS tại `00595f6f681efe2494956d19a210d20b995e0ee9` (review 5567822283); chủ repo ra lệnh merge sau PASS ("merge #20", "Chờ PASS rồi merge") và PR #20 merge tại `21eda0bb84600a5aa2bf9d7a06af9c136925c14d`; chủ repo chốt B1–B5 ngày 2026-10-19 (mục 8). Đây là duyệt kế hoạch, không phải quyền chạy |
+| G6 | `cadaudit` dùng nguyên bản tại một SHA ghim (đề xuất `9f11076`). Nếu phải sửa mã thì làm PR riêng, review riêng, trước khi chạy | repo này | Đạt: chủ repo chốt B4 = `9f11076` (mục 8); `cadaudit/` dùng nguyên bản, không cần sửa theo hiểu biết hiện tại. Nếu sau này phải sửa mã thì G6 mất hiệu lực cho tới khi có PR riêng được review |
 | G7 | Có phép kiểm truy vết cục bộ (mục 5.1) đã được review và duyệt tại SHA cụ thể. Phép kiểm này dùng cách giải evidence ID độc lập với `cadaudit`, theo `resolve_evidence` trong `tests/m04/m04_helpers.py` | repo này, PR riêng có review | Chưa |
 
 Chỉ chạy khi G1–G7 đều đạt.
@@ -157,7 +157,9 @@ Sau khi M04-B được nghiệm thu, một PR riêng ghi bản đóng M04, có R
 
 Điều kiện thoát "retrieve evidence" của Issue #2 chỉ đạt một phần.
 
-## 8. Các quyết định cần chủ repo chốt
+## 8. Các quyết định của chủ repo
+
+Chủ repo chốt trong chat ngày 2026-10-19, khoảng 13:49 +07:00, nguyên văn: "Tôi chốt B1–B5 theo đề xuất của LEAD." Vì vậy cột "Đề xuất của LEAD" dưới đây là quyết định đã chốt.
 
 | # | Câu hỏi | Đề xuất của LEAD |
 |---|---|---|
