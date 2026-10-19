@@ -604,7 +604,7 @@ class PerRuleRecount(BaseTest):
         self.assertDat(case.run())
 
     def test_rule_metadata_against_the_rules_file(self):
-        raw = read_bytes(fx("rules_internal.yaml"))
+        raw = read_bytes(fx("rules_internal.yaml")).replace(b"\r\n", b"\n")   # checkout Windows có thể là CRLF
         old = b"status: FIXTURE\n    source: \"FIXTURE (fake, no real source)\"\n    applies_to: layers"
         self.assertIn(old, raw)
         res = Case.fixture(self).run(rules_bytes=raw.replace(old, old.replace(b"FIXTURE", b"PROPOSED", 1)))   # báo cáo vẫn ghi FIXTURE; hash quy tắc đã sửa cho khớp
