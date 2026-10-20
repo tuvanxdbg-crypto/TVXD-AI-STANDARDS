@@ -50,7 +50,10 @@ Bảy bước của mục 5.1:
 
 Phần bổ sung chặt hơn mục 5.1. Mỗi phần sai đều cho `KHONG_DAT`:
 - **2b:** tệp CAD_READ hợp schema `cad_read.v1`.
+- **2c:** bất biến coverage D1 của CAD_READ, viết độc lập theo loader. Mọi nhóm phải có mục coverage; `enumerated` bằng số phần tử mảng; `COMPLETE` có `expected` nguyên, `expected == enumerated` và `reason` null; `INCOMPLETE` có `expected` null hoặc lớn hơn `enumerated` và có `reason`; `NOT_EXTRACTED` có `expected` null, `enumerated` 0 và có `reason`. Sai thì `CAD_READ_COVERAGE_SAI`, `buoc2_schema.cad_read.so_nhom_coverage_sai` ghi số nhóm sai, và script dừng trước bước 3 như khi sai schema.
 - **4b:** tính lại verdict từng dòng `INTERNAL_ONLY` có `reason` null, bằng phép kiểm viết lại độc lập cho cả sáu loại check. Nhờ vậy bắt được báo cáo ghi PASS cho một layer ngoài danh sách V2.
+- **4c:** metadata từng dòng. `rule_status`, `classification` (phân loại D4 tính lại) và `standard_hint` của mỗi dòng phải bằng tệp quy tắc và bằng mục `rules[]` tương ứng. Lệch thì `DONG_METADATA_LECH`.
+- **Cha thiếu:** dòng UNKNOWN/`COVERAGE_INCOMPLETE` vì cha thiếu chỉ hợp lệ khi nhóm là `attributes`, selector có khóa `layer` hoặc `block_name`, cha vắng trong `block_refs`, `block_refs` chưa `COMPLETE` và mọi khóa selector khác thỏa. Quy tắc không cần cha (ví dụ `selector: {}`) thì dòng phải được tính như dòng thường. Dòng ghi `COVERAGE_INCOMPLETE` mà không đủ điều kiện bị đánh dấu lệch lý do, và vẫn bị kiểm trường, `actual`, verdict trực tiếp.
 - **5b:** tính lại phạm vi từng quy tắc từ selector, rồi so với các dòng báo cáo. Nhờ vậy bắt được trường hợp bỏ sót đối tượng, kể cả khi số đếm, verdict và phần tổng hợp đã được sửa cho tự nhất quán.
 - **Liên kết:**
   - báo cáo khớp tệp: `file_id`, `input_sha256`, `dwg_sha256`, `rules_sha256`, `rules_version`;
@@ -79,6 +82,7 @@ Khi đối chiếu SHA của script, dùng `sha256_lf`. Checkout trên Windows c
 ## Giới hạn
 
 - Chỉ kiểm trên dữ liệu giả trong `tests/m04/test_m04b_kiem_truy_vet.py`. Chưa chạy trên bản trích xuất thật.
-- Verdict của dòng UNKNOWN và dòng `STANDARD_REQUIRED` không được tính lại. Các dòng này được kiểm bằng lý do, trường nguồn null và coverage.
+- Verdict của dòng UNKNOWN và dòng `STANDARD_REQUIRED` không được tính lại, vì chúng không có PASS/FAIL. Các dòng này được kiểm bằng lý do, metadata, trường nguồn null, coverage và điều kiện `parent_unknown` ở trên. Dòng UNKNOWN do trường null chỉ được xác nhận là trường nguồn thật sự null; dòng UNKNOWN do coverage chỉ được xác nhận theo bất biến coverage và điều kiện cha thiếu.
+- Script chỉ kiểm bất biến coverage của loader. Các kiểm khác của loader (handle trùng, tham chiếu treo, tag trùng) không nằm trong script; chúng đã được `cadaudit` kiểm khi tạo báo cáo.
 - Script tin vào tệp quy tắc đã ghim hash. Nó không đánh giá nội dung quy tắc đúng hay sai.
 - `DAT` chỉ nói báo cáo truy được về bản trích xuất. Nó không kết luận bản vẽ đạt tiêu chuẩn, hợp pháp hay phù hợp thiết kế.

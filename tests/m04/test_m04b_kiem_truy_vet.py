@@ -418,6 +418,7 @@ class EvidenceIds(BaseTest):
         """Một block dùng lại handle của layer 14: `CADEV:F01:14:name` có hai giá trị."""
         def dup(cad):
             cad["blocks"].append({"handle": "14", "space": "MODEL", "name": "OTHER", "is_xref_dependent": False, "entity_count": 1})
+            cad["coverage"]["blocks"] = {"status": "COMPLETE", "expected": 3, "enumerated": 3, "reason": None}
         res = Case.fixture(self, "cad_read_fail.json").run(mut_cad=dup)
         self.assertKhongDat(res, ["EVIDENCE_ID_NHIEU_GIA_TRI", "ACTUAL_LECH", "PHAM_VI_LECH"])   # actual không xác định; quy tắc block có thêm đối tượng
         self.assertGreater(res.out["buoc3_evidence_id"]["nhieu_gia_tri"], 0)
@@ -426,6 +427,7 @@ class EvidenceIds(BaseTest):
         """Hai layer cùng handle (dựng thẳng, không qua loader của cadaudit): ID có hai giá trị, dòng không xác định."""
         def dup(cad):
             cad["layers"].append(dict(cad["layers"][0], name="DUPLICATE"))
+            cad["coverage"]["layers"] = {"status": "COMPLETE", "expected": 5, "enumerated": 5, "reason": None}
         res = Case.fixture(self, "cad_read_pass.json").run(mut_cad=dup)
         self.assertKhongDat(res, ["EVIDENCE_ID_NHIEU_GIA_TRI", "DONG_KHONG_TIM_THAY_DOI_TUONG", "PHAM_VI_LECH"])   # hai đối tượng, một dòng
 
@@ -608,7 +610,7 @@ class PerRuleRecount(BaseTest):
         old = b"status: FIXTURE\n    source: \"FIXTURE (fake, no real source)\"\n    applies_to: layers"
         self.assertIn(old, raw)
         res = Case.fixture(self).run(rules_bytes=raw.replace(old, old.replace(b"FIXTURE", b"PROPOSED", 1)))   # báo cáo vẫn ghi FIXTURE; hash quy tắc đã sửa cho khớp
-        self.assertKhongDat(res, ["QUY_TAC_KHONG_KHOP_TEP"])
+        self.assertKhongDat(res, ["QUY_TAC_KHONG_KHOP_TEP", "DONG_METADATA_LECH"])    # các dòng của quy tắc đó cũng mang status cũ
         self.assertFalse(next(r for r in res.out["buoc5_6_quy_tac"] if r["rule_id"] == "R-LAYER-NAME")["meta_khop"])
 
     def test_rule_list_of_the_report_against_the_rules_file(self):
@@ -1013,6 +1015,260 @@ class Scope(BaseTest):
         self.assertLess(kv.REASON_ORDER.index("ACTUAL_LECH"), kv.REASON_ORDER.index("DONG_VERDICT_LECH"))
         self.assertEqual(kv.REASON_ORDER.index("DONG_VERDICT_LECH") + 1, kv.REASON_ORDER.index("DONG_LY_DO_LECH"))
         self.assertEqual(kv.REASON_ORDER.index("PHAM_VI_LECH") + 1, kv.REASON_ORDER.index("COUNTS_LECH"))
+
+
+# ---------------------------------------------------------------------------------------------------- F01: cha thiếu
+ANY_ATTR_RULE = rules_yaml(rule_text("R-ANY", "attributes", "{type: required_field, field: value}"))
+
+
+def orphan_cad(value="", parent="FF"):
+    """Attribute 40 có cha `parent` (mặc định không tồn tại) và block_refs chưa COMPLETE."""
+    cad = read_json(fx("cad_read_pass.json"))
+    cad["attributes"][0].update(parent_handle=parent, value=value)
+    cad["coverage"]["block_refs"] = {"status": "INCOMPLETE", "expected": None, "enumerated": 2, "reason": "READ_ERROR"}
+    return cad
+
+
+def claim_unknown_parent(rule_id, handle):
+    def mut(report):
+        row = result_row(report, rule_id, handle)
+        row.update(verdict="UNKNOWN", reason="COVERAGE_INCOMPLETE", actual=None,
+                   evidence_ids=[f"CADEV:F01:{handle}:parent_handle", "CADEV:F01:FILE:coverage.block_refs.status"])
+        resync(report)
+    return mut
+
+
+class ParentUnknown(BaseTest):
+    def test_reviewer_case_fail_rewritten_as_unknown_when_the_rule_does_not_need_the_parent(self):
+        """selector {} : quy tắc không cần cha, cadaudit ra FAIL cho attribute rỗng. Báo cáo đổi thành UNKNOWN rồi
+        sửa counts, verdict và summary cho khớp: vẫn phải KHONG_DAT."""
+        case = Case(self, orphan_cad(""), ANY_ATTR_RULE)
+        row = result_row(case.report, "R-ANY", "40")
+        self.assertEqual((row["verdict"], row["reason"]), ("FAIL", None))
+        self.assertDat(case.run())
+        res = case.run(mut_report=claim_unknown_parent("R-ANY", "40"))
+        self.assertKhongDat(res, ["DONG_THIEU_ID_TRUONG_KIEM", "ACTUAL_LECH", "DONG_VERDICT_LECH", "DONG_LY_DO_LECH"])
+        self.assertEqual(res.out["buoc4_actual"]["theo_loai"], {"truong_kiem": 2})            # dòng được kiểm như dòng thường
+
+    def test_selector_with_a_parent_key_and_a_missing_parent_is_a_real_unknown(self):
+        for selector in ("{layer: A-ANNO-TEXT}", "{block_name: TITLEBLOCK}", "{layer: A-ANNO-TEXT, tag: DRAWING_NO}",
+                         "{space: MODEL, block_name: TITLEBLOCK}"):
+            with self.subTest(selector):
+                case = Case(self, orphan_cad(""), rules_yaml(rule_text("R-P", "attributes", "{type: required_field, field: value}", selector)))
+                row = result_row(case.report, "R-P", "40")
+                self.assertEqual((row["verdict"], row["reason"]), ("UNKNOWN", "COVERAGE_INCOMPLETE"))
+                res = case.run()
+                self.assertDat(res)
+                self.assertEqual(res.out["buoc4_actual"]["theo_loai"].get("cha_thieu"), 1)
+
+    def test_a_missing_parent_row_must_be_unknown_with_a_null_actual(self):
+        case = Case(self, orphan_cad(""), rules_yaml(rule_text("R-P", "attributes", "{type: required_field, field: value}", "{layer: A-ANNO-TEXT}")))
+        for name, verdict, reason, actual in (("pass", "PASS", None, "x"), ("fail", "FAIL", None, ""), ("unknown field_missing", "UNKNOWN", "FIELD_MISSING", None)):
+            def mut(report, verdict=verdict, reason=reason, actual=actual):
+                row = result_row(report, "R-P", "40")
+                row.update(verdict=verdict, reason=reason, actual=actual, evidence_ids=["CADEV:F01:40:value"])
+                resync(report)
+            with self.subTest(name):
+                res = case.run(mut_report=mut)
+                self.assertEqual(res.code, 1)
+                self.assertIn("DONG_LY_DO_LECH", res.reasons)
+
+    def test_a_missing_parent_row_with_a_non_null_actual(self):
+        case = Case(self, orphan_cad(""), rules_yaml(rule_text("R-P", "attributes", "{type: required_field, field: value}", "{layer: A-ANNO-TEXT}")))
+        def mut(report):
+            result_row(report, "R-P", "40")["actual"] = ""
+        res = case.run(mut_report=mut)
+        self.assertKhongDat(res, ["ACTUAL_LECH"])
+
+    def test_selector_with_a_parent_key_but_the_parent_present_is_checked_directly(self):
+        rules = rules_yaml(rule_text("R-P", "attributes", "{type: required_field, field: value}", "{layer: A-ANNO-TEXT}"))
+        case = Case(self, orphan_cad("", parent="31"), rules)             # cha 31 có mặt, block_refs INCOMPLETE
+        row = result_row(case.report, "R-P", "40")
+        self.assertEqual((row["verdict"], row["reason"]), ("FAIL", None))
+        self.assertDat(case.run())
+        res = case.run(mut_report=claim_unknown_parent("R-P", "40"))
+        self.assertKhongDat(res, ["DONG_THIEU_ID_TRUONG_KIEM", "ACTUAL_LECH", "DONG_VERDICT_LECH", "DONG_LY_DO_LECH"])
+
+    def test_other_selector_keys_must_hold_for_a_parent_unknown_row(self):
+        """tag: REVISION loại attribute 40 (DRAWING_NO): dòng cha-thiếu cho nó là dòng thừa và không hợp lệ."""
+        rules = rules_yaml(rule_text("R-P", "attributes", "{type: required_field, field: value}", "{layer: A-ANNO-TEXT, tag: REVISION}"))
+        case = Case(self, orphan_cad(""), rules)
+        self.assertEqual([r["handle"] for r in case.report["results"]], ["41"])
+        def extra(report):
+            report["results"].append(dict(report["results"][0], handle="40", verdict="UNKNOWN", reason="COVERAGE_INCOMPLETE", actual=None,
+                                          evidence_ids=["CADEV:F01:40:parent_handle", "CADEV:F01:FILE:coverage.block_refs.status"]))
+            resync(report)
+        res = case.run(mut_report=extra)
+        self.assertKhongDat(res, ["PHAM_VI_LECH", "DONG_LY_DO_LECH"], exact=False)
+
+    def test_block_refs_complete_makes_a_parent_unknown_claim_invalid(self):
+        cad = orphan_cad("")
+        case = Case(self, cad, rules_yaml(rule_text("R-P", "attributes", "{type: required_field, field: value}", "{layer: A-ANNO-TEXT}")))
+        res = case.run(mut_cad=lambda c: c["coverage"].update(block_refs={"status": "COMPLETE", "expected": 2, "enumerated": 2, "reason": None}))
+        self.assertIn("DONG_LY_DO_LECH", res.reasons)
+
+
+# ---------------------------------------------------------------------------------------------------- F02: metadata từng dòng
+class RowMetadata(BaseTest):
+    def test_each_field_alone(self):
+        for field, value in (("rule_status", "APPROVED"), ("classification", "STANDARD_REQUIRED"), ("standard_hint", "TCVN-X")):
+            with self.subTest(field):
+                res = Case.fixture(self).run(mut_report=lambda r, f=field, v=value: result_row(r, "R-LAYER-NAME", "10").update({f: v}))
+                self.assertKhongDat(res, ["DONG_METADATA_LECH"])
+                self.assertEqual(res.out["buoc4_actual"]["meta_dong_lech"], 1)
+
+    def test_reviewer_case_all_three_on_a_pass_row(self):
+        def mut(report):
+            result_row(report, "R-LAYER-NAME", "10").update(rule_status="APPROVED", classification="STANDARD_REQUIRED")
+        res = Case.fixture(self).run(mut_report=mut)
+        self.assertKhongDat(res, ["DONG_METADATA_LECH"])
+
+    def test_standard_hint_dropped_or_added_on_a_standard_required_row(self):
+        case = Case.fixture(self, "cad_read_pass.json", "rules_standard.yaml")
+        self.assertEqual(result_row(case.report, "R-STD-LAYER-LW", "10")["standard_hint"], "TCVN-FAKE-01")
+        self.assertDat(case.run())
+        for value in (None, "TCVN-OTHER"):
+            res = case.run(mut_report=lambda r, v=value: result_row(r, "R-STD-LAYER-LW", "10").update(standard_hint=v))
+            self.assertKhongDat(res, ["DONG_METADATA_LECH"])
+
+    def test_rows_must_also_match_the_rule_entry_of_the_report(self):
+        """Mục rules[] của báo cáo đổi standard_hint: các dòng (khớp tệp quy tắc) lệch với nó, và quy tắc lệch tệp."""
+        res = Case.fixture(self).run(mut_report=lambda r: rule_entry(r, "R-LAYER-NAME").update(standard_hint="X"))
+        self.assertKhongDat(res, ["QUY_TAC_KHONG_KHOP_TEP", "DONG_METADATA_LECH"])
+        self.assertEqual(res.out["buoc4_actual"]["meta_dong_lech"], 4)
+
+    def test_rows_and_rule_entry_changed_together_still_differ_from_the_rules_file(self):
+        """Dòng và mục rules[] cùng nói một giá trị sai: khớp nhau nhưng không khớp tệp quy tắc."""
+        for field, value in (("rule_status", "APPROVED"), ("classification", "STANDARD_REQUIRED"), ("standard_hint", "TCVN-X")):
+            def mut(report, f=field, v=value):
+                rule_entry(report, "R-LAYER-NAME")[f] = v
+                for row in report["results"]:
+                    if row["rule_id"] == "R-LAYER-NAME":
+                        row[f] = v
+            with self.subTest(field):
+                res = Case.fixture(self).run(mut_report=mut)
+                self.assertKhongDat(res, ["QUY_TAC_KHONG_KHOP_TEP", "DONG_METADATA_LECH"], exact=False)   # rule_status còn làm lệch summary
+                self.assertEqual(res.out["buoc4_actual"]["meta_dong_lech"], 4)
+
+    def test_reason_order(self):
+        self.assertEqual(kv.REASON_ORDER.index("DONG_LY_DO_LECH") + 1, kv.REASON_ORDER.index("DONG_METADATA_LECH"))
+        self.assertEqual(kv.REASON_ORDER.index("CAD_READ_SAI_SCHEMA") + 1, kv.REASON_ORDER.index("CAD_READ_COVERAGE_SAI"))
+
+
+# ---------------------------------------------------------------------------------------------------- F03: bất biến coverage
+def set_cov(group, status, expected, enumerated, reason, array=None):
+    def mut(cad):
+        cad["coverage"][group] = {"status": status, "expected": expected, "enumerated": enumerated, "reason": reason}
+        if array is not None:
+            cad[group] = array
+    return mut
+
+
+class CoverageInvariants(BaseTest):
+    def rejected(self, res):
+        return "CAD_READ_COVERAGE_SAI" in res.reasons
+
+    def test_reviewer_case_expected_plus_ten_while_complete(self):
+        res = Case.fixture(self).run(mut_cad=set_cov("layers", "COMPLETE", 14, 4, None))
+        self.assertKhongDat(res, ["CAD_READ_COVERAGE_SAI"])
+        self.assertEqual(res.out["buoc2_schema"]["cad_read"]["so_nhom_coverage_sai"], 1)
+        self.assertTrue(res.out["buoc2_schema"]["cad_read"]["hop_le"])
+        self.assertEqual(res.out["buoc_da_chay"], ["1", "2"])
+        self.assertIsNone(res.out["buoc3_evidence_id"])
+
+    def test_each_violation_of_the_invariant_table(self):
+        n = 4   # layers có 4 phần tử trong cad_read_pass
+        bad = {
+            "COMPLETE expected null": set_cov("layers", "COMPLETE", None, n, None),
+            "COMPLETE expected != enumerated": set_cov("layers", "COMPLETE", n + 1, n, None),
+            "COMPLETE enumerated != expected": set_cov("layers", "COMPLETE", n, n - 1, None),
+            "COMPLETE with a reason": set_cov("layers", "COMPLETE", n, n, "READ_ERROR"),
+            "COMPLETE enumerated != array": set_cov("layers", "COMPLETE", n + 1, n + 1, None),
+            "INCOMPLETE expected == enumerated": set_cov("layers", "INCOMPLETE", n, n, "READ_ERROR"),
+            "INCOMPLETE expected < enumerated": set_cov("layers", "INCOMPLETE", n - 1, n, "READ_ERROR"),
+            "INCOMPLETE without reason": set_cov("layers", "INCOMPLETE", n + 3, n, None),
+            "INCOMPLETE expected null without reason": set_cov("layers", "INCOMPLETE", None, n, None),
+            "INCOMPLETE enumerated != array": set_cov("layers", "INCOMPLETE", None, n - 1, "READ_ERROR"),
+            "NOT_EXTRACTED with a non-empty array": set_cov("layers", "NOT_EXTRACTED", None, 0, "NOT_REQUESTED"),
+            "NOT_EXTRACTED enumerated != 0": set_cov("layers", "NOT_EXTRACTED", None, n, "NOT_REQUESTED"),
+            "NOT_EXTRACTED expected set": set_cov("layers", "NOT_EXTRACTED", 0, 0, "NOT_REQUESTED", []),
+            "NOT_EXTRACTED without reason": set_cov("layers", "NOT_EXTRACTED", None, 0, None, []),
+            "array longer than coverage": lambda cad: cad["layers"].append(dict(cad["layers"][0], handle="99", name="MORE")),
+            "array shorter than coverage": lambda cad: cad["layers"].pop(),
+            "units COMPLETE expected wrong": set_cov("units", "COMPLETE", 2, 1, None),
+            "units array removed": lambda cad: cad.pop("units"),
+        }
+        for g in kv.GROUPS:
+            bad[f"missing entry {g}"] = lambda cad, g=g: cad["coverage"].pop(g)
+        for name, mut in bad.items():
+            with self.subTest(name):
+                res = Case.fixture(self).run(mut_cad=mut)
+                self.assertKhongDat(res, ["CAD_READ_COVERAGE_SAI"])
+                self.assertGreaterEqual(res.out["buoc2_schema"]["cad_read"]["so_nhom_coverage_sai"], 1)
+
+    def test_valid_variants_are_not_flagged(self):
+        ok = {
+            "INCOMPLETE expected null": set_cov("layers", "INCOMPLETE", None, 4, "READ_ERROR"),
+            "INCOMPLETE expected greater": set_cov("layers", "INCOMPLETE", 9, 4, "PARTIAL_ENUMERATION"),
+            "NOT_EXTRACTED empty": set_cov("layers", "NOT_EXTRACTED", None, 0, "NOT_REQUESTED", []),
+            "COMPLETE empty group": set_cov("layers", "COMPLETE", 0, 0, None, []),
+        }
+        for name, mut in ok.items():
+            with self.subTest(name):
+                res = Case.fixture(self).run(mut_cad=mut)
+                self.assertNotIn("CAD_READ_COVERAGE_SAI", res.reasons)
+                self.assertEqual(res.out["buoc2_schema"]["cad_read"]["so_nhom_coverage_sai"], 0)
+                self.assertIn("3", res.out["buoc_da_chay"])
+
+    def test_two_wrong_groups_are_counted_and_schema_error_wins(self):
+        def mut(cad):
+            cad["coverage"]["layers"]["expected"] = 99
+            cad["coverage"]["texts"]["reason"] = "READ_ERROR"
+        res = Case.fixture(self).run(mut_cad=mut)
+        self.assertKhongDat(res, ["CAD_READ_COVERAGE_SAI"])
+        self.assertEqual(res.out["buoc2_schema"]["cad_read"]["so_nhom_coverage_sai"], 2)
+        res = Case.fixture(self).run(mut_cad=lambda cad: (cad["drawing"].update(read_mode="READ_WRITE"), set_cov("layers", "COMPLETE", 14, 4, None)(cad)))
+        self.assertKhongDat(res, ["CAD_READ_SAI_SCHEMA"])                  # sai schema thì không tính coverage
+        self.assertIsNone(res.out["buoc2_schema"]["cad_read"]["so_nhom_coverage_sai"])
+
+    def test_script_agrees_with_the_cadaudit_loader_on_a_grid_of_coverage_variants(self):
+        from cadaudit.errors import CadAuditError
+        from cadaudit.loader import load_cad_read
+        schema = json.loads(read_bytes(os.path.join(REPO, "cadaudit", "schemas", "cad_read.v1.json")))
+        base = read_json(fx("cad_read_pass.json"))
+        checked = accepted = 0
+
+        def agree(cad, label):
+            nonlocal checked, accepted
+            try:
+                load_cad_read(dumps(cad))
+                loader_ok = True
+            except CadAuditError:
+                loader_ok = False
+            script_ok = not kv.gateway_schema.validate(cad, schema) and kv.coverage_problems(cad) == 0
+            self.assertEqual(script_ok, loader_ok, label)
+            checked += 1
+            accepted += loader_ok
+
+        for g in ("layers", "units", "dimensions"):
+            n = len(base[g])
+            for status, expected, enumerated, reason in itertools.product(("COMPLETE", "INCOMPLETE", "NOT_EXTRACTED"),
+                                                                          (None, n - 1, n, n + 10), (n, n + 1, 0), (None, "READ_ERROR")):
+                cad = copy.deepcopy(base)
+                cad["coverage"][g] = {"status": status, "expected": expected, "enumerated": enumerated, "reason": reason}
+                agree(cad, (g, status, expected, enumerated, reason))
+                empty = copy.deepcopy(cad)                                  # cùng mục coverage, mảng rỗng
+                empty[g] = []
+                agree(empty, (g, "empty", status, expected, enumerated, reason))
+        for g in kv.GROUPS:
+            cad = copy.deepcopy(base)
+            del cad["coverage"][g]
+            agree(cad, ("missing", g))
+            cad = copy.deepcopy(base)
+            cad.pop(g, None) if g == "units" else cad[g].clear()
+            agree(cad, ("array gone", g))
+        self.assertGreater(accepted, 20)
+        self.assertGreater(checked - accepted, 100)                         # lưới có đủ cả ca được và ca bị từ chối
 
 
 # ---------------------------------------------------------------------------------------------------- output

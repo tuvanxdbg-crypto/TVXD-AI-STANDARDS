@@ -10,13 +10,20 @@ lớn). Kiểm schema dùng `gateway.schema.validate` (gateway/schema.py, bản 
 `cadaudit/schemas/`; đây không phải bản sao `cadaudit/_schema.py`, nên không dùng lại chính validator mà
 `cadaudit` đã tự kiểm báo cáo. Tên validator được ghi vào output (`schema_validator`).
 
-Các bước (mục 5.1; 2b, 4b, 5b, 6b và các kiểm liên kết là bổ sung, xem ghi chú từng hàm):
+Các bước (mục 5.1; 2b, 2c, 4b, 4c, 5b, 6b và các kiểm liên kết là bổ sung, xem ghi chú từng hàm):
   1. sha256 ba tệp trùng giá trị truyền vào. Sai thì dừng và vẫn ghi output KHONG_DAT (exit 1).
   2. Báo cáo hợp `cad_audit_report.v1.json` (2b: CAD_READ hợp `cad_read.v1.json`; sai một trong hai thì dừng).
+  2c. Bất biến coverage D1 của CAD_READ (`coverage_problems`, viết độc lập theo loader): thiếu mục coverage, hoặc
+      enumerated khác số phần tử mảng, hoặc COMPLETE/INCOMPLETE/NOT_EXTRACTED sai điều kiện expected/reason thì
+      `CAD_READ_COVERAGE_SAI` và dừng trước bước 3, như khi sai schema.
   3. Mọi evidence ID (cấp quy tắc, cấp dòng, kể cả cấp FILE) đúng dạng, đúng file_id, giải ra ĐÚNG MỘT giá trị.
   4. Mỗi dòng kết quả: `actual` bằng giá trị tại evidence ID của trường được kiểm (xem `verify_row`).
   4b. Tính lại verdict từng dòng INTERNAL_ONLY (reason null) từ giá trị nguồn, bằng phép kiểm hiện thực lại
       độc lập cho cả sáu loại check (`evaluate_check`); lệch thì `DONG_VERDICT_LECH`.
+  4c. Metadata từng dòng: `rule_status`, `classification`, `standard_hint` của mỗi dòng bằng tệp quy tắc (phân loại D4
+      tính lại) và bằng mục `rules[]` của báo cáo; lệch thì `DONG_METADATA_LECH`.
+      UNKNOWN/COVERAGE_INCOMPLETE ở cấp dòng vì "cha thiếu" chỉ hợp lệ khi `parent_unknown` đúng theo selector
+      (xem `parent_unknown`); không thì dòng bị kiểm trường và verdict trực tiếp như dòng thường.
   5. Đếm lại PASS/FAIL/UNKNOWN và số dòng theo quy tắc, so với `counts` và `objects_in_scope`.
   5b. Tính lại phạm vi từng quy tắc từ selector (`in_scope`: space, tag, name_pattern, layer, block_name) và so
       tập handle trong phạm vi với tập handle các dòng báo cáo (có tính trùng dòng): thiếu hoặc thừa dòng thì
@@ -83,11 +90,11 @@ SHA_RE = re.compile(r"[0-9a-f]{64}")
 # Thứ tự cố định của mã lý do KHONG_DAT trong output.
 REASON_ORDER = (
     "SHA256_CAD_READ_SAI", "SHA256_QUY_TAC_SAI", "SHA256_BAO_CAO_SAI",
-    "BAO_CAO_SAI_SCHEMA", "CAD_READ_SAI_SCHEMA",
+    "BAO_CAO_SAI_SCHEMA", "CAD_READ_SAI_SCHEMA", "CAD_READ_COVERAGE_SAI",
     "LIEN_KET_BAO_CAO_SAI", "QUY_TAC_KHONG_KHOP_TEP",
     "EVIDENCE_ID_SAI_DANG", "EVIDENCE_ID_SAI_FILE_ID", "EVIDENCE_ID_KHONG_GIAI_DUOC", "EVIDENCE_ID_NHIEU_GIA_TRI",
     "DONG_RULE_ID_LA", "DONG_KHONG_TIM_THAY_DOI_TUONG", "DONG_THIEU_ID_TRUONG_KIEM", "ACTUAL_LECH",
-    "DONG_VERDICT_LECH", "DONG_LY_DO_LECH",
+    "DONG_VERDICT_LECH", "DONG_LY_DO_LECH", "DONG_METADATA_LECH",
     "PHAM_VI_LECH", "COUNTS_LECH", "OBJECTS_IN_SCOPE_LECH", "COVERAGE_COMPLETE_LECH", "VERDICT_LECH", "REASONS_LECH",
     "SUMMARY_LECH", "FAIL_UNKNOWN_THIEU_EVIDENCE",
 )
@@ -229,6 +236,34 @@ class Resolver:
         return True, self.values(handle, field)[0]
 
 
+def coverage_problems(cad: dict) -> int:
+    """Số nhóm vi phạm bất biến coverage D1, viết độc lập theo `check_coverage` và vòng kiểm nhóm của
+    cadaudit/loader.py (chỉ đọc để đối chiếu). Mỗi nhóm trong GROUPS (kể cả units) phải có mục coverage, và:
+      enumerated == số phần tử mảng nhóm (mảng vắng tính là rỗng);
+      COMPLETE: expected là số nguyên, expected == enumerated, reason null;
+      INCOMPLETE: expected null hoặc enumerated < expected, reason khác null;
+      NOT_EXTRACTED: expected null, enumerated == 0, reason khác null."""
+    isint = lambda v: isinstance(v, int) and not isinstance(v, bool)  # noqa: E731
+    bad = 0
+    for g in GROUPS:
+        c, items = cad["coverage"].get(g), cad.get(g, [])
+        if not isinstance(c, dict) or not isinstance(items, list):
+            bad += 1
+            continue
+        status, exp, enum, why = c.get("status"), c.get("expected"), c.get("enumerated"), c.get("reason")
+        ok = isint(enum) and enum == len(items)
+        if status == COMPLETE:
+            ok = ok and isint(exp) and exp == enum and why is None
+        elif status == "INCOMPLETE":
+            ok = ok and (exp is None or (isint(exp) and enum < exp)) and why is not None
+        elif status == "NOT_EXTRACTED":
+            ok = ok and exp is None and enum == 0 and why is not None
+        else:
+            ok = False
+        bad += not ok
+    return bad
+
+
 def same(a, b) -> bool:
     """Bằng nhau theo giá trị: số bằng số (không tính bool), còn lại phải cùng kiểu. Không coi True là 1."""
     num = lambda v: isinstance(v, (int, float)) and not isinstance(v, bool)  # noqa: E731
@@ -334,7 +369,7 @@ def in_scope(rs: "Resolver", raw: dict, obj: dict) -> bool:
         else:                                     # layer, block_name
             if group == "attributes":
                 parents = rs.by_group.get(("block_refs", obj.get("parent_handle")), [])
-                if len(parents) != 1:
+                if not parents:
                     continue
                 ok = parents[0].get(key) == want
             else:
@@ -342,6 +377,18 @@ def in_scope(rs: "Resolver", raw: dict, obj: dict) -> bool:
         if not ok:
             return False
     return True
+
+
+def parent_unknown(rs: "Resolver", raw: dict, obj: dict) -> bool:
+    """Theo evaluator `_select`: nhóm attributes, selector có ít nhất một khóa layer hoặc block_name (cần block_ref
+    cha), đối tượng thỏa mọi khóa selector khác, và cha không có trong block_refs. Chỉ khi đó dòng mới được là
+    UNKNOWN/COVERAGE_INCOMPLETE vì cha thiếu; quy tắc không cần cha thì cha thiếu không đổi gì."""
+    sel = raw.get("selector", {})
+    if raw["applies_to"] != "attributes" or not ({"layer", "block_name"} & set(sel)):
+        return False
+    if rs.by_group.get(("block_refs", obj.get("parent_handle"))):
+        return False
+    return in_scope(rs, raw, obj)
 
 
 # ---------------------------------------------------------------- bước 4: một dòng kết quả
@@ -355,7 +402,12 @@ def verify_row(cad: dict, rs: Resolver, raw: dict, cls: str, row: dict) -> tuple
       required_field có `attribute_tag` (INTERNAL_ONLY): trường là `value` của attribute có parent_handle là dòng
         này và tag đúng; không có attribute thì actual phải null, và FAIL chỉ khi `attributes` COMPLETE.
       STANDARD_REQUIRED: actual là giá trị của trường đầu tiên trong danh sách trường kiểm; expected luôn null.
-      attributes có parent thiếu (COVERAGE_INCOMPLETE): actual null, evidence là parent_handle và coverage.
+      attributes có parent thiếu (`parent_unknown`): chỉ khi selector có khóa layer/block_name VÀ cha vắng trong
+        block_refs VÀ mọi khóa selector khác thỏa. Khi đó dòng phải là UNKNOWN/COVERAGE_INCOMPLETE, actual null,
+        evidence là parent_handle và coverage.block_refs.status, và block_refs chưa COMPLETE. Ngược lại (không
+        parent_unknown) mà dòng ghi COVERAGE_INCOMPLETE thì dòng bị đánh dấu lệch lý do và vẫn được kiểm trường
+        và verdict trực tiếp như dòng thường.
+    Thứ tự như evaluator: STANDARD_REQUIRED, parent_unknown, attribute_tag, trường null, check.
     Verdict từng dòng (4b): dòng INTERNAL_ONLY có reason null phải có verdict bằng verdict tính lại từ giá trị
     nguồn bằng `evaluate_check` (required_field/attribute_tag: chuỗi rỗng sau strip là FAIL). Không tính được
     cũng là lệch. Dòng UNKNOWN và dòng STANDARD_REQUIRED không có verdict PASS/FAIL để tính lại; chúng được kiểm
@@ -407,6 +459,15 @@ def verify_row(cad: dict, rs: Resolver, raw: dict, cls: str, row: dict) -> tuple
         check_actual(mk(handle, fields[0]))
         return probs, "standard_required"
 
+    if parent_unknown(rs, raw, obj):
+        if (verdict, reason) != ("UNKNOWN", "COVERAGE_INCOMPLETE") or status("block_refs") == COMPLETE:
+            probs.add("ly_do_lech")
+        if actual is not None:
+            probs.add("actual_lech")
+        need(mk(handle, "parent_handle"))
+        need(mk_file("coverage.block_refs.status"))
+        return probs, "cha_thieu"
+
     if chk["type"] == "required_field" and "attribute_tag" in chk:
         attrs = [a for a in rs.attrs_by_parent.get(handle, []) if a.get("tag") == chk["attribute_tag"]]
         if attrs:
@@ -416,7 +477,9 @@ def verify_row(cad: dict, rs: Resolver, raw: dict, cls: str, row: dict) -> tuple
             if reason == "FIELD_MISSING":
                 if not ok or v is not None or actual is not None:
                     probs.add("actual_lech")
-            elif reason is None:
+            else:
+                if reason is not None:
+                    probs.add("ly_do_lech")
                 if v is None:
                     probs.add("actual_lech")
                 check_actual(ev)
@@ -424,8 +487,6 @@ def verify_row(cad: dict, rs: Resolver, raw: dict, cls: str, row: dict) -> tuple
                     want = ("FAIL" if v.strip() == "" else "PASS") if isinstance(v, str) else None
                     if verdict != want:
                         probs.add("verdict_dong_lech")
-            else:
-                probs.add("ly_do_lech")
             return probs, "attribute_tag"
         complete = status("attributes") == COMPLETE
         if (verdict, reason) != (("FAIL", None) if complete else ("UNKNOWN", "COVERAGE_INCOMPLETE")):
@@ -439,17 +500,6 @@ def verify_row(cad: dict, rs: Resolver, raw: dict, cls: str, row: dict) -> tuple
             need(mk_file("coverage.attributes.expected"))
         return probs, "attribute_tag_vang"
 
-    if reason == "COVERAGE_INCOMPLETE":
-        # chỉ hợp lệ khi nhóm attributes cần block_ref cha mà block_refs chưa COMPLETE và cha không có trong dữ liệu
-        parent = obj.get("parent_handle")
-        if group != "attributes" or status("block_refs") == COMPLETE or ("block_refs", parent) in rs.by_group:
-            probs.add("ly_do_lech")
-        if actual is not None:
-            probs.add("actual_lech")
-        need(mk(handle, "parent_handle"))
-        need(mk_file("coverage.block_refs.status"))
-        return probs, "cha_thieu"
-
     fields = checked_fields(raw)
     for f in fields:
         need(mk(handle, f))
@@ -460,14 +510,14 @@ def verify_row(cad: dict, rs: Resolver, raw: dict, cls: str, row: dict) -> tuple
     if reason == "FIELD_MISSING":
         if actual is not None or not null_any:
             probs.add("actual_lech")
-    elif reason is None:
+    else:
+        if reason is not None:           # lý do không hợp lệ cho dòng này (kể cả COVERAGE_INCOMPLETE khi cha không thiếu)
+            probs.add("ly_do_lech")
         if null_any:
             probs.add("actual_lech")
         check_actual(mk(handle, fields[-1]))      # equals_field: actual là field_b
         if all(ok for ok, _ in resolved) and not null_any and verdict != evaluate_check(raw, [v for _, v in resolved]):
             probs.add("verdict_dong_lech")
-    else:
-        probs.add("ly_do_lech")
     return probs, "truong_kiem"
 
 
@@ -514,9 +564,12 @@ def step456(cad, rs: Resolver, raw_rules: list, report: dict) -> tuple:
     # --- bước 4
     rows_by_rule, c4 = {}, {"so_dong": len(report["results"]), "dong_da_kiem": 0, "actual_khop": 0, "actual_lech": 0,
                             "thieu_id_truong_kiem": 0, "khong_tim_thay_doi_tuong": 0, "verdict_dong_lech": 0,
-                            "ly_do_lech": 0,
+                            "ly_do_lech": 0, "meta_dong_lech": 0,
                             "rule_id_la": 0, "theo_loai": {}}
     classes = {rid: classify_rule(raw)[0] for rid, raw in by_id.items()}
+    rep_by_id = {}
+    for r in report["rules"]:
+        rep_by_id.setdefault(r["rule_id"], r)
     for row in report["results"]:
         rid = row["rule_id"]
         if rid not in by_id:
@@ -524,6 +577,12 @@ def step456(cad, rs: Resolver, raw_rules: list, report: dict) -> tuple:
             continue
         rows_by_rule.setdefault(rid, []).append(row)
         probs, kind = verify_row(cad, rs, by_id[rid], classes[rid], row)
+        raw_rule, rep_rule = by_id[rid], rep_by_id.get(rid)
+        want_meta = (raw_rule["status"], classes[rid], raw_rule.get("standard_hint"))
+        if (row["rule_status"], row["classification"], row["standard_hint"]) != want_meta or (
+                rep_rule is not None and (row["rule_status"], row["classification"], row["standard_hint"]) != (
+                    rep_rule["rule_status"], rep_rule["classification"], rep_rule["standard_hint"])):
+            probs.add("meta_dong_lech")
         c4["dong_da_kiem"] += 1
         c4["theo_loai"][kind] = c4["theo_loai"].get(kind, 0) + 1
         if "actual_lech" in probs:
@@ -534,9 +593,11 @@ def step456(cad, rs: Resolver, raw_rules: list, report: dict) -> tuple:
         c4["khong_tim_thay_doi_tuong"] += "khong_tim_thay" in probs
         c4["verdict_dong_lech"] += "verdict_dong_lech" in probs
         c4["ly_do_lech"] += "ly_do_lech" in probs
+        c4["meta_dong_lech"] += "meta_dong_lech" in probs
     for key, code in (("rule_id_la", "DONG_RULE_ID_LA"), ("khong_tim_thay_doi_tuong", "DONG_KHONG_TIM_THAY_DOI_TUONG"),
                       ("thieu_id_truong_kiem", "DONG_THIEU_ID_TRUONG_KIEM"), ("actual_lech", "ACTUAL_LECH"),
-                      ("verdict_dong_lech", "DONG_VERDICT_LECH"), ("ly_do_lech", "DONG_LY_DO_LECH")):
+                      ("verdict_dong_lech", "DONG_VERDICT_LECH"), ("ly_do_lech", "DONG_LY_DO_LECH"),
+                      ("meta_dong_lech", "DONG_METADATA_LECH")):
         if c4[key]:
             reasons.add(code)
 
@@ -672,12 +733,17 @@ def kiem(args) -> dict:
     out["buoc2_schema"] = {
         "schema_validator": SCHEMA_VALIDATOR,
         "bao_cao": {"hop_le": not problems["bao_cao"], "so_loi": len(problems["bao_cao"]), "schema_sha256": schemas["bao_cao"][1]},
-        "cad_read": {"hop_le": not problems["cad_read"], "so_loi": len(problems["cad_read"]), "schema_sha256": schemas["cad_read"][1]},
+        "cad_read": {"hop_le": not problems["cad_read"], "so_loi": len(problems["cad_read"]), "schema_sha256": schemas["cad_read"][1],
+                     "so_nhom_coverage_sai": None},
     }
     if problems["bao_cao"]:
         reasons.add("BAO_CAO_SAI_SCHEMA")
     if problems["cad_read"]:
         reasons.add("CAD_READ_SAI_SCHEMA")
+    else:                                         # bất biến coverage cần cấu trúc đúng schema
+        out["buoc2_schema"]["cad_read"]["so_nhom_coverage_sai"] = coverage_problems(cad)
+        if out["buoc2_schema"]["cad_read"]["so_nhom_coverage_sai"]:
+            reasons.add("CAD_READ_COVERAGE_SAI")
     if reasons:                                   # cấu trúc không đáng tin thì không đi tiếp
         return finish(out, reasons)
 
