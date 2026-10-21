@@ -6,9 +6,12 @@ tệp: CAD_READ, tệp quy tắc, báo cáo `cadaudit` và output của phép ki
 chỉ tạo MỘT tệp mới (`--out`, chế độ `xb`, không ghi đè).
 
 Mục đích: không để dữ liệu bản vẽ lọt vào repo. Output chỉ gồm hash, số đếm, mã (enum) và `rule_id`; được dựng từ
-danh sách trường cố định (không sao chép nguyên khối từ báo cáo hay CAD_READ). Mọi chuỗi đi vào output đều là một
-giá trị enum, hex, nhãn phiên bản (không có ký tự điều khiển) hoặc `rule_id` đúng dạng. Không có `drawing`, handle,
-tên layer hay xref, `results[]`, `actual`/`expected`, evidence ID, `note` tự do hay đường dẫn.
+danh sách trường cố định (không sao chép nguyên khối từ báo cáo hay CAD_READ). Mọi chuỗi đi vào output chỉ có thể là
+hex, một giá trị của enum cố định, `rule_id` đúng regex (hoặc `RULE_<số thứ tự>`), hằng số của script hoặc `tao_luc`.
+Không có chuỗi văn bản tự do nào, kể cả nhãn phiên bản: `cadaudit_version` và `rules_version` KHÔNG được chép (báo
+cáo và tệp quy tắc là nơi chúng có thể mang đường dẫn); `cadaudit_sha` và `sha256.quy_tac` đã định danh phiên bản.
+Không có `drawing`, handle, tên layer hay xref, `results[]`, `actual`/`expected`, evidence ID, `note` tự do hay
+đường dẫn.
 
 Script không import `cadaudit` và không import `kiem_truy_vet`; chỉ dùng thư viện chuẩn. Bản tóm tắt chỉ mô tả,
 không thay cho phép kiểm truy vết: kết luận của G7 được chép nguyên (kể cả KHONG_DAT), không tự tính lại.
@@ -58,8 +61,18 @@ OVERALL_NOTE = "RULES_NOT_APPROVED"
 RULE_ID_RE = re.compile(r"[A-Z][A-Z0-9_-]{1,63}")
 SHA_RE = re.compile(r"[0-9a-f]{64}")
 GIT_SHA_RE = re.compile(r"[0-9a-f]{40}")
-REASON_CODE_RE = re.compile(r"[A-Z][A-Z0-9_]{1,63}")
-MAX_LABEL = 64
+# Mã lý do KHONG_DAT của G7 (REASON_ORDER trong kiem_truy_vet.py). Bản sao có chủ đích: script không import
+# kiem_truy_vet. Test so với REASON_ORDER để phát hiện lệch; mã lạ thì tóm tắt từ chối (exit 2).
+KTV_REASONS = (
+    "SHA256_CAD_READ_SAI", "SHA256_QUY_TAC_SAI", "SHA256_BAO_CAO_SAI",
+    "BAO_CAO_SAI_SCHEMA", "CAD_READ_SAI_SCHEMA", "CAD_READ_COVERAGE_SAI",
+    "LIEN_KET_BAO_CAO_SAI", "QUY_TAC_KHONG_KHOP_TEP",
+    "EVIDENCE_ID_SAI_DANG", "EVIDENCE_ID_SAI_FILE_ID", "EVIDENCE_ID_KHONG_GIAI_DUOC", "EVIDENCE_ID_NHIEU_GIA_TRI",
+    "DONG_RULE_ID_LA", "DONG_KHONG_TIM_THAY_DOI_TUONG", "DONG_THIEU_ID_TRUONG_KIEM", "ACTUAL_LECH",
+    "DONG_VERDICT_LECH", "DONG_LY_DO_LECH", "DONG_METADATA_LECH",
+    "PHAM_VI_LECH", "COUNTS_LECH", "OBJECTS_IN_SCOPE_LECH", "COVERAGE_COMPLETE_LECH", "VERDICT_LECH", "REASONS_LECH",
+    "SUMMARY_LECH", "FAIL_UNKNOWN_THIEU_EVIDENCE",
+)
 
 
 class InputError(Exception):
@@ -124,12 +137,6 @@ def is_count(v) -> bool:
     return is_int(v) and v >= 0
 
 
-def label_text(v, code: str) -> str:
-    """Nhãn phiên bản: chuỗi 1..64 ký tự, không có ký tự điều khiển."""
-    need(isinstance(v, str) and 1 <= len(v) <= MAX_LABEL and not any(ord(c) < 32 or ord(c) == 127 for c in v), code)
-    return v
-
-
 def count_map(v, keys, code: str) -> dict:
     """Từ điển đúng tập khóa `keys`, giá trị là số nguyên không âm. Trả bản dựng lại theo thứ tự `keys`."""
     need(isinstance(v, dict) and set(v) == set(keys) and all(is_count(v[k]) for k in keys), code)
@@ -156,8 +163,7 @@ def kiem_truy_vet_block(ktv, sha: dict) -> dict:
     need(ktv.get("buoc_da_chay") == STEPS, "KIEM_TRUY_VET_THIEU_BUOC")
     ket_luan, why = ktv.get("ket_luan"), ktv.get("ly_do_khong_dat")
     need(ket_luan in ("DAT", "KHONG_DAT"), "KIEM_TRUY_VET_SAI_KIEU")
-    need(isinstance(why, list) and all(isinstance(x, str) and REASON_CODE_RE.fullmatch(x) for x in why),
-         "KIEM_TRUY_VET_SAI_KIEU")
+    need(isinstance(why, list) and all(isinstance(x, str) and x in KTV_REASONS for x in why), "KIEM_TRUY_VET_SAI_KIEU")
     need((ket_luan == "DAT") == (why == []), "KIEM_TRUY_VET_SAI_KIEU")
     script = ktv.get("script")
     need(isinstance(script, dict) and isinstance(script.get("sha256_lf"), str) and SHA_RE.fullmatch(script["sha256_lf"]),
@@ -172,8 +178,6 @@ def report_block(report, sha: dict) -> dict:
          "BAO_CAO_SAI_KIEU")
     need(rf.get("sha256") == sha["quy_tac"], "BAO_CAO_QUY_TAC_SHA_LECH")
     need(inp.get("input_sha256") == sha["cad_read"], "BAO_CAO_INPUT_SHA_LECH")
-    version = label_text(report.get("cadaudit_version"), "BAO_CAO_SAI_KIEU")
-    rules_version = label_text(rf.get("rules_version"), "BAO_CAO_SAI_KIEU")
     need(summary.get("overall") in OVERALLS and isinstance(summary.get("all_rules_approved"), bool), "BAO_CAO_SAI_KIEU")
     note = summary.get("overall_note")
     need(note is None or note == OVERALL_NOTE, "BAO_CAO_SAI_KIEU")
@@ -194,9 +198,7 @@ def report_block(report, sha: dict) -> dict:
             "coverage_complete": r["coverage_complete"],
         })
     return {
-        "cadaudit_version": version,
         "report_schema": report["schema"],
-        "rules_version": rules_version,
         "overall": summary["overall"],
         "all_rules_approved": summary["all_rules_approved"],
         "overall_note": note,
@@ -251,9 +253,7 @@ def tom_tat(args) -> dict:
         "sha256": {"cad_read": sha["cad_read"], "quy_tac": sha["quy_tac"], "bao_cao": sha["bao_cao"],
                    "kiem_truy_vet": sha["kiem_truy_vet"]},
         "cadaudit_sha": args.cadaudit_sha,
-        "cadaudit_version": rep["cadaudit_version"],
         "report_schema": rep["report_schema"],
-        "rules_version": rep["rules_version"],
         "overall": rep["overall"],
         "all_rules_approved": rep["all_rules_approved"],
         "overall_note": rep["overall_note"],

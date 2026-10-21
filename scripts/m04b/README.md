@@ -104,17 +104,19 @@ Sai bất kỳ điều kiện đầu vào nào thì exit 2, không ghi gì, và 
 - JSON có khóa trùng hoặc NaN/Infinity (CAD_READ, báo cáo, tệp kiểm truy vết);
 - tệp kiểm truy vết sai `schema`, có `sha256.*.tinh_duoc` khác hash vừa tính, hoặc `buoc_da_chay` không đủ `1`..`7` (G7 dừng sớm thì bị từ chối);
 - báo cáo có `rules_file.sha256` khác hash tệp quy tắc, hoặc `input.input_sha256` khác hash tệp CAD_READ;
-- trường được đọc sai kiểu hoặc sai enum (kể cả `coverage.layers` và `coverage.xrefs` của CAD_READ);
+- trường được đọc sai kiểu hoặc sai enum (kể cả `coverage.layers` và `coverage.xrefs` của CAD_READ, và mã `ly_do_khong_dat` không nằm trong danh sách mã của G7);
 - `--cadaudit-sha` không đúng 40 hex; `--out` đã tồn tại (tệp, thư mục hay symlink).
 
 Exit: 0 đã ghi output; 2 lỗi đầu vào; 70 lỗi nội bộ. Bản tóm tắt chỉ mô tả, nên kết luận `KHONG_DAT` của G7 vẫn được ghi và chép nguyên (`ket_luan`, `ly_do_khong_dat`), không bị đổi thành lỗi.
 
 Output `tvxd.m04b.tom_tat/v1` được dựng từ danh sách trường cố định, gồm:
-- `sha256` của CAD_READ, quy tắc, báo cáo và tệp kiểm truy vết; `cadaudit_sha`, `cadaudit_version`, `report_schema`, `rules_version`;
+- `sha256` của CAD_READ, quy tắc, báo cáo và tệp kiểm truy vết; `cadaudit_sha`, `report_schema`;
 - `overall`, `all_rules_approved`, `overall_note`, `rules_by_verdict`, `rules_by_status`, `results_by_verdict`;
 - `quy_tac`: từng quy tắc theo thứ tự báo cáo, có `rule_id` (sai dạng thì thành `RULE_<số thứ tự>`), `rule_status`, `classification`, `verdict`, `reasons`, `counts`, `objects_in_scope`, `coverage_complete`;
 - `coverage`: `layers` và `xrefs` với `status`, `expected`, `enumerated`, `reason` (enum); không có `note`;
 - `kiem_truy_vet`: `ket_luan`, `ly_do_khong_dat`, `script_sha256_lf`; `script`: `sha256_tho`, `sha256_lf` của chính `tom_tat.py`; `tao_luc` (UTC+7).
+
+Mọi chuỗi trong output chỉ là hex, enum cố định, `rule_id` đúng regex (hoặc `RULE_<số thứ tự>`) hoặc `tao_luc`. Không có chuỗi văn bản tự do. `cadaudit_version` và `rules_version` không được chép vì hai nhãn này có thể mang đường dẫn; `cadaudit_sha` và `sha256.quy_tac` đã định danh phiên bản.
 
 Output không có `drawing`, `file_id`, hash DWG, `results[]`, handle, tên layer hay xref, `actual`/`expected` của dòng, evidence ID, `note` tự do hay đường dẫn. Khi đối chiếu SHA của script, dùng `sha256_lf`.
 

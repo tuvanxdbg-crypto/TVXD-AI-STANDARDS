@@ -35,8 +35,7 @@ INPUTS = ("cad_read_pass.json", "cad_read_fail.json", "cad_read_unknown.json")
 RULES = ("rules_internal.yaml", "rules_standard.yaml")
 KEYS = ("cad_read", "quy_tac", "bao_cao")
 
-TOP_KEYS = {"schema", "sha256", "cadaudit_sha", "cadaudit_version", "report_schema", "rules_version", "overall",
-            "all_rules_approved", "overall_note", "rules_by_verdict", "rules_by_status", "results_by_verdict", "quy_tac",
+TOP_KEYS = {"schema", "sha256", "cadaudit_sha", "report_schema", "overall", "all_rules_approved", "overall_note", "rules_by_verdict", "rules_by_status", "results_by_verdict", "quy_tac",
             "coverage", "kiem_truy_vet", "script", "tao_luc"}
 RULE_KEYS = {"rule_id", "rule_status", "classification", "verdict", "reasons", "counts", "objects_in_scope",
              "coverage_complete"}
@@ -217,8 +216,9 @@ class Good(Base):
                 self.assertTrue(all(re.fullmatch(r"[0-9a-f]{64}", v) for v in o["sha256"].values()))
                 self.assertEqual(o["cadaudit_sha"], GIT_SHA)
                 rep = st.report
-                self.assertEqual((o["cadaudit_version"], o["report_schema"], o["rules_version"]),
-                                 (rep["cadaudit_version"], rep["schema"], rep["rules_file"]["rules_version"]))
+                self.assertEqual(o["report_schema"], rep["schema"])
+                self.assertNotIn("cadaudit_version", o)       # nhãn văn bản của báo cáo/quy tắc có thể mang đường dẫn
+                self.assertNotIn("rules_version", o)
                 sm = rep["summary"]
                 self.assertEqual((o["overall"], o["all_rules_approved"], o["overall_note"]),
                                  (sm["overall"], sm["all_rules_approved"], sm.get("overall_note")))
@@ -569,6 +569,8 @@ class Refused(Base):
                  "dat_nhung_co_ly_do": lambda k: k.update(ly_do_khong_dat=["COUNTS_LECH"]),
                  "khong_dat_khong_ly_do": lambda k: k.update(ket_luan="KHONG_DAT"),
                  "ly_do_tu_do": lambda k: k.update(ket_luan="KHONG_DAT", ly_do_khong_dat=["layer wall_01 sai"]),
+                 "ly_do_dung_dang_nhung_la": lambda k: k.update(ket_luan="KHONG_DAT", ly_do_khong_dat=["DRAWING01"]),
+                 "ly_do_la_duong_dan": lambda k: k.update(ket_luan="KHONG_DAT", ly_do_khong_dat=["C:\\PRIVATE\\DRAWING01.dwg"]),
                  "ly_do_khong_phai_chuoi": lambda k: k.update(ket_luan="KHONG_DAT", ly_do_khong_dat=[3]),
                  "ly_do_khong_phai_list": lambda k: k.update(ket_luan="KHONG_DAT", ly_do_khong_dat="COUNTS_LECH"),
                  "script_hash_sai_dang": lambda k: k["script"].update(sha256_lf="xyz"),
@@ -620,12 +622,6 @@ class Refused(Base):
             "by_verdict_them_khoa": lambda r: r["summary"]["rules_by_verdict"].update(EXTRA=0),
             "by_status_thieu": lambda r: r["summary"]["rules_by_status"].pop("APPROVED"),
             "results_by_verdict_float": lambda r: r["summary"]["results_by_verdict"].update(PASS=1.0),
-            "version_rong": lambda r: r.update(cadaudit_version=""),
-            "version_dai": lambda r: r.update(cadaudit_version="v" * 65),
-            "version_dieu_khien": lambda r: r.update(cadaudit_version="0.1\n"),
-            "version_khong_phai_chuoi": lambda r: r.update(cadaudit_version=1),
-            "rules_version_thieu": lambda r: r["rules_file"].pop("rules_version"),
-            "rules_version_dieu_khien": lambda r: r["rules_file"].update(rules_version="a\x00b"),
             "rules_file_khong_phai_dict": lambda r: r.update(rules_file=[]),
             "input_khong_phai_dict": lambda r: r.update(input=None),
         }
@@ -757,6 +753,177 @@ class Refused(Base):
         self.assertEqual((res.code, res.doc), (70, None))
         self.assertIn("ZeroDivisionError", res.stderr)
         self.assertEqual(st.listing(), sorted(["cad_read.json", "rules.yaml", "report.json", "kvt.json"]))
+
+
+# ---------------------------------------------------------------------------------------------------- M04B-SUM-F01
+SENTINEL_LABELS = ("C:\\PRIVATE\\DRAWING01.dwg", "/home/x/DRAWING01.dwg", "DRAWING01.dwg")
+
+# Mọi giá trị chuỗi hợp lệ trong output, viết lại độc lập với script.
+ENUM_VALUES = {
+    "tvxd.m04b.tom_tat/v1", "tvxd.cadaudit.report/v1",
+    "PASS", "FAIL", "UNKNOWN", "FIXTURE", "PROPOSED", "APPROVED", "INTERNAL_ONLY", "STANDARD_REQUIRED",
+    "HAS_FAIL", "HAS_UNKNOWN", "ALL_RULES_PASS", "RULES_NOT_APPROVED",
+    "COVERAGE_INCOMPLETE", "FIELD_MISSING", "STANDARD_LOOKUP_NOT_ENABLED", "NO_OBJECTS_IN_SCOPE",
+    "COMPLETE", "INCOMPLETE", "NOT_EXTRACTED",
+    "XREF_DEPENDENT", "READ_ERROR", "TIMEOUT", "PARTIAL_ENUMERATION", "NOT_REQUESTED",
+    "DAT", "KHONG_DAT", *kv.REASON_ORDER,
+}
+VALUE_PATTERNS = (re.compile(r"[0-9a-f]{64}"), re.compile(r"[0-9a-f]{40}"), re.compile(r"[A-Z][A-Z0-9_-]{1,63}"),
+                  re.compile(r"RULE_\d+"), re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+07:00"))
+
+
+def yaml_with_rules_version(rules: bytes, version: str) -> bytes:
+    lines = rules.decode("utf-8").splitlines()
+    out, seen = [], 0
+    for line in lines:
+        if line.startswith("rules_version:"):
+            line, seen = "rules_version: '%s'" % version.replace("'", "''"), seen + 1
+        out.append(line)
+    assert seen == 1
+    return ("\n".join(out) + "\n").encode("utf-8")
+
+
+class VersionLabels(Base):
+    def assertNoSentinel(self, res):
+        for label in SENTINEL_LABELS:
+            self.assertNotIn(label, res.text)
+            self.assertNotIn(label.replace("\\", "\\\\"), res.text)       # dạng thoát trong JSON
+        for part in ("PRIVATE", "DRAWING01", "home/x"):
+            self.assertNotIn(part, res.text)
+
+    def test_a_path_in_report_cadaudit_version_does_not_reach_the_output(self):
+        pipe = self.pipe()
+        for label in SENTINEL_LABELS:
+            with self.subTest(label=label):
+                st = pipe.stage(report_fn=lambda r, v=label: r.update(cadaudit_version=v), rerun_kvt=True)
+                self.assertEqual((st.kvt_code, st.kvt["ket_luan"], st.kvt["ly_do_khong_dat"]), (0, "DAT", []))   # G7 vẫn DAT
+                self.assertEqual(st.report["cadaudit_version"], label)
+                res = st.run()
+                self.assertWrote(res)
+                self.assertNoSentinel(res)
+                self.assertNotIn("cadaudit_version", res.doc)
+
+    def test_a_path_in_the_rules_file_version_does_not_reach_the_output(self):
+        pipe = self.pipe()
+        for label in SENTINEL_LABELS:
+            with self.subTest(label=label):
+                rules = yaml_with_rules_version(pipe.rules_bytes, label)
+                st = pipe.stage(rules=rules, rerun_kvt=True)
+                self.assertEqual(st.report["rules_file"]["rules_version"], label)    # do run_audit gốc tạo
+                self.assertEqual((st.kvt_code, st.kvt["ket_luan"], st.kvt["ly_do_khong_dat"]), (0, "DAT", []))
+                res = st.run()
+                self.assertWrote(res)
+                self.assertNoSentinel(res)
+                self.assertNotIn("rules_version", res.doc)
+
+    def test_a_path_in_both_version_labels_at_once(self):
+        pipe = self.pipe()
+        for label in SENTINEL_LABELS:
+            with self.subTest(label=label):
+                st = pipe.stage(rules=yaml_with_rules_version(pipe.rules_bytes, label),
+                                report_fn=lambda r, v=label: r.update(cadaudit_version=v), rerun_kvt=True)
+                self.assertEqual((st.kvt_code, st.kvt["ket_luan"]), (0, "DAT"))
+                res = st.run()
+                self.assertWrote(res)
+                self.assertNoSentinel(res)
+
+    def test_the_reason_codes_the_summary_accepts_are_exactly_those_of_g7(self):
+        self.assertEqual(tt.KTV_REASONS, kv.REASON_ORDER)
+
+    def test_every_string_in_the_output_is_hex_a_fixed_enum_a_rule_id_or_the_time(self):
+        """Duyệt mọi giá trị chuỗi: không có `\\`, `/`, `.dwg` hay `.dxf`, ngoài hai schema id đã biết."""
+        for inp, rules in [(i, r) for i in INPUTS for r in RULES]:
+            with self.subTest(inp=inp, rules=rules):
+                st = Pipeline(self, inp, rules, cad_pre=plant if inp == "cad_read_pass.json" else None).base
+                res = st.run()
+                self.assertWrote(res)
+                self.check_strings(res.doc)
+        # một ca KHONG_DAT với nhiều lý do và một rule_id lạ
+        def tamper(r):
+            r["rules"][0]["counts"]["PASS"] += 1
+            r["rules"][1]["rule_id"] = "C:\\PRIVATE\\DRAWING01.dwg"
+        st = self.pipe().stage(report_fn=tamper, rerun_kvt=True)
+        res = st.run()
+        self.assertWrote(res)
+        self.assertEqual(res.doc["kiem_truy_vet"]["ket_luan"], "KHONG_DAT")
+        self.check_strings(res.doc)
+
+    def check_strings(self, doc):
+        for text in all_strings(doc, keys=False):
+            known = text in ENUM_VALUES or any(p.fullmatch(text) for p in VALUE_PATTERNS)
+            self.assertTrue(known, f"the output has a string of no known kind: {text!r}")
+            if text not in ("tvxd.m04b.tom_tat/v1", "tvxd.cadaudit.report/v1"):
+                for bad in ("\\", "/", ".dwg", ".dxf"):
+                    self.assertNotIn(bad, text)
+        for key in all_strings(doc, keys=True):
+            for bad in ("\\", "/", ".dwg", ".dxf", ":"):
+                if key.startswith("tvxd") or re.fullmatch(r"\d{4}-.*", key):
+                    continue
+                self.assertNotIn(bad, key)
+
+
+# ---------------------------------------------------------------------------------------------------- M04B-RUN-F01
+class RunbookLayout(Base):
+    """Bố trí của runbook: `<WORK>/input/` (CAD_READ, quy tắc) và `<WORK>/out/` (ba tệp output), ngang hàng nhau.
+    Guard D6 của cadaudit từ chối thư mục đầu vào và mọi thư mục con của nó, nên `out/` không được nằm trong `input/`."""
+
+    def run_py(self, *argv):
+        env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+        return subprocess.run([sys.executable, *[str(a) for a in argv]], capture_output=True, text=True, env=env, cwd=REPO)
+
+    def work(self):
+        work = os.path.realpath(tempfile.mkdtemp(prefix="m04b-run-"))
+        self.addCleanup(shutil.rmtree, work, True)
+        return work
+
+    def test_sibling_layout_runs_cadaudit_then_g7_then_the_summary(self):
+        work = self.work()
+        inp, out = os.path.join(work, "input"), os.path.join(work, "out")
+        os.mkdir(inp)
+        os.mkdir(out)
+        cad, rules = os.path.join(inp, "cad_read.json"), os.path.join(inp, "check_rules.approved.yaml")
+        for src, dst in (("cad_read_pass.json", cad), ("rules_internal.yaml", rules)):
+            with open(dst, "wb") as f:
+                f.write(read_bytes(fx(src)))
+        report, ktv, summary = (os.path.join(out, n) for n in ("report.json", "kiem_truy_vet.json", "tom_tat.json"))
+
+        r = self.run_py("-m", "cadaudit", "check", "--input", cad, "--rules", rules, "--out", report)
+        self.assertEqual((r.returncode, r.stderr), (0, ""), r.stderr)
+        pins = {k: sha(read_bytes(p)) for k, p in (("cad", cad), ("rules", rules), ("report", report))}
+
+        r = self.run_py(os.path.join(SCRIPT_DIR, "kiem_truy_vet.py"), "--cad-read", cad, "--rules", rules, "--report", report,
+                        "--sha256-cad-read", pins["cad"], "--sha256-rules", pins["rules"], "--sha256-report", pins["report"],
+                        "--out", ktv)
+        self.assertEqual((r.returncode, r.stdout.strip()), (0, "kiem_truy_vet: ket_luan=DAT"), r.stderr)
+
+        r = self.run_py(SCRIPT, "--cad-read", cad, "--rules", rules, "--report", report, "--kiem-truy-vet", ktv,
+                        "--sha256-cad-read", pins["cad"], "--sha256-rules", pins["rules"], "--sha256-report", pins["report"],
+                        "--cadaudit-sha", GIT_SHA, "--out", summary)
+        self.assertEqual((r.returncode, r.stderr), (0, ""), r.stderr)
+        doc = json.loads(read_bytes(summary).decode("utf-8"))
+        self.assertEqual(set(doc), TOP_KEYS)
+        self.assertEqual(doc["sha256"], {"cad_read": pins["cad"], "quy_tac": pins["rules"], "bao_cao": pins["report"],
+                                         "kiem_truy_vet": sha(read_bytes(ktv))})
+        self.assertEqual(doc["kiem_truy_vet"]["ket_luan"], "DAT")
+        self.assertEqual(sorted(os.listdir(out)), ["kiem_truy_vet.json", "report.json", "tom_tat.json"])
+        self.assertEqual(sorted(os.listdir(inp)), ["cad_read.json", "check_rules.approved.yaml"])     # đầu vào không bị đụng
+        self.assertEqual(sha(read_bytes(cad)), pins["cad"])
+
+    def test_nested_layout_is_refused_by_the_cadaudit_guard_and_creates_no_report(self):
+        work = self.work()
+        inp = os.path.join(work, "input")
+        out = os.path.join(inp, "out")                    # lồng: out/ nằm trong thư mục chứa đầu vào
+        os.makedirs(out)
+        cad, rules = os.path.join(inp, "cad_read.json"), os.path.join(inp, "check_rules.approved.yaml")
+        for src, dst in (("cad_read_pass.json", cad), ("rules_internal.yaml", rules)):
+            with open(dst, "wb") as f:
+                f.write(read_bytes(fx(src)))
+        report = os.path.join(out, "report.json")
+        r = self.run_py("-m", "cadaudit", "check", "--input", cad, "--rules", rules, "--out", report)
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("OUT_IN_INPUT_DIR", r.stderr)
+        self.assertFalse(os.path.exists(report))
+        self.assertEqual(os.listdir(out), [])
 
 
 # ---------------------------------------------------------------------------------------------------- kiểm soát tĩnh

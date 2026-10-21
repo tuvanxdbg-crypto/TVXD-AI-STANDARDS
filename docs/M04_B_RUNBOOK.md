@@ -32,9 +32,11 @@ Dùng **một** bản checkout TVXD-AI-STANDARDS tại một SHA của `main` th
 ## 3. Nơi chạy và nơi để tệp
 
 - Mọi bước chạy trên máy ducdq (B3). Môi trường cloud không nhận bản vẽ, JSON `dwgread`, tệp CAD_READ hay báo cáo đầy đủ.
-- Tạo một thư mục làm việc **ngoài** cả hai repo, ví dụ `<WORK>`.
-  - Tệp CAD_READ, báo cáo `cadaudit`, output kiểm truy vết và bản tóm tắt đều nằm ở đó.
-  - `cadaudit` từ chối ghi báo cáo vào thư mục chứa đầu vào, nên báo cáo đặt ở thư mục con riêng, ví dụ `<WORK>\out\`.
+- Tạo một thư mục làm việc **ngoài** cả hai repo, ví dụ `<WORK>`, với hai thư mục con **ngang hàng**:
+  - `<WORK>\input\`: tệp CAD_READ và tệp quy tắc;
+  - `<WORK>\out\`: báo cáo `cadaudit`, output kiểm truy vết, bản tóm tắt.
+  - Không đặt `out` bên trong `input`, và không đặt đầu vào trực tiếp trong `<WORK>` rồi ghi vào `<WORK>\out\`. Guard D6 của `cadaudit` từ chối ghi báo cáo vào thư mục chứa đầu vào **và mọi thư mục con của nó** (`OUT_IN_INPUT_DIR`).
+  - Tạo sẵn hai thư mục, ví dụ PowerShell: `New-Item -ItemType Directory <WORK>\input, <WORK>\out`.
 - Chỉ hai tệp đã lọc được chép vào repo (bước 8).
 
 ## 4. Chuẩn bị bản checkout TVXD-AI-STANDARDS
@@ -51,9 +53,9 @@ Chạy các lệnh Python từ thư mục `<TVXD>`. Python 3.11 và PyYAML như 
 
 ## 5. Trích xuất (bên CHUAN-HOA-CAD, theo gói G3)
 
-Làm đúng các bước của gói G3 đã duyệt. Kết quả là một tệp CAD_READ v1 trong `<WORK>`, do bộ xuất tại `0223f8e` tạo, sau khi a1–a8 và b1–b4 đều đạt. Bộ xuất báo lỗi thì dừng.
+Làm đúng các bước của gói G3 đã duyệt. Kết quả là một tệp CAD_READ v1, chép vào `<WORK>\input\cad_read.json`, do bộ xuất tại `0223f8e` tạo, sau khi a1–a8 và b1–b4 đều đạt. Bộ xuất báo lỗi thì dừng.
 
-Tệp quy tắc lấy đúng từ CHUAN-HOA-CAD `0b3c5c5`, đặt vào `<WORK>`.
+Tệp quy tắc lấy đúng từ CHUAN-HOA-CAD `0b3c5c5`, đặt vào `<WORK>\input\check_rules.approved.yaml`.
 
 ## 6. Ghim hash
 
@@ -66,19 +68,19 @@ Ghi hai giá trị: `<H_CAD>`, `<H_RULES>`.
 ## 7. Kiểm, kiểm truy vết, tóm tắt
 
 ```text
-python -m cadaudit check --input <WORK>\cad_read.json --rules <WORK>\check_rules.approved.yaml --out <WORK>\out\report.json
+python -m cadaudit check --input <WORK>\input\cad_read.json --rules <WORK>\input\check_rules.approved.yaml --out <WORK>\out\report.json
 ```
 - Exit khác 0 thì dừng.
 - Tính sha256 của báo cáo: `<H_REPORT>`.
 
 ```text
-python scripts\m04b\kiem_truy_vet.py --cad-read <WORK>\cad_read.json --rules <WORK>\check_rules.approved.yaml --report <WORK>\out\report.json --sha256-cad-read <H_CAD> --sha256-rules <H_RULES> --sha256-report <H_REPORT> --out <WORK>\out\kiem_truy_vet.json --nguoi-chay <tên> --nguoi-duyet <tên>
+python scripts\m04b\kiem_truy_vet.py --cad-read <WORK>\input\cad_read.json --rules <WORK>\input\check_rules.approved.yaml --report <WORK>\out\report.json --sha256-cad-read <H_CAD> --sha256-rules <H_RULES> --sha256-report <H_REPORT> --out <WORK>\out\kiem_truy_vet.json --nguoi-chay <tên> --nguoi-duyet <tên>
 ```
 - Exit 0 là DAT; exit 1 là KHONG_DAT, output vẫn được ghi; exit 2 hoặc 70 thì dừng.
 - KHONG_DAT thì M04-B không được nghiệm thu (kế hoạch mục 5.1). Nếu kiểm truy vết đã chạy đủ 7 bước, vẫn chạy bước tóm tắt để có hồ sơ phân tích. Nếu nó dừng sớm ở bước 1 (sai hash) hoặc bước 2 (sai schema, sai coverage), `tom_tat.py` từ chối với exit 2: dừng và ghi lại `ly_do_khong_dat`.
 
 ```text
-python scripts\m04b\tom_tat.py --cad-read <WORK>\cad_read.json --rules <WORK>\check_rules.approved.yaml --report <WORK>\out\report.json --kiem-truy-vet <WORK>\out\kiem_truy_vet.json --sha256-cad-read <H_CAD> --sha256-rules <H_RULES> --sha256-report <H_REPORT> --cadaudit-sha <SHA_TVXD> --out <WORK>\out\tom_tat.json
+python scripts\m04b\tom_tat.py --cad-read <WORK>\input\cad_read.json --rules <WORK>\input\check_rules.approved.yaml --report <WORK>\out\report.json --kiem-truy-vet <WORK>\out\kiem_truy_vet.json --sha256-cad-read <H_CAD> --sha256-rules <H_RULES> --sha256-report <H_REPORT> --cadaudit-sha <SHA_TVXD> --out <WORK>\out\tom_tat.json
 ```
 - Exit khác 0 thì dừng.
 
