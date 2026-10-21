@@ -86,3 +86,38 @@ Khi đối chiếu SHA của script, dùng `sha256_lf`. Checkout trên Windows c
 - Script chỉ kiểm bất biến coverage của loader. Các kiểm khác của loader (handle trùng, tham chiếu treo, tag trùng) không nằm trong script; chúng đã được `cadaudit` kiểm khi tạo báo cáo.
 - Script tin vào tệp quy tắc đã ghim hash. Nó không đánh giá nội dung quy tắc đúng hay sai.
 - `DAT` chỉ nói báo cáo truy được về bản trích xuất. Nó không kết luận bản vẽ đạt tiêu chuẩn, hợp pháp hay phù hợp thiết kế.
+
+## Bản tóm tắt (`tom_tat.py`)
+
+`tom_tat.py` tạo **bản tóm tắt** theo mục 5 của `docs/M04_B_PLAN.md` và quyết định B1: repo chỉ nhận bản tóm tắt và output đã lọc của G7. Báo cáo `cadaudit` đầy đủ, tệp CAD_READ và tệp quy tắc ở lại máy người dùng. Chạy trên máy người dùng, sau `kiem_truy_vet.py`. Chỉ đọc bốn tệp đầu vào, chỉ tạo một tệp output mới (`xb`, không ghi đè). Chỉ dùng thư viện chuẩn; không import `cadaudit`, `gateway` hay `kiem_truy_vet`. Có script này chưa có nghĩa là bước tóm tắt đã được duyệt: cần REVIEW_V1 và chủ repo duyệt tại một SHA cụ thể.
+
+```text
+python scripts/m04b/tom_tat.py \
+    --cad-read <tệp CAD_READ> --rules <check_rules.approved.yaml> --report <báo cáo cadaudit> \
+    --kiem-truy-vet <output của kiem_truy_vet.py> \
+    --sha256-cad-read <hex> --sha256-rules <hex> --sha256-report <hex> \
+    --cadaudit-sha <40 hex> --out <tệp output mới>
+```
+
+Sai bất kỳ điều kiện đầu vào nào thì exit 2, không ghi gì, và lỗi trên stderr chỉ là mã, không có đường dẫn:
+- sha256 tính được của ba tệp khác giá trị ghim;
+- JSON có khóa trùng hoặc NaN/Infinity (CAD_READ, báo cáo, tệp kiểm truy vết);
+- tệp kiểm truy vết sai `schema`, có `sha256.*.tinh_duoc` khác hash vừa tính, hoặc `buoc_da_chay` không đủ `1`..`7` (G7 dừng sớm thì bị từ chối);
+- báo cáo có `rules_file.sha256` khác hash tệp quy tắc, hoặc `input.input_sha256` khác hash tệp CAD_READ;
+- trường được đọc sai kiểu hoặc sai enum (kể cả `coverage.layers` và `coverage.xrefs` của CAD_READ, và mã `ly_do_khong_dat` không nằm trong danh sách mã của G7);
+- `--cadaudit-sha` không đúng 40 hex; `--out` đã tồn tại (tệp, thư mục hay symlink).
+
+Exit: 0 đã ghi output; 2 lỗi đầu vào; 70 lỗi nội bộ. Bản tóm tắt chỉ mô tả, nên kết luận `KHONG_DAT` của G7 vẫn được ghi và chép nguyên (`ket_luan`, `ly_do_khong_dat`), không bị đổi thành lỗi.
+
+Output `tvxd.m04b.tom_tat/v1` được dựng từ danh sách trường cố định, gồm:
+- `sha256` của CAD_READ, quy tắc, báo cáo và tệp kiểm truy vết; `cadaudit_sha`, `report_schema`;
+- `overall`, `all_rules_approved`, `overall_note`, `rules_by_verdict`, `rules_by_status`, `results_by_verdict`;
+- `quy_tac`: từng quy tắc theo thứ tự báo cáo, có `rule_id` (sai dạng thì thành `RULE_<số thứ tự>`), `rule_status`, `classification`, `verdict`, `reasons`, `counts`, `objects_in_scope`, `coverage_complete`;
+- `coverage`: `layers` và `xrefs` với `status`, `expected`, `enumerated`, `reason` (enum); không có `note`;
+- `kiem_truy_vet`: `ket_luan`, `ly_do_khong_dat`, `script_sha256_lf`; `script`: `sha256_tho`, `sha256_lf` của chính `tom_tat.py`; `tao_luc` (UTC+7).
+
+Mọi chuỗi trong output chỉ là hex, enum cố định, `rule_id` đúng regex (hoặc `RULE_<số thứ tự>`) hoặc `tao_luc`. Không có chuỗi văn bản tự do. `cadaudit_version` và `rules_version` không được chép vì hai nhãn này có thể mang đường dẫn; `cadaudit_sha` và `sha256.quy_tac` đã định danh phiên bản.
+
+Output không có `drawing`, `file_id`, hash DWG, `results[]`, handle, tên layer hay xref, `actual`/`expected` của dòng, evidence ID, `note` tự do hay đường dẫn. Khi đối chiếu SHA của script, dùng `sha256_lf`.
+
+Giới hạn: bản tóm tắt không tự kiểm lại báo cáo (việc của G7) và không kết luận bản vẽ đạt tiêu chuẩn. Chỉ kiểm trên dữ liệu giả trong `tests/m04/test_m04b_tom_tat.py`; chưa chạy trên dữ liệu thật.
