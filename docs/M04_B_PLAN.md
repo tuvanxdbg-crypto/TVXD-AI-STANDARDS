@@ -24,7 +24,7 @@ Bản vá theo REVIEW_V1 `pullrequestreview-5566700969` (PATCH_REQUIRED tại `e
     - Người dùng duyệt X1–X7 ngày 2026-10-19 (HAP-M04B-EXPORTER-P1-01, ghi nhận ở CHUAN-HOA-CAD PR #70).
     - Hợp đồng có bốn đầu vào: JSON `dwgread`, hồ sơ lần đọc `--dwgread-record` (`chc.dwgread_record/v1`), `l01_result.json` đầy đủ, và `--meta`.
     - Điều kiện chấp nhận a1–a8 và b1–b4 ở mục 2.1 của đề nghị.
-    - Bộ xuất chưa được viết.
+    - Bộ xuất được viết sau đó ở run `M04BEX-20261019-01`; hiện trạng xem G2 (mục 3).
 
 ## 2. Mục tiêu
 
@@ -39,7 +39,7 @@ M04-B **không** nhằm kết luận bản vẽ đạt tiêu chuẩn. Nó cũng 
 | # | Điều kiện | Ở đâu | Hiện trạng |
 |---|---|---|---|
 | G1 | Có ít nhất một quy tắc kiểm APPROVED | CHUAN-HOA-CAD | Đạt: HAP-M04B-RULES-01, `0b3c5c5` |
-| G2 | Bộ xuất CAD_READ v1 pha 1 được viết theo đúng hợp đồng bốn đầu vào đã duyệt tại `f19021b` (HAP-M04B-EXPORTER-P1-01), kiểm trên fixture, GPT review PASS và người dùng nghiệm thu **tại một SHA cụ thể**. Lần chạy thật dùng đúng SHA đó | CHUAN-HOA-CAD | Đạt: bộ xuất `M04BEX-20261019-01` tại `0223f8ee5f8d56cdd89d7c93347fd206c4b9bfa1` (`tools/cadread_export.py` sha256 `8de2ea099ff1fea1480ea06d0c369281fe17894ad2fc9fd58dd9d04cb48b551e`), GPT review PASS 5568559484 tại SHA đó, CHUAN-HOA-CAD PR #73 merge `3bc809e`. Chủ repo nghiệm thu ngày 2026-10-19, nguyên văn: "Tôi nghiệm thu bộ xuất CAD_READ pha 1 M04BEX-20261019-01 tại commit 0223f8ee5f8d56cdd89d7c93347fd206c4b9bfa1, giữ LAYER_CONTROL_T_VERIFIED = True." Biên bản `runs/M04BEXNT-20261019-01/` (PR #75, GPT review PASS 5573337156, merge `0ed4c5d`). Chỉ nghiệm thu trên fixture; lần chạy thật dùng đúng SHA này, sửa bộ xuất thì G2 mất hiệu lực |
+| G2 | Bộ xuất CAD_READ v1 pha 1 được viết theo đúng hợp đồng bốn đầu vào đã duyệt tại `f19021b` (HAP-M04B-EXPORTER-P1-01), kiểm trên fixture, GPT review PASS và người dùng nghiệm thu **tại một SHA cụ thể**. Lần chạy thật dùng đúng SHA đó | CHUAN-HOA-CAD | Đạt: bộ xuất `M04BEX-20261019-01` tại `0223f8ee5f8d56cdd89d7c93347fd206c4b9bfa1` (`tools/cadread_export.py` sha256 `8de2ea099ff1fea1480ea06d0c369281fe17894ad2fc9fd58dd9d04cb48b551e`), GPT review PASS 5568559484 tại SHA đó, CHUAN-HOA-CAD PR #73 merge `3bc809e`. Chủ repo nghiệm thu trong chat ngày 2026-10-19 và xác nhận lại trực tiếp trên GitHub ngày 2026-10-21 ([bình luận 6305937402](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/pull/24#issuecomment-6305937402)), nguyên văn: "Tôi nghiệm thu bộ xuất CAD_READ pha 1 M04BEX-20261019-01 tại commit 0223f8ee5f8d56cdd89d7c93347fd206c4b9bfa1, giữ LAYER_CONTROL_T_VERIFIED = True." Biên bản `runs/M04BEXNT-20261019-01/` (PR #75, GPT review PASS 5573337156, merge `0ed4c5d`). Chỉ nghiệm thu trên fixture; lần chạy thật dùng đúng SHA này, sửa bộ xuất thì G2 mất hiệu lực |
 | G3 | Gói duyệt cho lần đọc thật, theo kiểu L01, có review và phê duyệt riêng, gồm: | CHUAN-HOA-CAD | Chưa |
 | | • SHA-256 của bản vẽ được duyệt trước; đọc trên bản sao; | | |
 | | • **script đọc tạo hồ sơ `chc.dwgread_record/v1`**: đo hash bản sao trước, chạy `dwgread`, đo hash và kích thước byte của JSON, đo hash bản sao sau. Script được review và duyệt tại SHA cụ thể; | | |
@@ -48,7 +48,7 @@ M04-B **không** nhằm kết luận bản vẽ đạt tiêu chuẩn. Nó cũng 
 | G4 | Chọn bản vẽ (Q5) có căn cứ thuộc phạm vi mẫu V2 (Q2), và chốt dữ liệu nào được đưa vào repo này | chủ repo | Chưa |
 | G5 | Kế hoạch này có REVIEW_V1 và được chủ repo phê duyệt | repo này | Đạt: REVIEW_V1 PASS tại `00595f6f681efe2494956d19a210d20b995e0ee9` (review 5567822283); chủ repo ra lệnh merge sau PASS ("merge #20", "Chờ PASS rồi merge") và PR #20 merge tại `21eda0bb84600a5aa2bf9d7a06af9c136925c14d`; chủ repo chốt B1–B5 ngày 2026-10-19 (mục 8). Đây là duyệt kế hoạch, không phải quyền chạy |
 | G6 | `cadaudit` dùng nguyên bản tại một SHA ghim (đề xuất `9f11076`). Nếu phải sửa mã thì làm PR riêng, review riêng, trước khi chạy | repo này | Đạt: chủ repo chốt B4 = `9f11076` (mục 8); `cadaudit/` dùng nguyên bản, không cần sửa theo hiểu biết hiện tại. Nếu sau này phải sửa mã thì G6 mất hiệu lực cho tới khi có PR riêng được review |
-| G7 | Có phép kiểm truy vết cục bộ (mục 5.1) đã được review và duyệt tại SHA cụ thể. Phép kiểm này dùng cách giải evidence ID độc lập với `cadaudit`, theo `resolve_evidence` trong `tests/m04/m04_helpers.py` | repo này, PR riêng có review | Chưa |
+| G7 | Có phép kiểm truy vết cục bộ (mục 5.1) đã được review và duyệt tại SHA cụ thể. Phép kiểm này dùng cách giải evidence ID độc lập với `cadaudit`, theo `resolve_evidence` trong `tests/m04/m04_helpers.py` | repo này, PR riêng có review | Đạt: `scripts/m04b/kiem_truy_vet.py` tại `af82d368066ade4a91e6750d08726fc04a7c7079` (sha256 `e8e6ec93549e134e799c8fcbbf24e8ff8014ce871b1e81b3e602afc6eef1ef8a`), PR #23, REVIEW_V1 PASS 5593897008 tại SHA đó. Chủ repo nghiệm thu trên GitHub ngày 2026-10-21 ([bình luận 6305938721](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/pull/24#issuecomment-6305938721)), nguyên văn: "Tôi nghiệm thu script kiểm truy vết G7 tại commit af82d368066ade4a91e6750d08726fc04a7c7079." Chỉ kiểm trên dữ liệu giả; lần chạy thật dùng đúng script này, sửa script thì G7 mất hiệu lực |
 
 Chỉ chạy khi G1–G7 đều đạt.
 

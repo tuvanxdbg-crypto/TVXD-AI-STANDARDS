@@ -44,7 +44,7 @@ Trạng thái:
 - **M04-A: nghiệm thu**, chủ repo nghiệm thu ngày 2026-10-16 tại `c486c8e` (PR #18). REVIEW_V1 PASS tại SHA đó.
 - M04 chưa đóng: theo spec §6, M04 chỉ đóng có giới hạn sau khi M04-A và M04-B đều được nghiệm thu.
 - Chỉ dùng dữ liệu fixture giả (`tests/m04/fixtures/`). Không có AutoCAD, không có file DWG/DXF, không có bản vẽ thật, không gọi Gateway hay NotebookLM.
-- M04-B (chạy trên bản trích xuất thật): kế hoạch `docs/M04_B_PLAN.md` đã duyệt (PR #20) và chủ repo đã chốt B1–B5; G2 đã đạt (bộ xuất CHUAN-HOA-CAD được nghiệm thu tại `0223f8e`); chưa chạy, vì G3, G4, G7 của kế hoạch chưa đạt.
+- M04-B (chạy trên bản trích xuất thật): kế hoạch `docs/M04_B_PLAN.md` đã duyệt (PR #20) và chủ repo đã chốt B1–B5; G2 đã đạt (bộ xuất CHUAN-HOA-CAD được nghiệm thu tại `0223f8e`) và G7 đã đạt (script kiểm truy vết được nghiệm thu tại `af82d36`); chưa chạy, vì G3, G4 của kế hoạch chưa đạt.
 - M04-C (tra tiêu chuẩn), M05 và M06 chưa được phép.
 
 Nội dung M04-A:
