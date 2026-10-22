@@ -6,6 +6,8 @@ Bản vá theo REVIEW_V1 `pullrequestreview-5566700969` (PATCH_REQUIRED tại `e
 - F01: G2, G3, mục 1, mục 4 bước 1 và mục 5 ràng với hợp đồng bộ xuất đã duyệt;
 - F02: mục 5.1 mới, G7, điều kiện 6, B1 và mục 9.
 
+Cập nhật ngày 2026-10-22 theo mục 3 ("nếu hợp đồng bộ xuất đổi … phải đối chiếu lại kế hoạch này và review lại"): bên CHUAN-HOA-CAD, đặc tả gói đọc thật G3 thay L01 bằng L01X và đổi điều kiện a1, a2 của bộ xuất (mục 1, G2, G3, mục 4 bước 1, mục 5). Kế hoạch vẫn chưa cho phép chạy.
+
 ## 1. Căn cứ
 
 - Spec `docs/M04_CAD_AUDIT_READONLY.md` (duyệt tại `a031fc2`):
@@ -25,6 +27,11 @@ Bản vá theo REVIEW_V1 `pullrequestreview-5566700969` (PATCH_REQUIRED tại `e
     - Hợp đồng có bốn đầu vào: JSON `dwgread`, hồ sơ lần đọc `--dwgread-record` (`chc.dwgread_record/v1`), `l01_result.json` đầy đủ, và `--meta`.
     - Điều kiện chấp nhận a1–a8 và b1–b4 ở mục 2.1 của đề nghị.
     - Bộ xuất được viết sau đó ở run `M04BEX-20261019-01`; hiện trạng xem G2 (mục 3).
+  - **Đặc tả gói đọc thật G3:** `runs/M04BRDSPEC-20261021-01/` tại `4579f844f4bd72fb86861e45980542e7dc19339a` (CHUAN-HOA-CAD PR #81, merge `fe7d315`).
+    - GPT review PASS 5595136504 tại SHA đó, sau lần vá F01, F02 của review 5594948878.
+    - Chủ repo chốt Y1–Y7 trên GitHub ngày 2026-10-21 ([bình luận 6308448064](https://github.com/tuvanxdbg-crypto/CHUAN-HOA-CAD/pull/81#issuecomment-6308448064)), nguyên văn: "Tôi chốt Y1–Y7 theo đề xuất của LEAD tại commit 4579f844f4bd72fb86861e45980542e7dc19339a, chấp nhận rủi ro Y3." Biên bản HAP-M04B-G3-SPEC-01, `runs/M04BRDAP-20261021-01/` (PR #82, GPT review PASS 5596161274, merge `42f77b1`).
+    - Nội dung chính: script COM chỉ đọc mới L01X thay `l01_readonly.py` (L01 cần snapshot của đúng một bản vẽ); `dwgread_record.py` tạo hồ sơ lần đọc; `preflight_g3.py` kiểm hash mọi công cụ, cầu nối, bản thực thi `dwgread` và bản sao bản vẽ trước khi chạy; bộ xuất chỉ đổi a1 (`SCOPE` = `L0_XREF_READ_ONLY`) và a2 (`STATE` = `L0_XREF_PASSED`).
+    - Hệ quả cho kế hoạch này: hợp đồng bộ xuất đổi ở a1, a2, nên G2 phải nghiệm thu lại cho bộ xuất mới; G3 theo đặc tả trên. Đây là chốt đặc tả, không phải nghiệm thu công cụ hay quyền chạy.
 
 ## 2. Mục tiêu
 
@@ -39,12 +46,13 @@ M04-B **không** nhằm kết luận bản vẽ đạt tiêu chuẩn. Nó cũng 
 | # | Điều kiện | Ở đâu | Hiện trạng |
 |---|---|---|---|
 | G1 | Có ít nhất một quy tắc kiểm APPROVED | CHUAN-HOA-CAD | Đạt: HAP-M04B-RULES-01, `0b3c5c5` |
-| G2 | Bộ xuất CAD_READ v1 pha 1 được viết theo đúng hợp đồng bốn đầu vào đã duyệt tại `f19021b` (HAP-M04B-EXPORTER-P1-01), kiểm trên fixture, GPT review PASS và người dùng nghiệm thu **tại một SHA cụ thể**. Lần chạy thật dùng đúng SHA đó | CHUAN-HOA-CAD | Đạt: bộ xuất `M04BEX-20261019-01` tại `0223f8ee5f8d56cdd89d7c93347fd206c4b9bfa1` (`tools/cadread_export.py` sha256 `8de2ea099ff1fea1480ea06d0c369281fe17894ad2fc9fd58dd9d04cb48b551e`), GPT review PASS 5568559484 tại SHA đó, CHUAN-HOA-CAD PR #73 merge `3bc809e`. Chủ repo nghiệm thu trong chat ngày 2026-10-19 và xác nhận lại trực tiếp trên GitHub ngày 2026-10-21 ([bình luận 6305937402](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/pull/24#issuecomment-6305937402)), nguyên văn: "Tôi nghiệm thu bộ xuất CAD_READ pha 1 M04BEX-20261019-01 tại commit 0223f8ee5f8d56cdd89d7c93347fd206c4b9bfa1, giữ LAYER_CONTROL_T_VERIFIED = True." Biên bản `runs/M04BEXNT-20261019-01/` (PR #75, GPT review PASS 5573337156, merge `0ed4c5d`). Chỉ nghiệm thu trên fixture; lần chạy thật dùng đúng SHA này, sửa bộ xuất thì G2 mất hiệu lực |
-| G3 | Gói duyệt cho lần đọc thật, theo kiểu L01, có review và phê duyệt riêng, gồm: | CHUAN-HOA-CAD | Chưa |
-| | • SHA-256 của bản vẽ được duyệt trước; đọc trên bản sao; | | |
-| | • **script đọc tạo hồ sơ `chc.dwgread_record/v1`**: đo hash bản sao trước, chạy `dwgread`, đo hash và kích thước byte của JSON, đo hash bản sao sau. Script được review và duyệt tại SHA cụ thể; | | |
-| | • chạy `l01_readonly.py` (cầu COM đã nghiệm thu, không sửa); | | |
-| | • bộ xuất tại SHA của G2 kiểm a1–a8 (hậu kiểm L01: `STATE` = `L0_L1_PASSED`, `POSTCHECK_ERRORS` rỗng, hash trước = sau, `SOURCE_UNCHANGED` và `WC_UNCHANGED` = `true`) và b1–b4 (JSON → hồ sơ → hash nguồn → `--meta` → L01). Sai một điều kiện thì không có bản trích xuất | | |
+| G2 | Bộ xuất CAD_READ v1 pha 1 được viết theo đúng hợp đồng bốn đầu vào đã duyệt tại `f19021b` (HAP-M04B-EXPORTER-P1-01), với a1, a2 nhận L01X theo HAP-M04B-G3-SPEC-01 (Y4), kiểm trên fixture, GPT review PASS và người dùng nghiệm thu **tại một SHA cụ thể**. Lần chạy thật dùng đúng SHA đó | CHUAN-HOA-CAD | **Chưa (phải nghiệm thu lại).** Theo HAP-M04B-G3-SPEC-01 (Y4), bộ xuất đổi a1, a2 để nhận kết quả L01X, nên bản `0223f8e` không dùng cho lần chạy thật. Bản mới: run `M04BEXP2-20261022-01` (CHUAN-HOA-CAD PR #83), đang chờ GPT review; G2 chỉ đạt lại khi bản mới có GPT review PASS và chủ repo nghiệm thu tại SHA cụ thể. Hồ sơ lịch sử, giữ nguyên: bộ xuất `M04BEX-20261019-01` tại `0223f8ee5f8d56cdd89d7c93347fd206c4b9bfa1` (`tools/cadread_export.py` sha256 `8de2ea099ff1fea1480ea06d0c369281fe17894ad2fc9fd58dd9d04cb48b551e`), GPT review PASS 5568559484, CHUAN-HOA-CAD PR #73 merge `3bc809e`, chủ repo nghiệm thu ([bình luận 6305937402](https://github.com/tuvanxdbg-crypto/TVXD-AI-STANDARDS/pull/24#issuecomment-6305937402)), biên bản `runs/M04BEXNT-20261019-01/` (PR #75, merge `0ed4c5d`) |
+| G3 | Gói duyệt cho lần đọc thật, theo đặc tả `runs/M04BRDSPEC-20261021-01/` tại `4579f84` (HAP-M04B-G3-SPEC-01), có review và phê duyệt riêng, gồm: | CHUAN-HOA-CAD | Chưa. Đặc tả và Y1–Y7 đã chốt (mục 1). Ba run viết code đang làm: L01X (`M04BL01X-20261022-01`), `dwgread_record.py` cùng `preflight_g3.py` (`M04BRDREC-20261022-01`), sửa bộ xuất (`M04BEXP2-20261022-01`, PR #83). Mỗi run cần GPT review PASS và chủ repo nghiệm thu tại SHA; sau đó là gói duyệt lần chạy (cần bản vẽ G4) và phê duyệt thực thi |
+| | • SHA-256 và kích thước của bản vẽ được duyệt trước; đọc trên bản sao; | | |
+| | • **preflight** (`preflight_g3.py` và kiểm trong từng công cụ, PF-0…PF-4 của đặc tả): đối chiếu hash mọi công cụ, cầu nối, bản thực thi `dwgread` cùng tệp đi kèm và bản sao bản vẽ với giá trị đã duyệt, trước tác động đầu tiên. Thiếu hay lệch thì dừng; | | |
+| | • **script đọc `dwgread_record.py` tạo hồ sơ `chc.dwgread_record/v1`**: kiểm bản sao đúng hash và không phải bản gốc, kiểm hash bản thực thi trước `--version`, chạy `dwgread` (bản phát hành 0.12.5 hoặc 0.13.3), đo hash và kích thước byte của JSON, đo hash bản sao sau. Script được review và duyệt tại SHA cụ thể; | | |
+| | • chạy L01X (script COM chỉ đọc mới, dùng cầu nối `engine/bridge` đã ghim hash, không sửa; lấy kiểm kê xref và hash, không đọc viewport); | | |
+| | • bộ xuất tại SHA của G2 kiểm a1–a8 (hậu kiểm L01X: `SCOPE` = `L0_XREF_READ_ONLY`, `STATE` = `L0_XREF_PASSED`, `POSTCHECK_ERRORS` rỗng, hash trước = sau, `SOURCE_UNCHANGED` và `WC_UNCHANGED` = `true`) và b1–b4 (JSON → hồ sơ → hash nguồn → `--meta` → L01X). Sai một điều kiện thì không có bản trích xuất | | |
 | G4 | Chọn bản vẽ (Q5) có căn cứ thuộc phạm vi mẫu V2 (Q2), và chốt dữ liệu nào được đưa vào repo này | chủ repo | Chưa |
 | G5 | Kế hoạch này có REVIEW_V1 và được chủ repo phê duyệt | repo này | Đạt: REVIEW_V1 PASS tại `00595f6f681efe2494956d19a210d20b995e0ee9` (review 5567822283); chủ repo ra lệnh merge sau PASS ("merge #20", "Chờ PASS rồi merge") và PR #20 merge tại `21eda0bb84600a5aa2bf9d7a06af9c136925c14d`; chủ repo chốt B1–B5 ngày 2026-10-19 (mục 8). Đây là duyệt kế hoạch, không phải quyền chạy |
 | G6 | `cadaudit` dùng nguyên bản tại một SHA ghim (đề xuất `9f11076`). Nếu phải sửa mã thì làm PR riêng, review riêng, trước khi chạy | repo này | Đạt: chủ repo chốt B4 = `9f11076` (mục 8); `cadaudit/` dùng nguyên bản, không cần sửa theo hiểu biết hiện tại. Nếu sau này phải sửa mã thì G6 mất hiệu lực cho tới khi có PR riêng được review |
@@ -57,7 +65,8 @@ Nếu hợp đồng bộ xuất đổi sau HAP-M04B-EXPORTER-P1-01, phải đố
 ## 4. Luồng chạy dự kiến
 
 1. **Trích xuất** (bên CHUAN-HOA-CAD, trên máy người dùng, theo gói G3).
-   - Script đọc đã duyệt tạo JSON `dwgread` và hồ sơ `chc.dwgread_record/v1`. `l01_readonly.py` tạo `l01_result.json`.
+   - `preflight_g3.py` đối chiếu mọi ghim của gói G3; không đạt thì dừng.
+   - L01X tạo `l01x_result.json`. Script đọc đã duyệt tạo JSON `dwgread` và hồ sơ `chc.dwgread_record/v1` trên bản sao.
    - Bộ xuất tại SHA của G2 nhận bốn đầu vào, kiểm a1–a8 và b1–b4, rồi tạo một tệp CAD_READ v1.
    - Các tệp này ở lại máy người dùng, không commit vào repo nào.
 2. **Kiểm** (trên máy người dùng).
@@ -74,10 +83,11 @@ Các bước 1–3 chạy trên máy người dùng. Môi trường cloud không
 ## 5. Evidence yêu cầu
 
 - `RUN_MANIFEST` bên CHUAN-HOA-CAD cho lần trích xuất. Gồm:
-  - RUN_ID của lần đọc, của run L01, và SHA bộ xuất (G2) cùng SHA script đọc (G3) đã dùng;
+  - RUN_ID của lần đọc, của run L01X, và SHA bộ xuất (G2) cùng SHA các công cụ G3 (L01X, script đọc, preflight) đã dùng;
+  - kết quả preflight đã lọc;
   - sha256 của tệp nguồn trước và sau khi đọc;
   - phiên bản LibreDWG và mã thoát `dwgread`;
-  - sha256 của JSON `dwgread`, của hồ sơ `chc.dwgread_record/v1`, của `l01_result.json`, của `--meta` và của tệp CAD_READ tạo ra;
+  - sha256 của JSON `dwgread`, của hồ sơ `chc.dwgread_record/v1`, của `l01x_result.json`, của `--meta` và của tệp CAD_READ tạo ra;
   - kết quả từng điều kiện a1–a8 và b1–b4 do bộ xuất báo;
   - không ghi đường dẫn máy.
 - Trong repo này, tại `tests/m04/evidence_b/` (tên chốt ở B5):
