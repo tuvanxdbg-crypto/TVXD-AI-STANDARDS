@@ -1,6 +1,6 @@
 # Quy trình chạy M04-B trên bản vẽ thật
 
-Trạng thái: **bản nháp chờ REVIEW_V1**. Tài liệu này chỉ mô tả cách chạy. Nó không cho phép chạy.
+Trạng thái: **đã merge** sau REVIEW_V1 PASS 5594777613 (PR #25); cập nhật ngày 2026-10-22 theo đặc tả gói đọc thật G3 (L01X, bộ xuất mới). Tài liệu này chỉ mô tả cách chạy. Nó không cho phép chạy.
 
 Căn cứ: kế hoạch `docs/M04_B_PLAN.md`, mục 3 (G1–G7), mục 4 (luồng chạy), mục 5 (evidence) và mục 8 (B1–B5). Khi tài liệu này khác kế hoạch, kế hoạch thắng.
 
@@ -11,7 +11,7 @@ Chỉ bắt đầu khi đủ các điều sau, mỗi điều có căn cứ dẫn
 | # | Điều kiện | Căn cứ |
 |---|---|---|
 | 1 | G1–G7 của kế hoạch đều "Đạt" trên `main` | `docs/M04_B_PLAN.md` mục 3 |
-| 2 | Gói đọc thật G3 bên CHUAN-HOA-CAD có review và được chủ repo phê duyệt tại SHA cụ thể | run G3 bên CHUAN-HOA-CAD |
+| 2 | Gói đọc thật G3 bên CHUAN-HOA-CAD, theo đặc tả `runs/M04BRDSPEC-20261021-01/` tại `4579f84`, có review và được chủ repo phê duyệt thực thi tại SHA cụ thể | run G3 bên CHUAN-HOA-CAD |
 | 3 | Bản vẽ G4 đã chọn và có căn cứ thuộc phạm vi mẫu V2. sha256 bản vẽ ghi trong gói G3 | quyết định G4 |
 | 4 | Chủ repo phê duyệt trực tiếp lần chạy này | lời phê duyệt riêng cho lần chạy |
 
@@ -21,7 +21,7 @@ Thiếu một điều thì dừng.
 
 | Thành phần | Phiên bản ghim | Cách kiểm |
 |---|---|---|
-| Bộ xuất CAD_READ (G2) | CHUAN-HOA-CAD `0223f8ee5f8d56cdd89d7c93347fd206c4b9bfa1`, `runs/M04BEX-20261019-01/tools/cadread_export.py` | sha256 `8de2ea099ff1fea1480ea06d0c369281fe17894ad2fc9fd58dd9d04cb48b551e` |
+| Bộ xuất CAD_READ (G2) | **Chưa ghim.** Bộ xuất nhận L01X (run `M04BEXP2-20261022-01`) sau khi có GPT review PASS và chủ repo nghiệm thu tại SHA cụ thể. Bản `0223f8e` (sha256 `8de2ea09…551e`) không nhận L01X, không dùng | SHA và sha256 ghi ở đây khi G2 đạt lại; trước đó không chạy |
 | Tệp quy tắc | CHUAN-HOA-CAD `0b3c5c5`, `approved/check_rules.approved.yaml` | sha256 `c6e94d72f41e7d4af39209b651e35af725f766ac46212ba196f4258680e57c37` |
 | `cadaudit` (B4, G6) | TVXD-AI-STANDARDS, `cadaudit/` không đổi so với `9f11076` | `git diff --stat 9f11076 HEAD -- cadaudit/` rỗng |
 | Script kiểm truy vết (G7) | `scripts/m04b/kiem_truy_vet.py` như tại `af82d368066ade4a91e6750d08726fc04a7c7079` | sha256 `e8e6ec93549e134e799c8fcbbf24e8ff8014ce871b1e81b3e602afc6eef1ef8a`; với checkout Windows dùng trường `sha256_lf` trong output |
@@ -53,7 +53,7 @@ Chạy các lệnh Python từ thư mục `<TVXD>`. Python 3.11 và PyYAML như 
 
 ## 5. Trích xuất (bên CHUAN-HOA-CAD, theo gói G3)
 
-Làm đúng các bước của gói G3 đã duyệt. Kết quả là một tệp CAD_READ v1, chép vào `<WORK>\input\cad_read.json`, do bộ xuất tại `0223f8e` tạo, sau khi a1–a8 và b1–b4 đều đạt. Bộ xuất báo lỗi thì dừng.
+Làm đúng các bước của gói G3 đã duyệt: preflight (`preflight_g3.py`), L01X, `dwgread_record.py`, rồi bộ xuất (đặc tả mục 4). Kết quả là một tệp CAD_READ v1, chép vào `<WORK>\input\cad_read.json`, do bộ xuất tại SHA của G2 (mục 2) tạo, sau khi a1–a8 và b1–b4 đều đạt. Preflight hay một công cụ báo lỗi thì dừng.
 
 Tệp quy tắc lấy đúng từ CHUAN-HOA-CAD `0b3c5c5`, đặt vào `<WORK>\input\check_rules.approved.yaml`.
 
@@ -92,7 +92,7 @@ python scripts\m04b\tom_tat.py --cad-read <WORK>\input\cad_read.json --rules <WO
 4. Thêm `README.md` trong thư mục đó, gồm:
    - các lệnh đã chạy ở bước 4–7, thay mọi đường dẫn bằng `<TVXD>`, `<WORK>`;
    - exit code từng lệnh;
-   - RUN_ID các run bên CHUAN-HOA-CAD, kèm SHA gói G3 và SHA bộ xuất;
+   - RUN_ID các run bên CHUAN-HOA-CAD, kèm SHA gói G3, SHA bộ xuất và SHA các công cụ G3 (L01X, `dwgread_record.py`, `preflight_g3.py`);
    - người chạy, thời điểm theo `YYYY-MM-DD HH:mm +07:00`.
 5. Trước khi commit, kiểm hai tệp JSON không có tên layer, tên xref, handle, tên tệp hay đường dẫn máy. Chạy `python tests/m01/check_no_secrets.py`.
 6. Mở PR nháp, đăng `CLAUDE_EXECUTION_REPORT` với `NEXT_REQUEST`, chờ REVIEW_V1, rồi chủ repo nghiệm thu theo kế hoạch mục 6.
