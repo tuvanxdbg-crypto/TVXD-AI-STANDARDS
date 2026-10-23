@@ -1,6 +1,6 @@
 # Quy trình chạy M04-B trên bản vẽ thật
 
-Trạng thái: **đã merge** sau REVIEW_V1 PASS 5594777613 (PR #25); cập nhật ngày 2026-10-22 theo đặc tả gói đọc thật G3 (L01X, bộ xuất mới). Tài liệu này chỉ mô tả cách chạy. Nó không cho phép chạy.
+Trạng thái: **đã merge** sau REVIEW_V1 PASS 5594777613 (PR #25); cập nhật ngày 2026-10-22 theo đặc tả gói đọc thật G3 (L01X, bộ xuất mới); ngày 2026-10-23 ghim bộ xuất nhận L01X đã nghiệm thu (G2). Tài liệu này chỉ mô tả cách chạy. Nó không cho phép chạy.
 
 Căn cứ: kế hoạch `docs/M04_B_PLAN.md`, mục 3 (G1–G7), mục 4 (luồng chạy), mục 5 (evidence) và mục 8 (B1–B5). Khi tài liệu này khác kế hoạch, kế hoạch thắng.
 
@@ -21,7 +21,7 @@ Thiếu một điều thì dừng.
 
 | Thành phần | Phiên bản ghim | Cách kiểm |
 |---|---|---|
-| Bộ xuất CAD_READ (G2) | **Chưa ghim.** Bộ xuất nhận L01X (run `M04BEXP2-20261022-01`) sau khi có GPT review PASS và chủ repo nghiệm thu tại SHA cụ thể. Bản `0223f8e` (sha256 `8de2ea09…551e`) không nhận L01X, không dùng | SHA và sha256 ghi ở đây khi G2 đạt lại; trước đó không chạy |
+| Bộ xuất CAD_READ (G2) | CHUAN-HOA-CAD `f2a92f8eaab7d2398e06eefedfb2eb59abe2d277`, `runs/M04BEXP2-20261022-01/tools/cadread_export.py` (`EXPORTER_VERSION` `1.1.0-l01x`, nhận L01X). Bản `0223f8e` không nhận L01X, không dùng | sha256 `01121d368988351a5256433ff0fda7456d6bb43d37ad929067a6a99f46e54877` |
 | Tệp quy tắc | CHUAN-HOA-CAD `0b3c5c5`, `approved/check_rules.approved.yaml` | sha256 `c6e94d72f41e7d4af39209b651e35af725f766ac46212ba196f4258680e57c37` |
 | `cadaudit` (B4, G6) | TVXD-AI-STANDARDS, `cadaudit/` không đổi so với `9f11076` | `git diff --stat 9f11076 HEAD -- cadaudit/` rỗng |
 | Script kiểm truy vết (G7) | `scripts/m04b/kiem_truy_vet.py` như tại `af82d368066ade4a91e6750d08726fc04a7c7079` | sha256 `e8e6ec93549e134e799c8fcbbf24e8ff8014ce871b1e81b3e602afc6eef1ef8a`; với checkout Windows dùng trường `sha256_lf` trong output |
